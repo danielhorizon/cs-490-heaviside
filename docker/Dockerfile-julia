@@ -1,0 +1,73 @@
+# https://raw.githubusercontent.com/gragusa/docker/latest/Dockerfile
+FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG gid
+ARG uid
+
+WORKDIR /opt
+
+RUN apt-get update && \
+    apt-get install --yes --no-install-recommends \
+                    # basic stuff
+                    build-essential ca-certificates \
+                    # Julia
+                    cmake curl gfortran git m4 python \
+                    # GPUArrays
+                    libclfft-bin libclblas-bin && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/JuliaLang/julia.git && \
+    cd julia && \
+    git checkout v1.3.1
+
+## build
+
+WORKDIR /opt/julia
+
+RUN make all -j$(nproc) \
+        MARCH=x86-64 \
+        JULIA_CPU_TARGET=x86-64 && \
+    rm -rf deps/scratch deps/srccache usr-staging
+
+
+## packages
+
+WORKDIR /opt/julia/usr/bin
+
+ENV JULIA_PKGDIR /template
+
+
+RUN apt-get update && \
+    apt-get install --yes --no-install-recommends \
+        sudo && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Replace 1001 with your user / group id
+ENV UID=$uid
+ENV GID=$gid
+RUN mkdir -p /app && \
+    echo "app:x:${UID}:${GID}:App,,,:/app:/bin/bash" >> /etc/passwd && \
+    echo "app:x:${GID}:" >> /etc/group && \
+    echo "app ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/app && \
+    chmod 0440 /etc/sudoers.d/app && \
+    chown ${UID}:${GID} -R /app
+
+USER app
+ENV HOME /app
+
+RUN ./julia -e 'using Pkg; Pkg.add("AdversarialPrediction")'
+RUN ./julia -e 'using Pkg; Pkg.add("Flux")'
+RUN ./julia -e 'using Pkg; Pkg.add("StatsBase")'
+RUN ./julia -e 'using Pkg; Pkg.add("DelimitedFiles")'
+RUN ./julia -e 'using Pkg; Pkg.add("BSON")'
+RUN ./julia -e 'using Pkg; Pkg.add("LoggingExtras")'
+RUN ./julia -e 'using Pkg; Pkg.add(PackageSpec(url = "https://github.com/vitskvara/EvalCurves.jl"))'
+RUN ./julia -e 'using Pkg; Pkg.add("CuArrays")'
+RUN ./julia -e 'using Pkg; Pkg.add("CUDAdrv")'
+RUN ./julia -e 'using Pkg; Pkg.add("CUDAnative")'
+RUN ./julia -e 'using Pkg; Pkg.add(PackageSpec(url = "https://github.com/JuliaStats/MLBase.jl"))'
+
+RUN echo "PATH=/opt/julia/usr/bin/:$PATH" >> $HOME/.bashrc

@@ -1,0 +1,95 @@
+FROM nvidia/cudagl:10.1-devel-ubuntu18.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG gid
+ARG uid
+
+# x2go
+RUN (apt-get update && \
+     apt-get install -y software-properties-common && \
+     add-apt-repository -y ppa:x2go/stable && \
+     apt-get update && \
+     DEBIAN_FRONTEND=noninteractive apt-get install -y \
+         x2goserver x2goserver-xsession ttf-dejavu fonts-ipafont-gothic \
+         openbox obconf obmenu conky nitrogen \
+         sudo rxvt-unicode-256color \
+         vim)
+RUN apt-get update && apt-get install -y \
+    xfce4 nomacs
+
+RUN (mkdir -p /var/run/sshd && \
+     sed -ri 's/UseDNS yes/#UseDNS yes/g' /etc/ssh/sshd_config && \
+     echo "UseDNS no" >> /etc/ssh/sshd_config && \
+     sed -ri 's/UsePAM yes/UsePAM no/g' /etc/ssh/sshd_config)
+#     sed -ri 's/#UsePAM no/UsePAM no/g' /etc/ssh/sshd_config)
+
+# python3 / jupyter / tensorflow
+RUN apt-get update && apt-get install -y \
+  python3-pip \
+  python3-tk \
+  python3-venv \
+  python3-opencv
+RUN python3 -m pip install --upgrade pip
+RUN pip3 install scikit-learn \
+    imbalanced-learn \
+    jupyter \
+    pandas \
+    h5py \
+    pillow \
+    requests \
+    imageio \
+    seaborn \
+    sklearn \
+    graphviz
+
+RUN pip3 install jupyter_nbextensions_configurator \
+                 jupyter_contrib_nbextensions
+RUN jupyter contrib nbextension install
+RUN jupyter nbextensions_configurator enable
+
+
+
+# pdf utils
+RUN apt install -y poppler-utils
+
+# CUDNN 7 for tf2
+ENV CUDNN_VERSION 7.6.4.38
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcudnn7=$CUDNN_VERSION-1+cuda10.1 \
+    libcudnn7-dev=$CUDNN_VERSION-1+cuda10.1 && \
+    apt-mark hold libcudnn7 && \
+    rm -rf /var/lib/apt/lists/*
+
+# tf2
+RUN pip3 install tensorflow-gpu tensorflow_datasets
+RUN pip3 install setuptools==41.6.0
+
+# for the keras vae example
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    graphviz
+RUN pip3 install pydot
+
+# install fonts
+RUN echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | debconf-set-selections
+RUN apt-get install -y ttf-mscorefonts-installer
+RUN rm ~/.cache/matplotlib -fr
+
+# Replace 1001 with your user / group id
+ENV UID=$uid
+ENV GID=$gid
+RUN mkdir -p /app && \
+    echo "app:x:${UID}:${GID}:App,,,:/app:/bin/bash" >> /etc/passwd && \
+    echo "app:x:${GID}:" >> /etc/group && \
+    echo "app ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/app && \
+    chmod 0440 /etc/sudoers.d/app && \
+    chown ${UID}:${GID} -R /app
+
+EXPOSE 2222 6009
+ADD ./docker/startsshd.sh /root/startsshd.sh
+RUN chmod 744 /root/startsshd.sh
+ENTRYPOINT ["sudo", "/root/startsshd.sh"]
+
+USER app
+ENV HOME /app
+
+RUN echo "LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH" >> $HOME/.bashrc
