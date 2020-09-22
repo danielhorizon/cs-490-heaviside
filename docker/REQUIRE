@@ -1,0 +1,10 @@
+AdversarialPrediction
+Flux@0.10
+StatsBase
+DelimitedFiles
+BSON
+LoggingExtras
+EvalCurves
+CuArrays
+CUDAdrv
+CUDAnative
