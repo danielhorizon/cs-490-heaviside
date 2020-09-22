@@ -1,0 +1,43 @@
+# FROM nvidia/cuda:10.2-cudnn7-devel
+FROM ubuntu:18.04
+
+ARG gid
+ARG uid
+
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get update && apt-get install -y \
+	python3-opencv ca-certificates python3-dev git wget sudo  \
+	cmake ninja-build protobuf-compiler libprotobuf-dev && \
+  rm -rf /var/lib/apt/lists/*
+RUN ln -sv /usr/bin/python3 /usr/bin/python
+
+
+RUN apt-get update && apt-get install -y \
+    wget \
+    sudo \
+    vim
+
+# Replace 1001 with your user / group id
+ENV UID=$uid
+ENV GID=$gid
+RUN mkdir -p /app && \
+    echo "app:x:${UID}:${GID}:App,,,:/app:/bin/bash" >> /etc/passwd && \
+    echo "app:x:${GID}:" >> /etc/group && \
+    echo "app ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/app && \
+    chmod 0440 /etc/sudoers.d/app && \
+    chown ${UID}:${GID} -R /app
+
+USER app
+ENV HOME /app
+WORKDIR /app
+
+ENV PATH="/app/.local/bin:${PATH}"
+RUN wget https://bootstrap.pypa.io/get-pip.py && \
+	python3 get-pip.py --user && rm get-pip.py
+RUN pip install ap_perf \
+                pytorch-ignite \
+                torch torchvision \
+                tensorboard cython \
+                imbalanced-learn \
+                pandas
+RUN pip install numpy --upgrade

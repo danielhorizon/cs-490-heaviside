@@ -7,12 +7,12 @@
     "type": "git"
   },
   "scripts": {
-    "build": "docker build --build-arg gid=$(id -g) --build-arg uid=$(id -u) . -t tf-fmo -f docker/Dockerfile",
+    "build": "docker build --build-arg gid=$(id -g) --build-arg uid=$(id -u) . -t tf-fmo -f docker/Dockerfile-nogpu",
     "start": "docker run --gpus all --rm -v $(pwd):/app/timeseries -v $HOME/.ssh/authorized_keys:/app/.ssh/authorized_keys -v $HOME/.bash_history:/app/.bash_history -it -d --name=tf-fmo -p 3334:2222 -p 6012:6009 -p 9998:9999 tf-fmo",
     "stop": "docker stop $(docker container ls -q --filter name=tf-fmo*)",
     "restart": "yarn stop; yarn start",
     "shell": "docker exec -it $(docker container ls -q --filter name=tf-fmo*) /bin/bash",
-    "torch-build": "docker build --build-arg gid=$(id -g) --build-arg uid=$(id -u) . -t torch-fmo -f docker/Dockerfile-torch",
+    "torch-build": "docker build --build-arg gid=$(id -g) --build-arg uid=$(id -u) . -t torch-fmo -f docker/Dockerfile-torch-nogpu",
     "torch-start": "docker run --runtime=nvidia --rm -v $(pwd):/app/timeseries -v $HOME/.ssh/authorized_keys:/app/.ssh/authorized_keys -v $HOME/.bash_history:/app/.bash_history -it -d --name=torch-fmo -p 6013:6009 torch-fmo",
     "torch-stop": "docker stop $(docker container ls -q --filter name=torch-fmo*)",
     "torch-shell": "docker exec -it $(docker container ls -q --filter name=torch-fmo*) /bin/bash"
