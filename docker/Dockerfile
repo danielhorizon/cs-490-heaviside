@@ -61,12 +61,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 # tf2
-<<<<<<< HEAD
 # replacing tensorflow-gpu with tensorflow 
 RUN pip3 install tensorflow tensorflow_datasets
-=======
-RUN pip3 install tensorflow-gpu tensorflow_datasets
->>>>>>> 1ab60aefd0a7344a6e7c137a40df773706acd3d3
 RUN pip3 install setuptools==41.6.0
 
 # for the keras vae example
