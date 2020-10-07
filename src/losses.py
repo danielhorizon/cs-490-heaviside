@@ -1,9 +1,9 @@
 import math
-
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
-import numpy as np
+
 from heavisidefunctions import *
 
 HEAVISIDE = ['f1_05_sig_k10', 'f1_05_sig_k20', 'f1_05_sig_fit'] + ['f1_mean', 'f1_mean_sig_k10', 'f1_mean_sig_k20', 'f1_mean_sig_fit']
@@ -54,7 +54,7 @@ def get(loss):
         raise RuntimeError("Unknown Loss {}".format(loss))
 
 def l_tp(gt, pt, thresh, heaviside=linear_heaviside):
-    #assert gt.shape == pt.shape
+    # assert gt.shape == pt.shape
     # output closer to 1 if a true positive, else closer to 0
     #  tp: (gt == 1 and pt == 1) -> closer to 1 -> (inverter = false)
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (inverter = false)

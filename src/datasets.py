@@ -1,28 +1,26 @@
+import logging
+from collections import Counter
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from imblearn.datasets import make_imbalance
+from sklearn.datasets import make_blobs
+from sklearn.metrics import confusion_matrix
+import sklearn
+import pandas as pd
+import numpy as np
+import scipy.io as sio
 from setup_paths import *
 
 REPORTED = ['cocktailparty', 'mammography', 'kaggle_cc_fraud', 'uci_adult']
-REAL = ['cocktailparty', 'mammography', 'kaggle_cc_fraud', 'uci_adult', 'titanic', 'winequality', 'robotabuse']
+REAL = ['cocktailparty', 'mammography', 'kaggle_cc_fraud',
+        'uci_adult', 'titanic', 'winequality', 'robotabuse']
 SYNTHETIC = ['synthetic', 'synthetic_33', 'synthetic_05']
 ALL = REAL + SYNTHETIC
 
-import scipy.io as sio
-
-import numpy as np
-import pandas as pd
-
-import sklearn
-from sklearn.metrics import confusion_matrix
-from sklearn.datasets import make_blobs
-from imblearn.datasets import make_imbalance
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-
-from collections import Counter
-
-import logging
 
 def robotabuse_inverted():
     return robotabuse(invert=True)
+
 
 def robotabuse(shuffle=True, invert=False):
     raw_df = pd.read_csv(DATA_PATH.joinpath('robotabuse/agg_df.csv'))
@@ -30,10 +28,10 @@ def robotabuse(shuffle=True, invert=False):
     raw_df = raw_df.drop(columns=drop_cols)
 
     # Make labels 0 or 1
-    numerize = lambda x: 1 if x == "sad" else 0
+    def numerize(x): return 1 if x == "sad" else 0
     raw_df['condition'] = raw_df['condition'].apply(numerize)
     if invert:
-        raw_df['condition'] = raw_df['condition'].replace({0:1, 1:0})
+        raw_df['condition'] = raw_df['condition'].replace({0: 1, 1: 0})
 
     neg, pos = np.bincount(raw_df['condition'])
     total = neg + pos
@@ -41,8 +39,10 @@ def robotabuse(shuffle=True, invert=False):
         total, pos, 100 * pos / total))
 
     # Split and shuffle
-    train_df, test_df = train_test_split(raw_df, test_size=0.2, shuffle=shuffle)
-    train_df, val_df = train_test_split(train_df, test_size=0.2, shuffle=shuffle)
+    train_df, test_df = train_test_split(
+        raw_df, test_size=0.2, shuffle=shuffle)
+    train_df, val_df = train_test_split(
+        train_df, test_size=0.2, shuffle=shuffle)
 
     train_labels = np.array(train_df.pop('condition'))
     val_labels = np.array(val_df.pop('condition'))
@@ -57,16 +57,22 @@ def robotabuse(shuffle=True, invert=False):
     train_features = scaler.fit_transform(train_features)
     logging.info("robotabuse mean: {}".format(train_features.mean()))
     logging.info("robotabuse variance: {}".format(train_features.var()))
-    logging.info("robotabuse min: {}, max: {}".format(train_features.min(), train_features.max()))
+    logging.info("robotabuse min: {}, max: {}".format(
+        train_features.min(), train_features.max()))
     val_features = scaler.transform(val_features)
     test_features = scaler.transform(test_features)
 
-    logging.info('robotabuse Training labels shape: {}'.format(train_labels.shape))
-    logging.info('robotabuse Validation labels shape: {}'.format(val_labels.shape))
+    logging.info('robotabuse Training labels shape: {}'.format(
+        train_labels.shape))
+    logging.info(
+        'robotabuse Validation labels shape: {}'.format(val_labels.shape))
     logging.info('robotabuse Test labels shape: {}'.format(test_labels.shape))
-    logging.info('robotabuse Training features shape: {}'.format(train_features.shape))
-    logging.info('robotabuse Validation features shape: {}'.format(val_features.shape))
-    logging.info('robotabuse Test features shape: {}'.format(test_features.shape))
+    logging.info('robotabuse Training features shape: {}'.format(
+        train_features.shape))
+    logging.info('robotabuse Validation features shape: {}'.format(
+        val_features.shape))
+    logging.info('robotabuse Test features shape: {}'.format(
+        test_features.shape))
 
     return {
         'train': {
@@ -83,8 +89,10 @@ def robotabuse(shuffle=True, invert=False):
         },
     }
 
+
 def cocktailparty_inverted():
     return cocktailparty(invert=True)
+
 
 def cocktailparty(shuffle=True, invert=False):
     '''
@@ -110,13 +118,14 @@ def cocktailparty(shuffle=True, invert=False):
             Positive: 1454 (30.29% of total)
     '''
     raw_df = pd.read_csv(DATA_PATH.joinpath('cocktailparty/cp_binary.csv'))
-    drop_cols = ["stamp","sample_no","swapped","person1_index","person2_index","person1_id","person2_id","dyad1_y","dyad2_y"]
+    drop_cols = ["stamp", "sample_no", "swapped", "person1_index",
+                 "person2_index", "person1_id", "person2_id", "dyad1_y", "dyad2_y"]
     raw_df = raw_df.drop(columns=drop_cols)
 
     # note, this dataset is inverted by default
     # invert pos/neg. otherwise accuracy score is better b/c f1-score doesn't take true negatives into account
     if not invert:
-        raw_df['target'] = raw_df['target'].replace({0:1, 1:0})
+        raw_df['target'] = raw_df['target'].replace({0: 1, 1: 0})
 
     neg, pos = np.bincount(raw_df['target'])
     total = neg + pos
@@ -124,8 +133,10 @@ def cocktailparty(shuffle=True, invert=False):
         total, pos, 100 * pos / total))
 
     # Split and shuffle
-    train_df, test_df = train_test_split(raw_df, test_size=0.2, shuffle=shuffle)
-    train_df, val_df = train_test_split(train_df, test_size=0.2, shuffle=shuffle)
+    train_df, test_df = train_test_split(
+        raw_df, test_size=0.2, shuffle=shuffle)
+    train_df, val_df = train_test_split(
+        train_df, test_size=0.2, shuffle=shuffle)
 
     train_labels = np.array(train_df.pop('target'))
     val_labels = np.array(val_df.pop('target'))
@@ -140,16 +151,23 @@ def cocktailparty(shuffle=True, invert=False):
     train_features = scaler.fit_transform(train_features)
     logging.info("cocktailparty mean: {}".format(train_features.mean()))
     logging.info("cocktailparty variance: {}".format(train_features.var()))
-    logging.info("cocktailparty min: {}, max: {}".format(train_features.min(), train_features.max()))
+    logging.info("cocktailparty min: {}, max: {}".format(
+        train_features.min(), train_features.max()))
     val_features = scaler.transform(val_features)
     test_features = scaler.transform(test_features)
 
-    logging.info('cocktailparty Training labels shape: {}'.format(train_labels.shape))
-    logging.info('cocktailparty Validation labels shape: {}'.format(val_labels.shape))
-    logging.info('cocktailparty Test labels shape: {}'.format(test_labels.shape))
-    logging.info('cocktailparty Training features shape: {}'.format(train_features.shape))
-    logging.info('cocktailparty Validation features shape: {}'.format(val_features.shape))
-    logging.info('cocktailparty Test features shape: {}'.format(test_features.shape))
+    logging.info('cocktailparty Training labels shape: {}'.format(
+        train_labels.shape))
+    logging.info(
+        'cocktailparty Validation labels shape: {}'.format(val_labels.shape))
+    logging.info(
+        'cocktailparty Test labels shape: {}'.format(test_labels.shape))
+    logging.info('cocktailparty Training features shape: {}'.format(
+        train_features.shape))
+    logging.info('cocktailparty Validation features shape: {}'.format(
+        val_features.shape))
+    logging.info('cocktailparty Test features shape: {}'.format(
+        test_features.shape))
 
     return {
         'train': {
@@ -166,15 +184,13 @@ def cocktailparty(shuffle=True, invert=False):
         },
     }
 
-def winequality(shuffle=True):
-    raw_df = pd.read_csv(DATA_PATH.joinpath('winequality/whitewine.csv'), sep=";")
 
-    # # print(f"\n\n{raw_df[0:4]}\n\n")
-    # print("\n\n"+raw_df['quality'][0:4]+"\n\n")
-    # quit()
+def winequality(shuffle=True):
+    raw_df = pd.read_csv(DATA_PATH.joinpath(
+        'winequality/whitewine.csv'), sep=";")
 
     labels = raw_df['quality']
-    positive_class = list(range(7,11))
+    positive_class = list(range(7, 11))
     pos, neg = 0, 0
     for label in labels:
         if label in positive_class:
@@ -186,10 +202,13 @@ def winequality(shuffle=True):
         total, pos, 100 * pos / total))
 
     # Split and shuffle
-    train_df, test_df = train_test_split(raw_df, test_size=0.2, shuffle=shuffle)
-    train_df, val_df = train_test_split(train_df, test_size=0.2, shuffle=shuffle)
+    train_df, test_df = train_test_split(
+        raw_df, test_size=0.2, shuffle=shuffle)
+    train_df, val_df = train_test_split(
+        train_df, test_size=0.2, shuffle=shuffle)
 
-    binarize = lambda x: 1 if x >= 7 else 0
+    def binarize(x): return 1 if x >= 7 else 0
+
     def list_binarize(array):
         for x in range(len(array)):
             array[x] = binarize(array[x])
@@ -209,16 +228,22 @@ def winequality(shuffle=True):
     train_features = scaler.fit_transform(train_features)
     logging.info("whitewine mean: {}".format(train_features.mean()))
     logging.info("whitewine variance: {}".format(train_features.var()))
-    logging.info("whitewine min: {}, max: {}".format(train_features.min(), train_features.max()))
+    logging.info("whitewine min: {}, max: {}".format(
+        train_features.min(), train_features.max()))
     val_features = scaler.transform(val_features)
     test_features = scaler.transform(test_features)
 
-    logging.info('whitewine Training labels shape: {}'.format(train_labels.shape))
-    logging.info('whitewine Validation labels shape: {}'.format(val_labels.shape))
+    logging.info('whitewine Training labels shape: {}'.format(
+        train_labels.shape))
+    logging.info(
+        'whitewine Validation labels shape: {}'.format(val_labels.shape))
     logging.info('whitewine Test labels shape: {}'.format(test_labels.shape))
-    logging.info('whitewine Training features shape: {}'.format(train_features.shape))
-    logging.info('whitewine Validation features shape: {}'.format(val_features.shape))
-    logging.info('whitewine Test features shape: {}'.format(test_features.shape))
+    logging.info('whitewine Training features shape: {}'.format(
+        train_features.shape))
+    logging.info('whitewine Validation features shape: {}'.format(
+        val_features.shape))
+    logging.info('whitewine Test features shape: {}'.format(
+        test_features.shape))
 
     return {
         'train': {
@@ -235,8 +260,10 @@ def winequality(shuffle=True):
         },
     }
 
+
 def mammography_inverted():
     return mammography(invert=True)
+
 
 def mammography(invert=False):
     '''
@@ -262,13 +289,13 @@ def mammography(invert=False):
     raw_df = pd.read_csv(DATA_PATH.joinpath('odds/mammography.csv'))
     raw_df.columns = ['V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'Class']
 
-    replace_val = lambda x: 0 if x == "'-1'" else 1
+    def replace_val(x): return 0 if x == "'-1'" else 1
     _list = [replace_val(x) for x in raw_df['Class']]
     del raw_df['Class']
     raw_df['Class'] = _list
 
     if invert:
-        raw_df['Class'] = raw_df['Class'].replace({0:1, 1:0})
+        raw_df['Class'] = raw_df['Class'].replace({0: 1, 1: 0})
 
     # Data balance
     neg, pos = np.bincount(raw_df['Class'])
@@ -293,16 +320,22 @@ def mammography(invert=False):
     train_features = scaler.fit_transform(train_features)
     logging.info("mammography mean: {}".format(train_features.mean()))
     logging.info("mammography variance: {}".format(train_features.var()))
-    logging.info("mammography min: {}, max: {}".format(train_features.min(), train_features.max()))
+    logging.info("mammography min: {}, max: {}".format(
+        train_features.min(), train_features.max()))
     val_features = scaler.transform(val_features)
     test_features = scaler.transform(test_features)
 
-    logging.info('mammography Training labels shape: {}'.format(train_labels.shape))
-    logging.info('mammography Validation labels shape: {}'.format(val_labels.shape))
+    logging.info('mammography Training labels shape: {}'.format(
+        train_labels.shape))
+    logging.info(
+        'mammography Validation labels shape: {}'.format(val_labels.shape))
     logging.info('mammography Test labels shape: {}'.format(test_labels.shape))
-    logging.info('mammography Training features shape: {}'.format(train_features.shape))
-    logging.info('mammography Validation features shape: {}'.format(val_features.shape))
-    logging.info('mammography Test features shape: {}'.format(test_features.shape))
+    logging.info('mammography Training features shape: {}'.format(
+        train_features.shape))
+    logging.info('mammography Validation features shape: {}'.format(
+        val_features.shape))
+    logging.info('mammography Test features shape: {}'.format(
+        test_features.shape))
 
     return {
         'train': {
@@ -319,8 +352,10 @@ def mammography(invert=False):
         },
     }
 
+
 def kaggle_cc_fraud_inverted():
     return kaggle_cc_fraud(invert=True)
+
 
 def kaggle_cc_fraud(invert=False):
     '''
@@ -345,7 +380,7 @@ def kaggle_cc_fraud(invert=False):
     '''
     raw_df = pd.read_csv(DATA_PATH.joinpath('kaggle/creditcard.csv'))
     if invert:
-        raw_df['Class'] = raw_df['Class'].replace({0:1, 1:0})
+        raw_df['Class'] = raw_df['Class'].replace({0: 1, 1: 0})
     neg, pos = np.bincount(raw_df['Class'])
     total = neg + pos
 
@@ -357,7 +392,7 @@ def kaggle_cc_fraud(invert=False):
     cleaned_df = raw_df.copy()
     cleaned_df.pop('Time')
     # The `Amount` column covers a huge range. Convert to log-space.
-    eps=0.001 # 0 => 0.1¢
+    eps = 0.001  # 0 => 0.1¢
     cleaned_df['Log Ammount'] = np.log(cleaned_df.pop('Amount')+eps)
 
     # Split and shuffle
@@ -376,15 +411,18 @@ def kaggle_cc_fraud(invert=False):
     train_features = scaler.fit_transform(train_features)
     logging.info("kaggle mean: {}".format(train_features.mean()))
     logging.info("kaggle variance: {}".format(train_features.var()))
-    logging.info("kaggle min: {}, max: {}".format(train_features.min(), train_features.max()))
+    logging.info("kaggle min: {}, max: {}".format(
+        train_features.min(), train_features.max()))
     val_features = scaler.transform(val_features)
     test_features = scaler.transform(test_features)
 
     logging.info('kaggle Training labels shape: {}'.format(train_labels.shape))
     logging.info('kaggle Validation labels shape: {}'.format(val_labels.shape))
     logging.info('kaggle Test labels shape: {}'.format(test_labels.shape))
-    logging.info('kaggle Training features shape: {}'.format(train_features.shape))
-    logging.info('kaggle Validation features shape: {}'.format(val_features.shape))
+    logging.info('kaggle Training features shape: {}'.format(
+        train_features.shape))
+    logging.info('kaggle Validation features shape: {}'.format(
+        val_features.shape))
     logging.info('kaggle Test features shape: {}'.format(test_features.shape))
 
     return {
@@ -402,8 +440,10 @@ def kaggle_cc_fraud(invert=False):
         },
     }
 
+
 def uci_adult_inverted():
     return uci_adult(invert=True)
+
 
 def uci_adult(invert=False):
     '''
@@ -426,13 +466,16 @@ def uci_adult(invert=False):
             Total: 16281
             Positive: 3846 (23.62% of total)
     '''
-    adult_columns = ['age','workclass','fnlwgt','education','education-num','marital-status','occupation','relationship','race','sex','capital-gain','capital-loss','hours-per-week','native-country','label']
+    adult_columns = ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation',
+                     'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country', 'label']
     # drop fnlwgt column
     drop_cols = ['fnlwgt']
-    adult_train_df = pd.read_csv(DATA_PATH.joinpath('uci/adult.data'), names=adult_columns)
+    adult_train_df = pd.read_csv(DATA_PATH.joinpath(
+        'uci/adult.data'), names=adult_columns)
     adult_train_df = adult_train_df.drop(columns=drop_cols)
     adult_train_df['split'] = 'train'
-    adult_test_df = pd.read_csv(DATA_PATH.joinpath('uci/adult.test'), names=adult_columns)
+    adult_test_df = pd.read_csv(DATA_PATH.joinpath(
+        'uci/adult.test'), names=adult_columns)
     # drop fnlwgt column
     adult_test_df = adult_test_df.drop(columns=drop_cols)
     adult_test_df['split'] = 'test'
@@ -443,11 +486,11 @@ def uci_adult(invert=False):
     adult_df['label'] = adult_df['label'].str.replace('.', '', regex=False)
     adult_df['label'].unique()
     if invert:
-        raw_df['label'] = raw_df['label'].replace({0:1, 1:0})
+        raw_df['label'] = raw_df['label'].replace({0: 1, 1: 0})
     # Convert categorical fields to ints
     for col_name in [c for c in adult_df.columns if c not in ['split']]:
         if(adult_df[col_name].dtype == 'object'):
-            adult_df[col_name]= adult_df[col_name].astype('category')
+            adult_df[col_name] = adult_df[col_name].astype('category')
             adult_df[col_name] = adult_df[col_name].cat.codes
     # split
     train_df = adult_df[adult_df['split'] == 'train']
@@ -467,15 +510,18 @@ def uci_adult(invert=False):
     train_features = scaler.fit_transform(train_features)
     logging.info("uci mean: {}".format(train_features.mean()))
     logging.info("uci variance: {}".format(train_features.var()))
-    logging.info("uci min: {}, max: {}".format(train_features.min(), train_features.max()))
+    logging.info("uci min: {}, max: {}".format(
+        train_features.min(), train_features.max()))
     val_features = scaler.transform(val_features)
     test_features = scaler.transform(test_features)
 
     logging.info('uci Training labels shape: {}'.format(train_labels.shape))
     logging.info('uci Validation labels shape: {}'.format(val_labels.shape))
     logging.info('uci Test labels shape: {}'.format(test_labels.shape))
-    logging.info('uci Training features shape: {}'.format(train_features.shape))
-    logging.info('uci Validation features shape: {}'.format(val_features.shape))
+    logging.info('uci Training features shape: {}'.format(
+        train_features.shape))
+    logging.info('uci Validation features shape: {}'.format(
+        val_features.shape))
     logging.info('uci Test features shape: {}'.format(test_features.shape))
 
     return {
@@ -493,8 +539,10 @@ def uci_adult(invert=False):
         },
     }
 
+
 def titanic_inverted():
     return titanic(invert=True)
+
 
 def titanic(invert=False):
     '''
@@ -521,13 +569,13 @@ def titanic(invert=False):
     df = pd.read_csv(DATA_PATH.joinpath('kaggle/titanic/train.csv'))
     for col_name in [c for c in df.columns if c not in ['split']]:
         if(df[col_name].dtype == 'object'):
-            df[col_name]= df[col_name].astype('category')
+            df[col_name] = df[col_name].astype('category')
             df[col_name] = df[col_name].cat.codes
 
-    df = df.fillna(value={'Age':-1})
+    df = df.fillna(value={'Age': -1})
 
     if invert:
-        raw_df['Survived'] = raw_df['Survived'].replace({0:1, 1:0})
+        raw_df['Survived'] = raw_df['Survived'].replace({0: 1, 1: 0})
 
     neg, pos = np.bincount(df['Survived'])
     total = neg + pos
@@ -563,15 +611,20 @@ def titanic(invert=False):
     train_features = scaler.fit_transform(train_features)
     logging.info("titanic mean: {}".format(train_features.mean()))
     logging.info("titanic variance: {}".format(train_features.var()))
-    logging.info("titanic min: {}, max: {}".format(train_features.min(), train_features.max()))
+    logging.info("titanic min: {}, max: {}".format(
+        train_features.min(), train_features.max()))
     val_features = scaler.transform(val_features)
     test_features = scaler.transform(test_features)
 
-    logging.info('titanic Training labels shape: {}'.format(train_labels.shape))
-    logging.info('titanic Validation labels shape: {}'.format(val_labels.shape))
+    logging.info('titanic Training labels shape: {}'.format(
+        train_labels.shape))
+    logging.info(
+        'titanic Validation labels shape: {}'.format(val_labels.shape))
     logging.info('titanic Test labels shape: {}'.format(test_labels.shape))
-    logging.info('titanic Training features shape: {}'.format(train_features.shape))
-    logging.info('titanic Validation features shape: {}'.format(val_features.shape))
+    logging.info('titanic Training features shape: {}'.format(
+        train_features.shape))
+    logging.info('titanic Validation features shape: {}'.format(
+        val_features.shape))
     logging.info('titanic Test features shape: {}'.format(test_features.shape))
 
     return {
@@ -589,8 +642,10 @@ def titanic(invert=False):
         },
     }
 
+
 def _synthetic(n_samples=10000, balance=None, random_state=42, invert=False):
-    X, y = make_blobs(n_samples=n_samples, random_state=random_state, centers=2, n_features=3, cluster_std=10)
+    X, y = make_blobs(n_samples=n_samples, random_state=random_state,
+                      centers=2, n_features=3, cluster_std=10)
 
     def ratio_func(y, multiplier, minority_class):
         target_stats = Counter(y)
@@ -610,7 +665,8 @@ def _synthetic(n_samples=10000, balance=None, random_state=42, invert=False):
     logging.info('Synthetic {} Examples:\n    Total: {}\n    Positive: {} ({:.2f}% of total)\n'.format(
         balance, total, pos, 100 * pos / total))
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-    X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2)
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train, y_train, test_size=0.2)
 
     neg, pos = np.bincount(y_train)
     total = neg + pos
@@ -626,21 +682,27 @@ def _synthetic(n_samples=10000, balance=None, random_state=42, invert=False):
     logging.info('Synthetic {} Testing Examples:\n    Total: {}\n    Positive: {} ({:.2f}% of total)\n'.format(
         balance, total, pos, 100 * pos / total))
 
-
     scaler = StandardScaler()
     train_features = scaler.fit_transform(X_train)
     logging.info("synthetic {} mean: {}".format(balance, X_train.mean()))
     logging.info("synthetic {} variance: {}".format(balance, X_train.var()))
-    logging.info("synthetic {} min: {}, max: {}".format(balance, X_train.min(), X_train.max()))
+    logging.info("synthetic {} min: {}, max: {}".format(
+        balance, X_train.min(), X_train.max()))
     val_features = scaler.transform(X_val)
     test_features = scaler.transform(X_test)
 
-    logging.info('synthetic {} Training labels shape: {}'.format(balance, y_train.shape))
-    logging.info('synthetic {} Validation labels shape: {}'.format(balance, y_val.shape))
-    logging.info('synthetic {} Test labels shape: {}'.format(balance, y_test.shape))
-    logging.info('synthetic {} Training features shape: {}'.format(balance, train_features.shape))
-    logging.info('synthetic {} Validation features shape: {}'.format(balance, val_features.shape))
-    logging.info('synthetic {} Test features shape: {}'.format(balance, test_features.shape))
+    logging.info('synthetic {} Training labels shape: {}'.format(
+        balance, y_train.shape))
+    logging.info('synthetic {} Validation labels shape: {}'.format(
+        balance, y_val.shape))
+    logging.info('synthetic {} Test labels shape: {}'.format(
+        balance, y_test.shape))
+    logging.info('synthetic {} Training features shape: {}'.format(
+        balance, train_features.shape))
+    logging.info('synthetic {} Validation features shape: {}'.format(
+        balance, val_features.shape))
+    logging.info('synthetic {} Test features shape: {}'.format(
+        balance, test_features.shape))
 
     return {
         'train': {
@@ -657,8 +719,10 @@ def _synthetic(n_samples=10000, balance=None, random_state=42, invert=False):
         },
     }
 
+
 def synthetic():
     return _synthetic(n_samples=10000)
+
 
 def synthetic_33():
     '''
@@ -668,6 +732,7 @@ def synthetic_33():
     '''
     return _synthetic(n_samples=10000, balance=0.5)
 
+
 def synthetic_20():
     '''
     Synthetic 0.25 Examples:
@@ -675,6 +740,7 @@ def synthetic_20():
         Positive: 1250 (20.00% of total)
     '''
     return _synthetic(n_samples=10000, balance=0.25)
+
 
 def synthetic_05():
     '''
@@ -685,8 +751,11 @@ def synthetic_05():
     return _synthetic(n_samples=10000, balance=0.05)
 
 # aliases for t16
+
+
 def synthetic_50():
     return synthetic_33()
+
 
 def synthetic_25():
     return synthetic_20()

@@ -6,8 +6,10 @@ import pandas as pd
 import importlib
 import sklearn
 
+
 def dataset_from_name(dataset):
     return getattr(importlib.import_module('datasets'), dataset)
+
 
 def test_eval(dataset_name, model_path, loss, pickle_path, args):
     # don't load tf until we're in a forked thread
@@ -20,13 +22,15 @@ def test_eval(dataset_name, model_path, loss, pickle_path, args):
     import losses
     from tensorflow.keras import backend as K
 
-    results_df_dict = {'dataset':[], 'loss': [], 'threshold': [], 'f1':[], 'accuracy': [], 'precision': [], 'recall': [],
-            'ap': [], 'pr_auc': [], 'roc_auc': [], 'tpr': [], 'fpr': [], 'tn': [], 'fp': [], 'fn': [], 'tp': []}
+    results_df_dict = {'dataset': [], 'loss': [], 'threshold': [], 'f1': [], 'accuracy': [], 'precision': [], 'recall': [],
+                       'ap': [], 'pr_auc': [], 'roc_auc': [], 'tpr': [], 'fpr': [], 'tn': [], 'fp': [], 'fn': [], 'tp': []}
     # problem w/ SavedModel format
-    ## https://github.com/tensorflow/tensorflow/issues/33646#issuecomment-566433261
+    # https://github.com/tensorflow/tensorflow/issues/33646#issuecomment-566433261
     print("LOADING: {}".format(model_path))
-    model = tf.keras.models.load_model(model_path, custom_objects={"avg_f1_score": AvgF1Score, "max_f1_score": MaxF1Score}, compile=False)
-    model.compile(optimizer=tf.keras.optimizers.Adam(lr=1e-3), loss=losses.get(loss))
+    model = tf.keras.models.load_model(model_path, custom_objects={
+                                       "avg_f1_score": AvgF1Score, "max_f1_score": MaxF1Score}, compile=False)
+    model.compile(optimizer=tf.keras.optimizers.Adam(
+        lr=1e-3), loss=losses.get(loss))
     ds = dataset_from_name(dataset_name)()
     y = model.predict(ds['test']['X'], batch_size=args.batch_size)
     thresholds = np.arange(0, 1, 0.001)
@@ -35,7 +39,8 @@ def test_eval(dataset_name, model_path, loss, pickle_path, args):
         #print('GT SHAPE', ds['test']['y'].shape)
         #print('PT SHAPE', pt.shape)
         f1 = sklearn.metrics.f1_score(ds['test']['y'], pt)
-        tn, fp, fn, tp = sklearn.metrics.confusion_matrix(ds['test']['y'], pt).ravel()
+        tn, fp, fn, tp = sklearn.metrics.confusion_matrix(
+            ds['test']['y'], pt).ravel()
         precision = sklearn.metrics.precision_score(ds['test']['y'], pt)
         recall = sklearn.metrics.recall_score(ds['test']['y'], pt)
         accuracy = sklearn.metrics.accuracy_score(ds['test']['y'], pt)
@@ -63,4 +68,3 @@ def test_eval(dataset_name, model_path, loss, pickle_path, args):
     print("SAVING {}".format(pickle_path))
     pd.DataFrame.from_dict(results_df_dict).to_pickle(pickle_path)
     return pickle_path
-

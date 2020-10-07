@@ -2,21 +2,23 @@ import tensorflow as tf
 from tensorflow.python.keras.metrics import SensitivitySpecificityBase
 from tensorflow.python.ops import math_ops
 
+
 def get():
     return [
-          tf.keras.metrics.TruePositives(name='tp'),
-          tf.keras.metrics.FalsePositives(name='fp'),
-          tf.keras.metrics.TrueNegatives(name='tn'),
-          tf.keras.metrics.FalseNegatives(name='fn'),
-          tf.keras.metrics.BinaryAccuracy(name='accuracy'),
-          tf.keras.metrics.Precision(name='precision'),
-          tf.keras.metrics.Recall(name='recall'),
-          tf.keras.metrics.AUC(name='roc_auc', curve='ROC'),
-          tf.keras.metrics.AUC(name='pr_auc', curve='PR'),
-          F1Score(name="f1"),
-          AvgF1Score(name="f1_mean"),
-          MaxF1Score(name="f1_max"),
+        tf.keras.metrics.TruePositives(name='tp'),
+        tf.keras.metrics.FalsePositives(name='fp'),
+        tf.keras.metrics.TrueNegatives(name='tn'),
+        tf.keras.metrics.FalseNegatives(name='fn'),
+        tf.keras.metrics.BinaryAccuracy(name='accuracy'),
+        tf.keras.metrics.Precision(name='precision'),
+        tf.keras.metrics.Recall(name='recall'),
+        tf.keras.metrics.AUC(name='roc_auc', curve='ROC'),
+        tf.keras.metrics.AUC(name='pr_auc', curve='PR'),
+        F1Score(name="f1"),
+        AvgF1Score(name="f1_mean"),
+        MaxF1Score(name="f1_max"),
     ]
+
 
 class F1Score(SensitivitySpecificityBase):
     # threshold is set to 0.5 when num_thresholds is 1
@@ -36,11 +38,14 @@ class F1Score(SensitivitySpecificityBase):
 
     def result(self):
         # Calculate precision at all the thresholds.
-        precisions = math_ops.div_no_nan(self.true_positives, self.true_positives + self.false_positives)
+        precisions = math_ops.div_no_nan(
+            self.true_positives, self.true_positives + self.false_positives)
         # Calculate recall at all the thresholds.
-        recalls = math_ops.div_no_nan(self.true_positives, self.true_positives + self.false_negatives)
+        recalls = math_ops.div_no_nan(
+            self.true_positives, self.true_positives + self.false_negatives)
         # mean of f1 scores over all thresholds
         return tf.reduce_mean(2 * precisions * recalls/(precisions + recalls + tf.keras.backend.epsilon()))
+
 
 class AvgF1Score(SensitivitySpecificityBase):
     def __init__(self, num_thresholds=200, name=None, dtype=None):
@@ -58,11 +63,14 @@ class AvgF1Score(SensitivitySpecificityBase):
 
     def result(self):
         # Calculate precision at all the thresholds.
-        precisions = math_ops.div_no_nan(self.true_positives, self.true_positives + self.false_positives)
+        precisions = math_ops.div_no_nan(
+            self.true_positives, self.true_positives + self.false_positives)
         # Calculate recall at all the thresholds.
-        recalls = math_ops.div_no_nan(self.true_positives, self.true_positives + self.false_negatives)
+        recalls = math_ops.div_no_nan(
+            self.true_positives, self.true_positives + self.false_negatives)
         # mean of f1 scores over all thresholds
         return tf.reduce_mean(2 * precisions * recalls/(precisions + recalls + tf.keras.backend.epsilon()))
+
 
 class MaxF1Score(SensitivitySpecificityBase):
     def __init__(self, num_thresholds=200, name=None, dtype=None):
@@ -80,8 +88,10 @@ class MaxF1Score(SensitivitySpecificityBase):
 
     def result(self):
         # Calculate precision at all the thresholds.
-        precisions = math_ops.div_no_nan(self.true_positives, self.true_positives + self.false_positives)
+        precisions = math_ops.div_no_nan(
+            self.true_positives, self.true_positives + self.false_positives)
         # Calculate recall at all the thresholds.
-        recalls = math_ops.div_no_nan(self.true_positives, self.true_positives + self.false_negatives)
+        recalls = math_ops.div_no_nan(
+            self.true_positives, self.true_positives + self.false_negatives)
         # max f1 score over all thresholds
         return tf.reduce_max(2 * precisions * recalls/(precisions + recalls + tf.keras.backend.epsilon()))

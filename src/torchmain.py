@@ -20,8 +20,10 @@ import shutil
 
 from datasets import ALL as ALL_DATASETS
 
+
 def dataset_from_name(dataset):
     return getattr(importlib.import_module('datasets'), dataset)
+
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, ds_split):
@@ -35,10 +37,13 @@ class Dataset(torch.utils.data.Dataset):
         return self.X[index, :], self.y[index]
 
 # Clear cuda cache between training/testing
+
+
 def empty_cuda_cache(engine):
     torch.cuda.empty_cache()
     import gc
     gc.collect()
+
 
 class Net(nn.Module):
     def __init__(self, input_dim):
@@ -61,6 +66,8 @@ class Net(nn.Module):
         return x.squeeze()
 
 # metric definition
+
+
 class Fbeta(PerformanceMetric):
     def __init__(self, beta):
         self.beta = beta
@@ -68,30 +75,36 @@ class Fbeta(PerformanceMetric):
     def define(self, C):
         return ((1 + self.beta ** 2) * C.tp) / ((self.beta ** 2) * C.ap + C.pp)
 
+
 def threshold(y_pred, t=torch.tensor([0.0])):
     return (y_pred > t).float()
 
 # creating trainer,evaluator
+
+
 def thresholded_output_transform(output):
     y_pred, y = output
     return threshold(y_pred), y
 
+
 def getmetrics():
     precision = Precision(thresholded_output_transform, average=False)
     recall = Recall(thresholded_output_transform, average=False)
+
     def Fbetaf(r, p, beta):
         return torch.mean((1 + beta ** 2) * p * r / (beta ** 2 * p + r + 1e-20)).item()
     return {
         'f1': MetricsLambda(Fbetaf, recall, precision, 1),
         'accuracy': Accuracy(thresholded_output_transform),
-    #    'cm': ConfusionMatrix(num_classes=1)
+        #    'cm': ConfusionMatrix(num_classes=1)
     }
+
 
 def train(args):
     if torch.cuda.is_available():
-      device = "cuda:0"
+        device = "cuda:0"
     else:
-      device = "cpu"
+        device = "cpu"
 
     dataset_name = 'mammography'
     ds = mammography()
@@ -126,14 +139,17 @@ def train(args):
     else:
         raise RuntimeError("Unknown loss {}".format(args.loss))
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    trainer = create_supervised_trainer(model, optimizer, criterion, device=device)
+    trainer = create_supervised_trainer(
+        model, optimizer, criterion, device=device)
 
     metrics = getmetrics()
     metrics['loss'] = Loss(criterion)
-    train_evaluator = create_supervised_evaluator(model, metrics=metrics, device=device)
-    val_evaluator = create_supervised_evaluator(model, metrics=metrics, device=device)
-    training_history = {'f1':[],'accuracy':[],'loss':[]}
-    validation_history = {'f1':[],'accuracy':[],'loss':[]}
+    train_evaluator = create_supervised_evaluator(
+        model, metrics=metrics, device=device)
+    val_evaluator = create_supervised_evaluator(
+        model, metrics=metrics, device=device)
+    training_history = {'f1': [], 'accuracy': [], 'loss': []}
+    validation_history = {'f1': [], 'accuracy': [], 'loss': []}
     last_epoch = []
 
     RunningAverage(output_transform=lambda x: x).attach(trainer, 'loss')
@@ -145,12 +161,15 @@ def train(args):
     best_model_handler = ModelCheckpoint(dirname=model_path,
                                          filename_prefix="best",
                                          n_saved=3,
-                                         global_step_transform=global_step_from_engine(trainer),
+                                         global_step_transform=global_step_from_engine(
+                                             trainer),
                                          score_name=loss_name,
                                          score_function=val_loss_score_function)
-    val_evaluator.add_event_handler(Events.COMPLETED, best_model_handler, {'model': model, })
+    val_evaluator.add_event_handler(
+        Events.COMPLETED, best_model_handler, {'model': model, })
 
-    handler = EarlyStopping(patience=100, score_function=val_loss_score_function, trainer=trainer)
+    handler = EarlyStopping(
+        patience=100, score_function=val_loss_score_function, trainer=trainer)
     val_evaluator.add_event_handler(Events.COMPLETED, handler)
 
     trainer.add_event_handler(Events.EPOCH_COMPLETED, empty_cuda_cache)
@@ -188,11 +207,12 @@ def train(args):
     # train
     trainer.run(train_loader, max_epochs=args.epochs)
 
+
 def test(args):
     if torch.cuda.is_available():
-      device = "cuda:0"
+        device = "cuda:0"
     else:
-      device = "cpu"
+        device = "cpu"
 
     dataset_name = 'mammography'
     ds = mammography()
@@ -212,7 +232,8 @@ def test(args):
     best_model = Net(input_dim).to(device)
     best_model_path = None
     minval = None
-    globpath = '/'.join([args.output, dataset_name, args.loss, "best_model_*_{}*.pth".format(args.loss)])
+    globpath = '/'.join([args.output, dataset_name, args.loss,
+                         "best_model_*_{}*.pth".format(args.loss)])
     for path in glob.iglob(globpath):
         val = float(path.split('=')[-1].split('.')[0])
         if minval is None or val < minval:
@@ -224,7 +245,7 @@ def test(args):
     def inference_update_with_tta(engine, batch):
         best_model.eval()
         with torch.no_grad():
-            x, y = batch        
+            x, y = batch
             y_pred = threshold(best_model(x))
             return y_pred, y
     inferencer = Engine(inference_update_with_tta)
@@ -232,7 +253,7 @@ def test(args):
     for name, metric in getmetrics().items():
         metric.attach(inferencer, name)
 
-    #ProgressBar(desc="Inference").attach(inferencer)
+    # ProgressBar(desc="Inference").attach(inferencer)
 
     result_state = inferencer.run(test_loader, max_epochs=1)
     print(result_state.metrics)
@@ -243,38 +264,41 @@ def main():
     parser = argparse.ArgumentParser(description='')
 
     parser.add_argument('--experiment', type=str,
-            required=True,
-            help="defines the folder for a set of experiments")
+                        required=True,
+                        help="defines the folder for a set of experiments")
     parser.add_argument('--overwrite', default=False, action='store_true',
-            help="use with care: deletes a running experiment with the same name before running this experiment")
+                        help="use with care: deletes a running experiment with the same name before running this experiment")
 
     parser.add_argument('--batch_size', type=int, default=20, metavar='N',
                         help='input batch size for training (default: 20)')
     parser.add_argument('--epochs', type=int, default=1000, metavar='N',
                         help='number of epochs to train (default: 5000)')
     parser.add_argument('--output_folder', default='torch_models/running',
-            help='path name, relative to the project root, where the experiment folder is placed')
+                        help='path name, relative to the project root, where the experiment folder is placed')
     parser.add_argument('--loss', type=str,
-            required=True,
-            default='all',
-            choices=['all', 'f1'])
+                        required=True,
+                        default='all',
+                        choices=['all', 'f1'])
     parser.add_argument('--dataset', type=str,
-            required=True,
-            default='all',
-            choices=['all', 'synthetic', 'real'] + ALL_DATASETS)
+                        required=True,
+                        default='all',
+                        choices=['all', 'synthetic', 'real'] + ALL_DATASETS)
 
     args = parser.parse_args()
 
-    experiment_path = ROOT_PATH.joinpath(args.output_folder).joinpath(args.experiment)
+    experiment_path = ROOT_PATH.joinpath(
+        args.output_folder).joinpath(args.experiment)
     if experiment_path.exists():
         if args.overwrite:
             shutil.rmtree(experiment_path)
         else:
-            raise RuntimeError("Experiment path '{}', already exists, pass --overwrite to remove old experiment and run again".format(experiment_path))
+            raise RuntimeError(
+                "Experiment path '{}', already exists, pass --overwrite to remove old experiment and run again".format(experiment_path))
     experiment_path.mkdir(parents=True)
     args.experiment_path = experiment_path
 
     train(args)
+
 
 if __name__ == '__main__':
     main()
