@@ -6,7 +6,8 @@ from tensorflow.keras import backend as K
 
 from heavisidefunctions import *
 
-HEAVISIDE = ['f1_05_sig_k10', 'f1_05_sig_k20', 'f1_05_sig_fit'] + ['f1_mean', 'f1_mean_sig_k10', 'f1_mean_sig_k20', 'f1_mean_sig_fit']
+HEAVISIDE = ['f1_05_sig_k10', 'f1_05_sig_k20', 'f1_05_sig_fit'] + \
+    ['f1_mean', 'f1_mean_sig_k10', 'f1_mean_sig_k20', 'f1_mean_sig_fit']
 REPORTED = ['bce', 'roc', 'accuracy_05', 'f1_max', 'f1_05', 'f2_05', 'f3_05']
 ALL = REPORTED + ['accuracy', 'auroc', 'f2_mean', 'f3_mean'] + HEAVISIDE
 
@@ -53,6 +54,7 @@ def get(loss):
     else:
         raise RuntimeError("Unknown Loss {}".format(loss))
 
+
 def l_tp(gt, pt, thresh, heaviside=linear_heaviside):
     # assert gt.shape == pt.shape
     # output closer to 1 if a true positive, else closer to 0
@@ -60,7 +62,9 @@ def l_tp(gt, pt, thresh, heaviside=linear_heaviside):
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (inverter = false)
     #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (inverter = true)
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
-    thresh = tf.where(thresh==0.0, 0.01, tf.where(thresh==1.0, 0.99, thresh))
+    thresh = tf.where(
+        thresh == 0.0, 0.01, tf.where(thresh == 1.0, 0.99, thresh)
+    )
     gt_t = tf.reshape(tf.repeat(gt, thresh.shape[0]), (-1, thresh.shape[0]))
     pt_t = tf.reshape(tf.repeat(pt, thresh.shape[0]), (-1, thresh.shape[0]))
     condition = (gt_t == 0) & (pt_t >= thresh)
@@ -76,13 +80,15 @@ def l_fn(gt, pt, thresh, heaviside=linear_heaviside):
     #  fn: (gt == 1 and pt == 0) -> closer to 1 -> (inverter = true)
     #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (inverter = true)
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
-    thresh = tf.where(thresh==0.0, 0.01, tf.where(thresh==1.0, 0.99, thresh))
+    thresh = tf.where(thresh == 0.0, 0.01, tf.where(
+        thresh == 1.0, 0.99, thresh))
     gt_t = tf.reshape(tf.repeat(gt, thresh.shape[0]), (-1, thresh.shape[0]))
     pt_t = tf.reshape(tf.repeat(pt, thresh.shape[0]), (-1, thresh.shape[0]))
     condition = (gt_t == 0) & (pt_t < thresh)
     xs = tf.where(condition, pt_t, 1-pt_t)
     thresholds = tf.where(condition, thresh, 1-thresh)
     return tf.reduce_sum(tf.vectorized_map(heaviside, (xs, thresholds)), axis=0)
+
 
 def l_fp(gt, pt, thresh, heaviside=linear_heaviside):
     #assert gt.shape == pt.shape
@@ -91,13 +97,15 @@ def l_fp(gt, pt, thresh, heaviside=linear_heaviside):
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (inverter = false)
     #  fp: (gt == 0 and pt == 1) -> closer to 1 -> (inverter = false)
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
-    thresh = tf.where(thresh==0.0, 0.01, tf.where(thresh==1.0, 0.99, thresh))
+    thresh = tf.where(thresh == 0.0, 0.01, tf.where(
+        thresh == 1.0, 0.99, thresh))
     gt_t = tf.reshape(tf.repeat(gt, thresh.shape[0]), (-1, thresh.shape[0]))
     pt_t = tf.reshape(tf.repeat(pt, thresh.shape[0]), (-1, thresh.shape[0]))
     condition = (gt_t == 1) & (pt_t >= thresh)
     xs = tf.where(condition, 1-pt_t, pt_t)
     thresholds = tf.where(condition, 1-thresh, thresh)
     return tf.reduce_sum(tf.vectorized_map(heaviside, (xs, thresholds)), axis=0)
+
 
 def l_tn(gt, pt, thresh, heaviside=linear_heaviside):
     #assert gt.shape == pt.shape
@@ -106,13 +114,15 @@ def l_tn(gt, pt, thresh, heaviside=linear_heaviside):
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (invert = false)
     #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (invert = true)
     #  tn: (gt == 0 and pt == 0) -> closer to 1 -> (invert = true)
-    thresh = tf.where(thresh==0.0, 0.01, tf.where(thresh==1.0, 0.99, thresh))
+    thresh = tf.where(thresh == 0.0, 0.01, tf.where(
+        thresh == 1.0, 0.99, thresh))
     gt_t = tf.reshape(tf.repeat(gt, thresh.shape[0]), (-1, thresh.shape[0]))
     pt_t = tf.reshape(tf.repeat(pt, thresh.shape[0]), (-1, thresh.shape[0]))
     condition = (gt_t == 1) & (pt_t < thresh)
     xs = tf.where(condition, pt_t, 1-pt_t)
     thresholds = tf.where(condition, thresh, 1-thresh)
     return tf.reduce_sum(tf.vectorized_map(heaviside, (xs, thresholds)), axis=0)
+
 
 def tf_confusion(gt, pt, thresholds, heaviside=linear_heaviside):
     # 'tp', 'fn', 'fp', 'tn'
@@ -121,6 +131,7 @@ def tf_confusion(gt, pt, thresholds, heaviside=linear_heaviside):
     fp = l_fp(gt, pt, thresholds, heaviside=heaviside)
     tn = l_tn(gt, pt, thresholds, heaviside=heaviside)
     return tp, fn, fp, tn
+
 
 def auroc_approx(gt, pt):
     """Approximate auroc:
@@ -141,6 +152,7 @@ def auroc_approx(gt, pt):
         approx_auc = tf.reduce_max(precision) * tf.reduce_max(recall)
         return 1 - approx_auc
 
+
 def auprc_approx(gt, pt):
     """Approximate auprc is:
         - Linear interpolated Heaviside function
@@ -159,6 +171,7 @@ def auprc_approx(gt, pt):
         approx_auc = tf.reduce_max(precision) * tf.reduce_max(recall)
         return 1 - approx_auc
 
+
 def auprc_approx_mean(gt, pt):
     """Approximate auprc is:
         - Linear interpolated Heaviside function
@@ -176,6 +189,7 @@ def auprc_approx_mean(gt, pt):
         # maximize area
         approx_auc = tf.reduce_mean(precision) * tf.reduce_mean(recall)
         return 1 - approx_auc
+
 
 def mean_pr_approx(gt, pt):
     """Approximate average precision recall is:
@@ -196,6 +210,7 @@ def mean_pr_approx(gt, pt):
         approx_apr = tf.reduce_mean(precision*recall)
         return 1 - approx_apr
 
+
 def true_positive_rate(gt, pt):
     """true positive rate is precision:
         - Linear interpolated Heaviside function
@@ -207,6 +222,7 @@ def true_positive_rate(gt, pt):
         tpr = tp/(tp+fp+K.epsilon())
         approx_tpr = tf.reduce_mean(tpr)
         return 1 - approx_tpr
+
 
 def false_positive_rate(gt, pt):
     """false positive rate is:
@@ -220,12 +236,14 @@ def false_positive_rate(gt, pt):
         approx_fpr = tf.reduce_mean(fpr)
         return approx_fpr
 
+
 def accuracy_approx(heaviside=linear_heaviside):
     """accuracy approx is:
         - Linear interpolated Heaviside function
         - average of accuracy across all values
     """
     return accuracy_at(tf.range(0.1, 1, 0.1), heaviside=heaviside)
+
 
 def accuracy_at(thresholds, heaviside):
     """Approximate F1 is:
@@ -235,11 +253,13 @@ def accuracy_at(thresholds, heaviside):
     """
     def loss(gt, pt):
         with tf.name_scope("AccuracyScore"):
-            tp, fn, fp, tn = tf_confusion(gt, pt, thresholds, heaviside=heaviside)
+            tp, fn, fp, tn = tf_confusion(
+                gt, pt, thresholds, heaviside=heaviside)
             accuracy = (tp+tn)/(tp+tn+fp+fn)
             approx_accuracy = tf.reduce_mean(accuracy)
             return 1 - approx_accuracy
     return loss
+
 
 def mean_fb_approx_at(thresholds, b, heaviside):
     """Approximate Fb is:
@@ -250,12 +270,15 @@ def mean_fb_approx_at(thresholds, b, heaviside):
     """
     def loss(gt, pt):
         with tf.name_scope("F1Score"):
-            tp, fn, fp, _ = tf_confusion(gt, pt, thresholds, heaviside=heaviside)
+            tp, fn, fp, _ = tf_confusion(
+                gt, pt, thresholds, heaviside=heaviside)
             precision = tp/(tp+fp+K.epsilon())
             recall = tp/(tp+fn+K.epsilon())
-            fb = tf.reduce_mean((1 + tf.pow(b, 2)) * (precision * recall) / (tf.pow(b, 2) * precision + recall + K.epsilon()))
+            fb = tf.reduce_mean((1 + tf.pow(b, 2)) * (precision * recall) /
+                                (tf.pow(b, 2) * precision + recall + K.epsilon()))
             return 1 - fb
     return loss
+
 
 def max_fb_approx_at(thresholds, b, heaviside):
     """Max Fb is:
@@ -265,17 +288,20 @@ def max_fb_approx_at(thresholds, b, heaviside):
     """
     def loss(gt, pt):
         with tf.name_scope("F1Score"):
-            tp, fn, fp, _ = tf_confusion(gt, pt, thresholds, heaviside=heaviside)
+            tp, fn, fp, _ = tf_confusion(
+                gt, pt, thresholds, heaviside=heaviside)
             precision = tp/(tp+fp+K.epsilon())
             recall = tp/(tp+fn+K.epsilon())
             # shape is thresholds.shape[0]
-            f1s = (1 + tf.pow(b, 2)) * (precision * recall) / (tf.pow(b, 2) * precision + recall + K.epsilon())
+            f1s = (1 + tf.pow(b, 2)) * (precision * recall) / \
+                (tf.pow(b, 2) * precision + recall + K.epsilon())
             #tf.print("f1s: ", f1s.shape)
             #idxmax = np.argmax(f1s.numpy(), axis=0)
             #max_thresh = thresholds[idxmax]
             #tf.print("max_thresh: ", max_thresh, max_thresh.shape)
             return 1 - tf.reduce_max(f1s)
     return loss
+
 
 @tf.function
 def roc_auc_score(y_true, y_pred):
@@ -299,13 +325,14 @@ def roc_auc_score(y_true, y_pred):
 
         # original paper suggests performance is robust to exact parameter choice
         gamma = 0.2
-        p     = 3
+        p = 3
 
         difference = tf.zeros_like(pos * neg) + pos - neg - gamma
 
         masked = tf.boolean_mask(difference, difference < 0.0)
 
         return tf.reduce_sum(tf.pow(-masked, p))
+
 
 def custom_loss_roc(layer):
     return roc_auc_score
