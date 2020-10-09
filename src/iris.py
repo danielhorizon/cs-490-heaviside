@@ -1,264 +1,40 @@
-#!/usr/bin/env python3
-#
-# Nathan Tsoi © 2020
-#
-# Installation:
-#   pip3 install ap_perf pytorch-ignite imbalanced-learn
-#
-# Running:
-# ./src/torchbcemain.py --loss bce --mode train --batch_size 2048
-#
-# To compare models, first run bce loss. This will save an initial weights that can be loaded when running the other losses
-#
-#    ./src/torchbcemain.py --loss bce --mode train --batch_size 2048 --experiment TORCH8
-#
-#  Then run the other losses, passing the --initial_weights [timestamp] flag. The timestamp will be shown in the output folder or tensorboard:
-#
-#    ./src/torchbcemain.py --loss approx-f1 --mode train --batch_size 2048 --initial_weights 1595761371 --experiment TORCH8
-#
-#  Note the batch size limitation for the ap-perf loss, learning rate was provided by the author
-#
-#    ./src/torchbcemain.py --loss ap-perf-f1 --mode train --batch_size 20 --lr 0.0003 --initial_weights 1595761371 --experiment TORCH8
-#
-
-import argparse
-import glob
-from pathlib import Path
-
-import numpy as np
-import pandas as pd
-import scipy.io as sio
-
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn import metrics
-
+import time 
 import torch
-from torch import nn, optim
+import click 
+import logging
+import pandas as pd
+import numpy as np
+import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-from torchvision import datasets, transforms
+import matplotlib.pyplot as plt
 
-from ignite.engine import Engine, Events, create_supervised_trainer, create_supervised_evaluator
-from ignite.metrics import Accuracy, Loss, RunningAverage, ConfusionMatrix, Precision, Recall, MetricsLambda
-from ignite.contrib.metrics import AveragePrecision, ROC_AUC
-from ignite.handlers import ModelCheckpoint, global_step_from_engine, EarlyStopping
+from torchconfusion import confusion
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score
 
 from ap_perf import PerformanceMetric, MetricLayer
 from ap_perf.metric import CM_Value
 
-from torchconfusion import confusion
+from torch.autograd import Variable
+from keras.utils import to_categorical
 
-import copy
-import importlib
-import logging
-import shutil
 
-DATASETS = [
-    'cocktailparty',
-    'uci_adult',
-    'mammography',
-    'kaggle_cc_fraud',
-]
-LOSSES = [
-    'bce',
-    'approx-auroc',
-    'ap-perf-f1',
-    'approx-f1',
-    'approx-accuracy',
-    #'approx-ap',
-    #'auc-roc'
-]
+
 EPS = 1e-7
+_IRIS_DATA_PATH = "../data/iris.csv"
 
-import time
-
-def dataset_from_name(dataset):
-    return getattr(importlib.import_module('datasets'), dataset)
-
-class Dataset(torch.utils.data.Dataset):
-    def __init__(self, ds_split):
-        self.X = torch.from_numpy(ds_split['X']).float()
-        self.y = torch.from_numpy(ds_split['y']).float()
-
-    def __len__(self):
-        return len(self.y)
-
-    def __getitem__(self, index):
-        return self.X[index, :], self.y[index]
-
-def mean_f1_approx_loss_on(device, thresholds=torch.arange(0.1, 1, 0.1)):
-    thresholds = thresholds.to(device)
-    def loss(pt, gt):
-        """Approximate F1:
-            - Linear interpolated Heaviside function
-            - Harmonic mean of precision and recall
-            - Mean over a range of thresholds
-        """
-        classes = pt.shape[1] if len(pt.shape) == 2 else 1
-        mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
-        # mean over all classes
-        for i in range(classes):
-            thresholds = torch.arange(0.1, 1, 0.1).to(device)
-            tp, fn, fp, _ = confusion(gt, pt[:,i] if classes > 1 else pt, thresholds)
-            precision = tp/(tp+fp+EPS)
-            recall = tp/(tp+fn+EPS)
-            mean_f1s[i] = torch.mean(2 * (precision * recall) / (precision + recall + EPS))
-        loss = 1 - mean_f1s.mean()
-        return loss
-    return loss
-
-def mean_accuracy_approx_loss_on(device, thresholds=torch.arange(0.1, 1, 0.1)):
-    thresholds = thresholds.to(device)
-    def loss(pt, gt):
-        """Approximate Accuracy:
-            - Linear interpolated Heaviside function
-            - (TP + TN) / (TP + TN + FP + FN)
-            - Mean over a range of thresholds
-        """
-        classes = pt.shape[1] if len(pt.shape) == 2 else 1
-        mean_accs = torch.zeros(classes, dtype=torch.float32).to(device)
-        # mean over all classes
-        for i in range(classes):
-            tp, fn, fp, tn = confusion(gt, pt[:,i] if classes > 1 else pt, thresholds)
-            mean_accs[i] = torch.mean((tp + tn) / (tp + tn + fp + fn))
-        loss = 1 - mean_accs.mean()
-        return loss
-    return loss
-
-def roc_auc_score(device):
-    ''' TODO: Not working correctly, poor results (loss not converging) '''
-    def direct_auc_loss(pt, gt):
-        """
-        '_y_true' and 'y_pred' are tensors, 'gamma' and 'power' are constants
-        """
-        gamma = 0.2
-        power = 3
-
-        gt_bool = gt >= 0.5
-        pos = pt[gt_bool]
-        neg = pt[~gt_bool]
-
-        _pos= pos.view(-1,1).expand(-1,neg.shape[0]).reshape(-1)
-        _neg = neg.repeat(pos.shape[0])
-        diff = _pos - _neg - gamma
-        masked = diff[diff<0.0]
-        return torch.sum(torch.pow(-masked, power))
-
-    return direct_auc_loss
-
-def mean_ap_approx_loss_on(device, linspacing=11):
-    ''' TODO: Not working correctly, poor results (loss not converging) '''
-    def loss(pt, gt):
-        """Approximate AP:
-            - Linear interpolated Heaviside function
-            - interpolated ap (11 point by default)
-            - Mean over a range of thresholds
-        """
-        classes = pt.shape[1] if len(pt.shape) == 2 else 1
-        mean_rhos = torch.zeros(classes, dtype=torch.float32).to(device)
-        thresholds = torch.linspace(0, 1, linspacing).to(device)
-        # mean over all classes
-        for i in range(classes):
-            tp, fn, fp, _ = confusion(gt, pt[:,i] if classes > 1 else pt, thresholds)
-            #print('tp', tp)
-            #print('fn', fn)
-            #print('fp', fp)
-            pres = tp/(tp+fp+EPS)
-            recs = tp/(tp+fn+EPS)
-            #print('thresholds', thresholds)
-            #print('pres', pres)
-            #print('recs', recs)
-
-            ## non-interpolated
-            #rhos = []
-            #for j in range(len(thresholds)):
-            #    #print(f"threshold: {thresholds[j]}")
-            #    #print(f"tp: {tp}")
-            #    #print(f"fn: {fn}")
-            #    #print(f"fp: {fp}")
-            #    if j > 0:
-            #        rhos.append((recs[j] - recs[j-1])*pres[j])
-            #    else:
-            #        rhos.append(recs[j]*pres[j])
-            #stacked = torch.stack(rhos)
-            #print(stacked)
-            #mean_rhos[i] = torch.sum(stacked)
-
-            # interpolated
-            rhos = []
-            for t in thresholds:
-                cond = recs >= t
-                #print("pres[cond]", pres[cond])
-                if cond.any():
-                    rhos.append(torch.max(pres[cond]))
-            #print("rhos", rhos)
-            if len(rhos):
-                mean_rhos[i] = torch.sum(torch.stack(rhos))/linspacing
-            #print("mean_rhos", mean_rhos)
-        loss = 1 - mean_rhos.mean()
-        #print('loss', loss)
-        return loss
-    return loss
-
-def area(x,y):
-    ''' area under curve via trapezoidal rule '''
-    direction = 1
-    # the following is equivalent to: dx = np.diff(x)
-    dx = x[1:] - x[:-1]
-    if torch.any(dx < 0):
-        if torch.all(dx <= 0):
-            direction = -1
-        else:
-            logging.warn("x is neither increasing nor decreasing\nx: {}\ndx: {}.".format(x, dx))
-            return 0
-    return direction * torch.trapz(y, x)
-
-def mean_auroc_approx_loss_on(device, linspacing=11):
-    def loss(pt, gt):
-        """Approximate auroc:
-            - Linear interpolated Heaviside function
-            - roc (11-point approximation)
-            - integrate via trapezoidal rule under curve
-        """
-        classes = pt.shape[1] if len(pt.shape) == 2 else 1
-        thresholds = torch.linspace(0, 1, linspacing).to(device)
-        areas = []
-        # mean over all classes
-        for i in range(classes):
-            tp, fn, fp, tn = confusion(gt, pt[:,i] if classes > 1 else pt, thresholds)
-            fpr = fp/(fp+tn+EPS)
-            tpr = tp/(tp+fn+EPS)
-            a = area(fpr, tpr)
-            if a > 0:
-                areas.append(a)
-        loss = 1 - torch.stack(areas).mean()
-        return loss
-    return loss
-
-class Net(nn.Module):
-    def __init__(self, input_dim, sigmoid_out):
-        super(Net, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 32)
-        self.fc2 = nn.Linear(32, 16)
-        self.fc3 = nn.Linear(16, 1)
-        self.dropout1 = nn.Dropout(0.5)
-        self.dropout2 = nn.Dropout(0.5)
-        self.sigmoid = nn.Sigmoid()
-        self.sigmoid_out = sigmoid_out
+class Model(nn.Module):
+    def __init__(self, input_features=4, hidden_layer1=8, hidden_layer2=12, output_features=3):
+        super().__init__()
+        self.fc1 = nn.Linear(input_features, hidden_layer1)
+        self.fc2 = nn.Linear(hidden_layer1, hidden_layer2)
+        self.output = nn.Linear(hidden_layer2, output_features)
 
     def forward(self, x):
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.dropout1(x)
-        x = self.fc2(x)
-        x = F.relu(x)
-        x = self.dropout2(x)
-        x = self.fc3(x)
-        if self.sigmoid_out:
-            x = self.sigmoid(x)
-        return x.squeeze()
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.output(x)
+        return x
 
 # metric definition
 class Fbeta(PerformanceMetric):
@@ -273,118 +49,88 @@ class AccuracyMetric(PerformanceMetric):
     def define(self, C):
         return (C.tp + C.tn) / C.all
 
+
+def mean_f1_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
+    def loss(pt, gt):
+        """Approximate F1:
+            - Linear interpolated Heaviside function
+            - Harmonic mean of precision and recall
+            - Mean over a range of thresholds
+        """
+        classes = pt.shape[1] if len(pt.shape) == 2 else 1
+        mean_f1s = torch.zeros(classes, dtype=torch.float32)
+        # mean over all classes
+        for i in range(classes):
+            thresholds = torch.arange(0.1, 1, 0.1)
+            tp, fn, fp, _ = confusion(gt, pt[:,i] if classes > 1 else pt, thresholds)
+            precision = tp/(tp+fp+EPS)
+            recall = tp/(tp+fn+EPS)
+            mean_f1s[i] = torch.mean(2 * (precision * recall) / (precision + recall + EPS))
+        loss = 1 - mean_f1s.mean()
+        return loss
+    return loss
+
+
+def mean_accuracy_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
+    def loss(pt, gt):
+        """Approximate Accuracy:
+            - Linear interpolated Heaviside function
+            - (TP + TN) / (TP + TN + FP + FN)
+            - Mean over a range of thresholds
+        """
+        classes = pt.shape[1] if len(pt.shape) == 2 else 1
+        mean_accs = torch.zeros(classes, dtype=torch.float32)
+        # mean over all classes
+        for i in range(classes):
+            tp, fn, fp, tn = confusion(gt, pt[:,i] if classes > 1 else pt, thresholds)
+            mean_accs[i] = torch.mean((tp + tn) / (tp + tn + fp + fn))
+        loss = 1 - mean_accs.mean()
+        return loss
+    return loss
+
+
+def area(x,y):
+    ''' area under curve via trapezoidal rule'''
+    direction = 1
+    # the following is equivalent to: dx = np.diff(x)
+    dx = x[1:] - x[:-1]
+    if torch.any(dx < 0):
+        if torch.all(dx <= 0):
+            direction = -1
+        else:
+            logging.warn("x is neither increasing nor decreasing\nx: {}\ndx: {}.".format(x, dx))
+            return 0
+    return direction * torch.trapz(y, x)
+
+
+def mean_auroc_approx_loss_on(linspacing=11):
+    def loss(pt, gt):
+        """Approximate auroc:
+            - Linear interpolated Heaviside function
+            - roc (11-point approximation)
+            - integrate via trapezoidal rule under curve
+        """
+        classes = pt.shape[1] if len(pt.shape) == 2 else 1
+        thresholds = torch.linspace(0, 1, linspacing)
+        areas = []
+        # mean over all classes
+        for i in range(classes):
+            tp, fn, fp, tn = confusion(gt, pt[:,i] if classes > 1 else pt, thresholds)
+            fpr = fp/(fp+tn+EPS)
+            tpr = tp/(tp+fn+EPS)
+            a = area(fpr, tpr)
+            if a > 0:
+                areas.append(a)
+        loss = 1 - torch.stack(areas).mean()
+        return loss
+    return loss
+
+
 def threshold_pred(y_pred, t):
     return (y_pred > t).float()
 
-# creating trainer,evaluator
-def thresholded_output_transform(threshold, device):
-    def transform(output):
-        y_pred, y = output
-        return threshold_pred(y_pred, t=torch.tensor([threshold]).to(device)), y
-    return transform
-
-def inference_engine(model, device, threshold=0.5):
-    def inference_update_with_tta(engine, batch):
-        model.eval()
-        with torch.no_grad():
-            x, y = batch
-            y_pred = threshold_pred(model(x.to(device)).to(device), t=torch.tensor([threshold]).to(device))
-            return y_pred, y
-    engine = Engine(inference_update_with_tta)
-    for name, metric in getmetrics(threshold, device).items():
-        metric.attach(engine, name)
-    return engine
-
-def inference_over_range(model, device, data_loader, thresholds=np.arange(0.1,1,0.1)):
-    res = []
-    for threshold in thresholds:
-        inferencer = inference_engine(model, device, threshold=threshold)
-        res.append(inferencer.run(data_loader))
-    return res
-
-def getmetrics(threshold, device):
-    precision = Precision(thresholded_output_transform(threshold, device), average=False)
-    recall = Recall(thresholded_output_transform(threshold, device), average=False)
-    def Fbetaf(r, p, beta):
-        return torch.mean((1 + beta ** 2) * p * r / (beta ** 2 * p + r + 1e-20)).item()
-    return {
-        'f1': MetricsLambda(Fbetaf, recall, precision, 1),
-        'ap': AveragePrecision(thresholded_output_transform(threshold, device)),
-        'auroc': ROC_AUC(thresholded_output_transform(threshold, device)),
-        'accuracy': Accuracy(thresholded_output_transform(threshold, device)),
-    #    'cm': ConfusionMatrix(num_classes=1)
-    }
-
-## combine 2 confusion matrices
-def add_cm_val(cmv1, cmv2):
-    res = CM_Value(np.array([]),np.array([]))
-    res.all = cmv1.all + cmv2.all
-    res.tp = cmv1.tp + cmv2.tp
-    res.ap = cmv1.ap + cmv2.ap
-    res.pp = cmv1.pp + cmv2.pp
-
-    res.an = cmv1.an + cmv2.an
-    res.pn = cmv1.pn + cmv2.pn
-
-    res.fp = cmv1.fp + cmv2.fp
-    res.fn = cmv1.fn + cmv2.fn
-    res.tn = cmv1.tn + cmv2.tn
-
-    return res
-
-
-# compute metric value from cunfusion matrix
-def compute_metric_from_cm(metric, C_val):
-    # check for special cases
-    if metric.special_case_positive:
-        if C_val.ap == 0 and C_val.pp == 0:
-            return 1.0
-        elif C_val.ap == 0:
-            return 0.0
-        elif C_val.pp == 0:
-            return 0.0
-
-    if metric.special_case_negative:
-        if C_val.an == 0 and C_val.pn == 0:
-            return 1.0
-        elif C_val.an == 0:
-            return 0.0
-        elif C_val.pn == 0:
-            return 0.0
-
-    val = metric.metric_expr.compute_value(C_val)
-    return val
-
-def model_path(args):
-    return '/'.join([args.output, 'running', args.experiment, args.dataset])
 
 def train(args):
-    if torch.cuda.is_available():
-        print("device = cuda")
-        device = f"cuda:{args.gpu}"
-    else:
-        print("device = cpu")
-        device = "cpu"
-
-    # ap-perf only works on cpu
-    if args.loss == 'ap-perf-f1':
-        print("device = cpu")
-        device = 'cpu'
-
-    ds = dataset_from_name(args.dataset)()
-    dataparams = {'batch_size': args.batch_size,
-                  'shuffle': True,
-                  'num_workers': 1}
-
-    trainset = Dataset(ds['train'])
-    train_loader = DataLoader(trainset, **dataparams)
-    validationset = Dataset(ds['val'])
-    val_loader = DataLoader(validationset, **dataparams)
-    testset = Dataset(ds['test'])
-    test_loader = DataLoader(testset, **dataparams)
-
-    input_dim = ds['train']['X'][0].shape[0]
-
     # initialize metric
     f1_score = Fbeta(1)
     f1_score.initialize()
@@ -410,19 +156,6 @@ def train(args):
     Path(model_path(args)).mkdir(parents=True, exist_ok=True)
     run_name = f"{args.dataset}-{args.loss}-batch_{args.batch_size}-lr_{args.lr}_{now}"
     log_path = '/'.join([model_path(args), f"{run_name}.log"])
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    fh = logging.FileHandler(log_path)
-    fh.setLevel(logging.INFO)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    fm = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
-    fh.setFormatter(fm)
-    ch.setFormatter(fm)
-    logger.addHandler(ch)
-    logger.addHandler(fh)
-    logging.info(f"Configured logging to output to: {log_path} and terminal")
-
     initial_model_file_path = '/'.join([model_path(args), '{}_initial.pth'.format(now)])
 
     # load or save initial weights
@@ -679,77 +412,103 @@ def test(args):
     return now
 
 
-def train_for_datasets(args):
-    if args.dataset == 'all':
-        for dataset in DATASETS:
-            _args = copy.deepcopy(args)
-            _args.dataset = dataset
-            train_for_losses(_args)
-        return ts
-    else:
-        return train_for_losses(args)
+def load_iris(): 
+    iris = pd.read_csv(_IRIS_DATA_PATH)
+    mappings = {
+        "Iris-setosa": 0,
+        "Iris-versicolor": 1,
+        "Iris-virginica": 2
+    }
+    iris["species"] = iris["species"].apply(lambda x: mappings[x])
 
-def train_for_losses(args, ts=None):
-    if args.loss == 'all':
-        for loss in LOSSES:
-            _args = copy.deepcopy(args)
-            _args.loss = loss
-            if ts is not None:
-                _args.initial_weights = ts
-            # params from author
-            if loss == 'ap-perf-f1':
-                _args.batch_size = 20
-                _args.lr = 3e-4
-            ts = train(_args)
-        return ts
-    else:
-        return train(args)
+    X = iris.drop("species", axis=1).values
+    y = iris["species"].values
+    input_size = X.shape[-1]
+    cats = np.sum(np.unique(y)).astype(int)
 
+    print("no. of samples: {}".format(X.shape[0]))       # 150 
+    print("no. of attributes: {}".format(input_size))    # 4 
+    print("no. of categories: {}".format(cats))          # 3 
+
+    # purely for plotting
+    # df = iris.iloc[:, 0:4]
+    # fig, ax = plt.subplots(figsize=(12, 12), dpi=150)
+    # pd.plotting.scatter_matrix(df, figsize=(12, 12), c=y, s=200, alpha=1, ax=ax)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20)
+    # train 
+    X_train = torch.FloatTensor(X_train)
+    y_train = torch.LongTensor(y_train)
+
+    # test 
+    X_test = torch.FloatTensor(X_test)
+    y_test = torch.LongTensor(y_test)
+
+    return {
+        'train': {
+            'X': X_train,
+            'y': y_train
+        },
+        'test': {
+            'X': X_test,
+            'y': y_test
+        },
+    }
+
+
+def train_iris(data_splits, loss_metric): 
+    X_train, y_train = data_splits['train']['X'], data_splits['train']['y']
+    X_test, y_test = data_splits['test']['X'], data_splits['test']['y']
+
+    # initialize metric
+    f1_score = Fbeta(1)
+    f1_score.initialize()
+    f1_score.enforce_special_case_positive()
+
+    # accuracy metric
+    accm = AccuracyMetric()
+    accm.initialize()
+
+    # initialize 
+    epochs = 100
+    losses = []
+    model = Model()
+
+    # criterion 
+    if loss_metric == "ce":
+        criterion = nn.CrossEntropyLoss()
+    elif loss_metric == "approx-f1": 
+        criterion = mean_f1_approx_loss_on(thresholds=torch.tensor([0.5]))
+    elif loss_metric == 'approx-accuracy':
+        criterion = mean_accuracy_approx_loss_on(thresholds=torch.tensor([0.5]))
+    elif loss_metric == 'approx-auroc':
+        criterion = mean_auroc_approx_loss_on()
+    else:
+        raise RuntimeError("Unknown loss {}".format(loss_metric))
+    
+    # setting optimizer 
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+
+    for i in range(epochs):
+        y_pred = model.forward(X_train)
+        loss = criterion(y_pred, y_train)
+        losses.append(loss)
+        print(f'epoch: {i:2}  loss: {loss.item():10.8f}')
+
+        # backprop, updating weights and biases
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+@click.command() 
+@click.option("--loss", required=True)
+def run(loss): 
+    data_splits = load_iris()
+    train_iris(data_splits, loss_metric=loss)
 
 def main():
-    # Training settings
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--experiment', type=str, help='experiment name')
-    parser.add_argument('--initial_weights', type=int, help='to load a prior model initial weights')
-    parser.add_argument('--mode', type=str,
-            required=True,
-            default='train',
-            choices=['train', 'test'])
-
-    parser.add_argument('--early_stopping_patience', type=int, default=100, help="early stopping patience")
-    parser.add_argument('--batch_size', type=int, default=2048, metavar='N',
-                        help='input batch size for training (default: 2048)')
-    parser.add_argument('--epochs', type=int, default=5000, metavar='N',
-                        help='number of epochs to train (default: 5000)')
-    parser.add_argument('--loss', type=str,
-            required=True,
-            default='bce',
-            choices=LOSSES + ['all'])
-    parser.add_argument('--dataset', type=str,
-            default='mammography',
-            choices=DATASETS + ['all'])
-    parser.add_argument('--output', type=str, default="experiments",
-                        help='output path for experiment data')
-    parser.add_argument('--lr', type=float, default=1e-3, metavar='N',
-                        help='input batch size for training (default: 2048)')
-    parser.add_argument('--gpu', type=int, default=0, metavar='N',
-                        help='which gpu to use? [0, n]')
-
-    args = parser.parse_args()
-
-    if args.mode == 'train':
-        # loop over all datasets and losses, if necessary
-        train_for_datasets(args)
-    elif args.mode == 'test':
-        if args.loss == 'all':
-            for loss in LOSSES:
-                args.loss = loss
-                test(args)
-        else:
-            test(args)
-    else:
-        raise RuntimeError("Unknown mode")
-
+    run() 
+    
 if __name__ == '__main__':
     main()
 

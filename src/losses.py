@@ -3,14 +3,12 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import backend as K
 
-
 from heavisidefunctions import *
 
 HEAVISIDE = ['f1_05_sig_k10', 'f1_05_sig_k20', 'f1_05_sig_fit'] + \
     ['f1_mean', 'f1_mean_sig_k10', 'f1_mean_sig_k20', 'f1_mean_sig_fit']
 REPORTED = ['bce', 'roc', 'accuracy_05', 'f1_max', 'f1_05', 'f2_05', 'f3_05']
 ALL = REPORTED + ['accuracy', 'auroc', 'f2_mean', 'f3_mean'] + HEAVISIDE
-
 
 def get(loss):
     if loss == 'bce':
