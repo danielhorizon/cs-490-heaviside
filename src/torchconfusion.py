@@ -105,11 +105,17 @@ def l_tn(gt, pt, thresh, agg='sum'):
     thresholds = torch.where(condition, thresh, 1-thresh)
     return heaviside_agg(xs, thresholds, agg)
 
+# pt = predicted 
+# gt = ground truth 
 def confusion(gt, pt, thresholds, agg='sum'):
+    print("gt: {}".format(gt))
+    print("pt: {}".format(pt))
     # 'tp', 'fn', 'fp', 'tn'
     tp = l_tp(gt, pt, thresholds, agg)
     fn = l_fn(gt, pt, thresholds, agg)
     fp = l_fp(gt, pt, thresholds, agg)
     tn = l_tn(gt, pt, thresholds, agg)
-    print("tp: {} | fn: {} | fp: {} | tn: {}".format(tp.numpy(), fn.numpy(), fp.numpy(), tn.numpy()))
+    # print("tp: {} | fn: {} | fp: {} | tn: {}".format(
+    #     tp.detach().numpy(), fn.detach().numpy(), fp.detach().numpy(), tn.detach().numpy())
+    #     )
     return tp, fn, fp, tn

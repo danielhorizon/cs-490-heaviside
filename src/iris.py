@@ -20,22 +20,12 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
-from ap_perf import PerformanceMetric, MetricLayer
-
 from torchconfusion import confusion
 from keras.utils import to_categorical
 
 
 EPS = 1e-7
 _IRIS_DATA_PATH = "../data/iris.csv"
-
-# metric definition
-class Fbeta(PerformanceMetric):
-    def __init__(self, beta):
-        self.beta = beta
-
-    def define(self, C):
-        return ((1 + self.beta ** 2) * C.tp) / ((self.beta ** 2) * C.ap + C.pp)
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -50,12 +40,6 @@ class Dataset(torch.utils.data.Dataset):
         return self.X[index, :], self.y[index]
 
 
-# metric definition
-class AccuracyMetric(PerformanceMetric):
-    def define(self, C):
-        return (C.tp + C.tn) / C.all
-
-
 class Model(nn.Module):
     # http://airccse.org/journal/ijsc/papers/2112ijsc07.pdf
     # https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8620866&tag=1
@@ -63,12 +47,16 @@ class Model(nn.Module):
         super().__init__()
         self.fc1 = nn.Linear(input_features, hidden_layer1)
         self.fc2 = nn.Linear(hidden_layer1, hidden_layer2)
-        self.output = nn.Linear(hidden_layer2, output_features)
+        self.fc3 = nn.Linear(hidden_layer2, output_features)
+        self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.output(x)
+        x = self.fc1(x) 
+        x = F.relu(x)
+        x = self.fc2(x) 
+        x = F.relu(x) 
+        x = self.fc3(x) 
+        x = self.softmax(x) 
         return x
 
 

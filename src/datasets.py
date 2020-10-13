@@ -17,13 +17,8 @@ REPORTED = ['wine_quality', 'kaggle_cc_fraud']
 REAL = ['kaggle_cc_fraud', 'wine_quality', ]
 
 
-def iris_flowers(shuffle=True):
-    raw_df = pd.read_csv("data/iris.csv")
-    return raw_df 
-
-
 def wine_quality(shuffle=True):
-    raw_df = pd.read_csv('data/whitewine.csv')
+    raw_df = pd.read_csv('./data/whitewine.csv')
 
     labels = raw_df['quality']
     positive_class = list(range(7, 11))
@@ -121,7 +116,7 @@ def kaggle_cc_fraud(invert=False):
             Total: 56962
             Positive: 80 (0.14% of total)
     '''
-    raw_df = pd.read_csv(DATA_PATH.joinpath('kaggle/creditcard.csv'))
+    raw_df = pd.read_csv('./data/kaggle/creditcard.csv')
     if invert:
         raw_df['Class'] = raw_df['Class'].replace({0: 1, 1: 0})
     neg, pos = np.bincount(raw_df['Class'])
@@ -167,6 +162,94 @@ def kaggle_cc_fraud(invert=False):
     logging.info('kaggle Validation features shape: {}'.format(
         val_features.shape))
     logging.info('kaggle Test features shape: {}'.format(test_features.shape))
+
+    return {
+        'train': {
+            'X': train_features,
+            'y': train_labels
+        },
+        'val': {
+            'X': val_features,
+            'y': val_labels
+        },
+        'test': {
+            'X': test_features,
+            'y': test_labels
+        },
+    }
+
+
+def mammography_inverted():
+    return mammography(invert=True)
+
+
+def mammography(invert=False):
+    '''
+        http://odds.cs.stonybrook.edu/mammography-dataset/
+        Examples:
+            Total: 11183
+            Positive: 260 (2.32% of total)
+        -- Sampled! --
+        Training Examples:
+            Total: 7156
+            Positive: 151 (2.11% of total)
+        Validation Examples:
+            Total: 1790
+            Positive: 48 (2.68% of total)
+        Test Examples:
+            Total: 2237
+            Positive: 61 (2.73% of total)
+    '''
+    raw_df = pd.read_csv('../data/odds/mammography.csv')
+    raw_df.columns = ['V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'Class']
+
+    def replace_val(x): return 0 if x == "'-1'" else 1
+    _list = [replace_val(x) for x in raw_df['Class']]
+    del raw_df['Class']
+    raw_df['Class'] = _list
+
+    if invert:
+        raw_df['Class'] = raw_df['Class'].replace({0: 1, 1: 0})
+
+    # Data balance
+    neg, pos = np.bincount(raw_df['Class'])
+    total = neg + pos
+    logging.info('Examples:\n    Total: {}\n    Positive: {} ({:.2f}% of total)\n'.format(
+        total, pos, 100 * pos / total))
+
+    # Split and shuffle
+    train_df, test_df = train_test_split(raw_df, test_size=0.2)
+    train_df, val_df = train_test_split(train_df, test_size=0.2)
+
+    train_labels = np.array(train_df.pop('Class'))
+    val_labels = np.array(val_df.pop('Class'))
+    test_labels = np.array(test_df.pop('Class'))
+
+    train_features = np.array(train_df)
+    val_features = np.array(val_df)
+    test_features = np.array(test_df)
+
+    # Scale data
+    scaler = StandardScaler()
+    train_features = scaler.fit_transform(train_features)
+    logging.info("mammography mean: {}".format(train_features.mean()))
+    logging.info("mammography variance: {}".format(train_features.var()))
+    logging.info("mammography min: {}, max: {}".format(
+        train_features.min(), train_features.max()))
+    val_features = scaler.transform(val_features)
+    test_features = scaler.transform(test_features)
+
+    logging.info('mammography Training labels shape: {}'.format(
+        train_labels.shape))
+    logging.info(
+        'mammography Validation labels shape: {}'.format(val_labels.shape))
+    logging.info('mammography Test labels shape: {}'.format(test_labels.shape))
+    logging.info('mammography Training features shape: {}'.format(
+        train_features.shape))
+    logging.info('mammography Validation features shape: {}'.format(
+        val_features.shape))
+    logging.info('mammography Test features shape: {}'.format(
+        test_features.shape))
 
     return {
         'train': {
