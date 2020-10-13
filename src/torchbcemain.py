@@ -273,6 +273,12 @@ class AccuracyMetric(PerformanceMetric):
     def define(self, C):
         return (C.tp + C.tn) / C.all
 
+# F1
+class F1Score(PerformanceMetric):
+    def define(self, C):
+        return (2 * C.tp) / (C.ap + C.pp)
+
+
 def threshold_pred(y_pred, t):
     return (y_pred > t).float()
 
@@ -554,16 +560,6 @@ def train(args):
                 best_f1_apperf = f1_val_apperf
 
             logging.info("Val - Epoch ({}): Accuracy: {:.4f} | F1: {:.4f}".format(epoch, acc_val, f1_val))
-
-            # double check val metrics
-            inferencer = inference_engine(model, device, threshold=threshold)
-            result_state = inferencer.run(val_loader)
-            logging.info("  val: {}".format(result_state.metrics))
-            writer.add_scalar('val/accuracy', result_state.metrics['accuracy'], epoch)
-            writer.add_scalar('val/f1', result_state.metrics['f1'], epoch)
-            writer.add_scalar('val/ap', result_state.metrics['ap'], epoch)
-            writer.add_scalar('val/auroc', result_state.metrics['auroc'], epoch)
-            f1_val_ignite = result_state.metrics['f1']
 
             # check early stopping per epoch
             patience -= 1

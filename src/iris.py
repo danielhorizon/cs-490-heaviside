@@ -2,29 +2,64 @@ import time
 import torch
 import click 
 import logging
+import math 
+
 import pandas as pd
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 
-from torchconfusion import confusion
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn import metrics 
+
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import DataLoader
+from torch.autograd import Variable
 
 from ap_perf import PerformanceMetric, MetricLayer
-from ap_perf.metric import CM_Value
 
-from torch.autograd import Variable
+from torchconfusion import confusion
 from keras.utils import to_categorical
-
 
 
 EPS = 1e-7
 _IRIS_DATA_PATH = "../data/iris.csv"
 
+# metric definition
+class Fbeta(PerformanceMetric):
+    def __init__(self, beta):
+        self.beta = beta
+
+    def define(self, C):
+        return ((1 + self.beta ** 2) * C.tp) / ((self.beta ** 2) * C.ap + C.pp)
+
+
+class Dataset(torch.utils.data.Dataset):
+    def __init__(self, ds_split):
+        self.X = torch.from_numpy(ds_split['X']).float()
+        self.y = torch.from_numpy(ds_split['y']).float()
+
+    def __len__(self):
+        return len(self.y)
+
+    def __getitem__(self, index):
+        return self.X[index, :], self.y[index]
+
+
+# metric definition
+class AccuracyMetric(PerformanceMetric):
+    def define(self, C):
+        return (C.tp + C.tn) / C.all
+
+
 class Model(nn.Module):
-    def __init__(self, input_features=4, hidden_layer1=8, hidden_layer2=12, output_features=3):
+    # http://airccse.org/journal/ijsc/papers/2112ijsc07.pdf
+    # https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8620866&tag=1
+    def __init__(self, input_features=4, hidden_layer1=50, hidden_layer2=20, output_features=3):
         super().__init__()
         self.fc1 = nn.Linear(input_features, hidden_layer1)
         self.fc2 = nn.Linear(hidden_layer1, hidden_layer2)
@@ -36,19 +71,6 @@ class Model(nn.Module):
         x = self.output(x)
         return x
 
-# metric definition
-class Fbeta(PerformanceMetric):
-    def __init__(self, beta):
-        self.beta = beta
-
-    def define(self, C):
-        return ((1 + self.beta ** 2) * C.tp) / ((self.beta ** 2) * C.ap + C.pp)
-
-# metric definition
-class AccuracyMetric(PerformanceMetric):
-    def define(self, C):
-        return (C.tp + C.tn) / C.all
-
 
 def mean_f1_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
     def loss(pt, gt):
@@ -57,14 +79,14 @@ def mean_f1_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
             - Harmonic mean of precision and recall
             - Mean over a range of thresholds
         """
-        classes = pt.shape[1] if len(pt.shape) == 2 else 1
+        classes = pt.shape[1]
         mean_f1s = torch.zeros(classes, dtype=torch.float32)
         # mean over all classes
         for i in range(classes):
             thresholds = torch.arange(0.1, 1, 0.1)
             tp, fn, fp, _ = confusion(gt, pt[:,i] if classes > 1 else pt, thresholds)
             precision = tp/(tp+fp+EPS)
-            recall = tp/(tp+fn+EPS)
+            recall = tp/(tp+fn+EPS) 
             mean_f1s[i] = torch.mean(2 * (precision * recall) / (precision + recall + EPS))
         loss = 1 - mean_f1s.mean()
         return loss
@@ -78,7 +100,7 @@ def mean_accuracy_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
             - (TP + TN) / (TP + TN + FP + FN)
             - Mean over a range of thresholds
         """
-        classes = pt.shape[1] if len(pt.shape) == 2 else 1
+        classes = pt.shape[1]
         mean_accs = torch.zeros(classes, dtype=torch.float32)
         # mean over all classes
         for i in range(classes):
@@ -110,7 +132,7 @@ def mean_auroc_approx_loss_on(linspacing=11):
             - roc (11-point approximation)
             - integrate via trapezoidal rule under curve
         """
-        classes = pt.shape[1] if len(pt.shape) == 2 else 1
+        classes = pt.shape[1] 
         thresholds = torch.linspace(0, 1, linspacing)
         areas = []
         # mean over all classes
@@ -126,354 +148,117 @@ def mean_auroc_approx_loss_on(linspacing=11):
     return loss
 
 
-def threshold_pred(y_pred, t):
-    return (y_pred > t).float()
+# compute metric value from cunfusion matrix
+def compute_metric_from_cm(metric, C_val):
+    # check for special cases
+    if metric.special_case_positive:
+        if C_val.ap == 0 and C_val.pp == 0:
+            return 1.0
+        elif C_val.ap == 0:
+            return 0.0
+        elif C_val.pp == 0:
+            return 0.0
+
+    if metric.special_case_negative:
+        if C_val.an == 0 and C_val.pn == 0:
+            return 1.0
+        elif C_val.an == 0:
+            return 0.0
+        elif C_val.pn == 0:
+            return 0.0
+
+    val = metric.metric_expr.compute_value(C_val)
+    return val
 
 
-def train(args):
-    # initialize metric
-    f1_score = Fbeta(1)
-    f1_score.initialize()
-    f1_score.enforce_special_case_positive()
-
-    # accuracy metric
-    accm = AccuracyMetric()
-    accm.initialize()
-
-    threshold = 0.5
-
-    # create a model and criterion layer
-    sigmoid_out = False
-    if args.loss in ['approx-f1', 'approx-accuracy', 'approx-auroc', 'approx-ap', 'auc-roc']:
-        sigmoid_out = True
-    model = Net(input_dim, sigmoid_out).to(device)
-
-    # set run timestamp or load from args
-    now = int(time.time())
-    if args.initial_weights:
-        now = args.initial_weights
-
-    Path(model_path(args)).mkdir(parents=True, exist_ok=True)
-    run_name = f"{args.dataset}-{args.loss}-batch_{args.batch_size}-lr_{args.lr}_{now}"
-    log_path = '/'.join([model_path(args), f"{run_name}.log"])
-    initial_model_file_path = '/'.join([model_path(args), '{}_initial.pth'.format(now)])
-
-    # load or save initial weights
-    if args.initial_weights:
-        logging.info(f"[{now}] loading {initial_model_file_path}")
-        model.load_state_dict(torch.load(initial_model_file_path))
-    else:
-        # persist the initial weights for future use
-        torch.save(model.state_dict(), initial_model_file_path)
-
-    if args.loss == 'bce':
-        criterion = nn.BCEWithLogitsLoss()
-    elif args.loss == 'ap-perf-f1':
-        threshold = 0.0
-        criterion = MetricLayer(f1_score).to(device)
-    elif args.loss == 'approx-f1':
-        criterion = mean_f1_approx_loss_on(device, thresholds=torch.tensor([0.5]))
-    elif args.loss == 'approx-accuracy':
-        criterion = mean_accuracy_approx_loss_on(device, thresholds=torch.tensor([0.5]))
-    elif args.loss == 'approx-auroc':
-        criterion = mean_auroc_approx_loss_on(device)
-    elif args.loss == 'approx-ap':
-        criterion = mean_ap_approx_loss_on(device)
-    elif args.loss == 'auc-roc':
-        criterion = roc_auc_score(device)
-    else:
-        raise RuntimeError("Unknown loss {}".format(args.loss))
-
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    patience = args.early_stopping_patience
-
-    tensorboard_path = '/'.join([args.output, 'running', args.experiment, 'tensorboard', run_name])
-    writer = SummaryWriter(tensorboard_path)
-
-    # early stopping
-    early_stopping = False
-    best_f1 = None
-    best_f1_apperf = 0
-
-    best_test = {
-        'now': now,
-        'loss': args.loss,
-        'accuracy_05_score':0,
-        'f1_05_score':0,
-        'ap_05_score':0,
-        'auroc_05_score':0,
-        'accuracy_mean_score': 0,
-        'f1_mean_score': 0,
-        'ap_mean_score':0,
-        'auroc_mean_score':0,
-    }
-
-    for epoch in range(args.epochs):
-        if early_stopping:
-            logging.info("[{}] Early Stopping at Epoch {}/{}".format(now, epoch, args.epochs))
-            logging.info("  [val best f1] apperf: {:.4f} | ignite: {:.4f}".format(best_f1_apperf, best_f1))
-            break
-
-        data_cm = CM_Value(np.array([]),np.array([]))
-
-        losses = []
-        accuracies = []
-        f1s = []
-        aps = []
-        rocs = []
-
-        for i, (inputs, labels) in enumerate(train_loader):
-            inputs = inputs.to(device)
-            labels = labels.to(device)
-
-            model.train()
-            optimizer.zero_grad()
-            output = model(inputs)
-            loss = criterion(output, labels)
-            losses.append(loss)
-            loss.backward()
-            optimizer.step()
-
-            ## check prediction
-            model.eval()    # switch to evaluation
-            y_pred = model(inputs)
-            y_pred_thresh = (y_pred >= threshold).float()
-            np_pred = y_pred_thresh.cpu().numpy()
-            np_labels = labels.cpu().numpy()
-            batch_cm = CM_Value(np_pred, np_labels)
-            data_cm = add_cm_val(data_cm, batch_cm)
-            # sklearn.metrics to tensorboard
-            accuracies.append(metrics.accuracy_score(np_labels, np_pred))
-            f1s.append(metrics.f1_score(np_labels,np_pred))
-            aps.append(metrics.average_precision_score(np_labels,np_pred))
-            # undefined if predicting only 1 value
-            # https://github.com/scikit-learn/scikit-learn/blob/master/sklearn/metrics/_ranking.py#L224
-            if len(np.unique(np_labels)) == 2:
-                rocs.append(metrics.roc_auc_score(np_labels,np_pred))
-
-        acc_val = compute_metric_from_cm(accm, data_cm)
-        f1_val = compute_metric_from_cm(f1_score, data_cm)
-
-        mloss = np.array(loss.cpu().detach()).mean()
-        writer.add_scalar('loss', mloss, epoch)
-        writer.add_scalar('train/accuracy', np.array(acc_val).mean(), epoch)
-        writer.add_scalar('train/f1', np.array(f1_val).mean(), epoch)
-        writer.add_scalar('train/ap', np.array(aps).mean(), epoch)
-        writer.add_scalar('train/auroc', np.array(rocs).mean(), epoch)
-
-        logging.info("Train - Epoch ({}): Loss: {:.4f} Accuracy: {:.4f} | F1: {:.4f}".format(epoch, mloss, acc_val, f1_val))
-
-
-        ### Validation
-        model.eval()
-        with torch.no_grad():
-            data_cm = CM_Value(np.array([]),np.array([]))
-            for i, (inputs, labels) in enumerate(val_loader):
-                inputs = inputs.to(device)
-                labels = labels.to(device)
-
-                output = model(inputs)
-
-                ## prediction
-                pred = (output >= 0).float()
-                batch_cm = CM_Value(pred.cpu().numpy(), labels.cpu().numpy())
-                data_cm = add_cm_val(data_cm, batch_cm)
-
-            acc_val = compute_metric_from_cm(accm, data_cm)
-            f1_val_apperf = compute_metric_from_cm(f1_score, data_cm)
-            writer.add_scalar('val_ap_perf/accuracy', acc_val, epoch)
-            writer.add_scalar('val_ap_perf/f1', f1_val_apperf, epoch)
-            if best_f1_apperf < f1_val_apperf:
-                best_f1_apperf = f1_val_apperf
-
-            logging.info("Val - Epoch ({}): Accuracy: {:.4f} | F1: {:.4f}".format(epoch, acc_val, f1_val))
-
-            # double check val metrics
-            inferencer = inference_engine(model, device, threshold=threshold)
-            result_state = inferencer.run(val_loader)
-            logging.info("  val: {}".format(result_state.metrics))
-            writer.add_scalar('val/accuracy', result_state.metrics['accuracy'], epoch)
-            writer.add_scalar('val/f1', result_state.metrics['f1'], epoch)
-            writer.add_scalar('val/ap', result_state.metrics['ap'], epoch)
-            writer.add_scalar('val/auroc', result_state.metrics['auroc'], epoch)
-            f1_val_ignite = result_state.metrics['f1']
-
-            # check early stopping per epoch
-            patience -= 1
-            if best_f1 is None or best_f1 < f1_val_ignite:
-                # save the best model
-                model_file_path = '/'.join([model_path(args), '{}_best_model_{}_{}_{}={}.pth'.format(now, epoch, args.dataset, args.loss, f1_val_ignite)])
-                torch.save(model, model_file_path)
-                logging.info("Saving best model to {}".format(model_file_path))
-                best_f1 = f1_val_ignite
-                patience = args.early_stopping_patience
-                # check test set results
-                results = inference_over_range(model, device, test_loader)
-                # values correspond to the thresholds: np.arange(0.1,1,0.1), so index 4 has t=0.5
-                accuracies = [r.metrics['accuracy'] for r in results]
-                test_f1s = [r.metrics['f1'] for r in results]
-                aps = [r.metrics['ap'] for r in results]
-                aurocs = [r.metrics['auroc'] for r in results]
-                # record the best to print at the end
-                if best_test['accuracy_05_score'] < accuracies[4]:
-                    best_test['accuracy_05_score'] = accuracies[4]
-                    best_test['accuracy_05_model_file'] = model_file_path
-                if best_test['f1_05_score'] < test_f1s[4]:
-                    best_test['f1_05_score'] = test_f1s[4]
-                    best_test['f1_05_model_file'] = model_file_path
-                if best_test['ap_05_score'] < aps[4]:
-                    best_test['ap_05_score'] = aps[4]
-                    best_test['ap_05_model_file'] = model_file_path
-                if best_test['auroc_05_score'] < aurocs[4]:
-                    best_test['auroc_05_score'] = aurocs[4]
-                    best_test['auroc_05_model_file'] = model_file_path
-                mean_accuracy = np.mean(accuracies)
-                mean_f1 = np.mean(test_f1s)
-                mean_ap = np.mean(aps)
-                mean_auroc = np.mean(aurocs)
-                if best_test['accuracy_mean_score'] < mean_accuracy:
-                    best_test['accuracy_mean_score'] = mean_accuracy
-                    best_test['accuracy_mean_model_file'] = model_file_path
-                if best_test['f1_mean_score'] < mean_f1:
-                    best_test['f1_mean_score'] = mean_f1
-                    best_test['f1_mean_model_file'] = model_file_path
-                if best_test['ap_mean_score'] < mean_ap:
-                    best_test['ap_mean_score'] = mean_ap
-                    best_test['ap_mean_model_file'] = model_file_path
-                if best_test['auroc_mean_score'] < mean_auroc:
-                    best_test['auroc_mean_score'] = mean_auroc
-                    best_test['auroc_mean_model_file'] = model_file_path
-                # write to tensorboard
-                writer.add_scalar('test/accuracy_05', accuracies[4], epoch)
-                writer.add_scalar('test/f1_05', test_f1s[4], epoch)
-                writer.add_scalar('test/ap_05', aurocs[4], epoch)
-                writer.add_scalar('test/auroc_05', aurocs[4], epoch)
-                writer.add_scalar('test/accuracy_mean', mean_accuracy, epoch)
-                writer.add_scalar('test/f1_mean', mean_f1, epoch)
-                writer.add_scalar('test/ap_mean', mean_auroc, epoch)
-                writer.add_scalar('test/auroc_mean', mean_auroc, epoch)
-            logging.info(f"[{now}] {args.loss}, patience: {patience}")
-            if patience <= 0:
-                early_stopping = True
-
-    logging.info(f"{args.experiment} {now}")
-    logging.info(best_test)
-    pd.DataFrame({k: [v] for k, v in best_test.items()}).to_csv('/'.join([model_path(args), f"{run_name}.csv"]))
-    return now
-
-
-def test(args):
-    now = int(time.time())
-    if args.initial_weights:
-        now = args.initial_weights
-
-    if torch.cuda.is_available():
-      device = f"cuda:{args.gpu}"
-    else:
-      device = "cpu"
-
-    threshold = 0.5
-    if args.loss == 'ap-perf-f1':
-        threshold = 0.0
-    ds = dataset_from_name(args.dataset)()
-    dataparams = {'batch_size': args.batch_size,
-                  'shuffle': True,
-                  'num_workers': 1}
-
-    trainset = Dataset(ds['train'])
-    train_loader = DataLoader(trainset, **dataparams)
-    validationset = Dataset(ds['val'])
-    val_loader = DataLoader(validationset, **dataparams)
-    testset = Dataset(ds['test'])
-    test_loader = DataLoader(testset, **dataparams)
-
-    input_dim = ds['train']['X'][0].shape[0]
-
-    best_model_path = None
-    maxval = None
-    globpath = '/'.join([args.output, 'running', args.experiment, dataset_name, args.loss, "{}_best_model_*_{}*.pth".format(now, args.loss)])
-    for path in glob.iglob(globpath):
-        val = float(path.split('=')[-1].split('.pth')[0])
-        print(val)
-        if maxval is None or val > maxval:
-            maxval = val
-            best_model_path = path
-    print("loading: {}".format(best_model_path))
-    #best_model.load_state_dict(torch.load(best_model_path))
-    best_model = torch.load(best_model_path)
-
-    inferencer = inference_engine(model, device, threshold=threshold)
-
-    #ProgressBar(desc="Inference").attach(inferencer)
-
-    result_state = inferencer.run(test_loader)
-    print(result_state.metrics)
-
-    return now
-
-
-def load_iris(): 
-    iris = pd.read_csv(_IRIS_DATA_PATH)
+def load_iris(shuffle=True):
+    # https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8620866&tag=1
+    raw_df = pd.read_csv(_IRIS_DATA_PATH)
     mappings = {
         "Iris-setosa": 0,
         "Iris-versicolor": 1,
         "Iris-virginica": 2
     }
-    iris["species"] = iris["species"].apply(lambda x: mappings[x])
-
-    X = iris.drop("species", axis=1).values
-    y = iris["species"].values
-    input_size = X.shape[-1]
-    cats = np.sum(np.unique(y)).astype(int)
-
-    print("no. of samples: {}".format(X.shape[0]))       # 150 
-    print("no. of attributes: {}".format(input_size))    # 4 
-    print("no. of categories: {}".format(cats))          # 3 
+    raw_df["species"] = raw_df["species"].apply(lambda x: mappings[x])
 
     # purely for plotting
     # df = iris.iloc[:, 0:4]
     # fig, ax = plt.subplots(figsize=(12, 12), dpi=150)
     # pd.plotting.scatter_matrix(df, figsize=(12, 12), c=y, s=200, alpha=1, ax=ax)
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20)
-    # train 
-    X_train = torch.FloatTensor(X_train)
-    y_train = torch.LongTensor(y_train)
+    # split and shuffle; shuffle=true will shuffle the elements before the split. 
+    train_df, test_df = train_test_split(raw_df, test_size=0.20, shuffle=shuffle)
+    train_df, val_df = train_test_split(
+        train_df, test_size=0.20, shuffle=shuffle)
+    
+    train_labels = np.array(train_df.pop("species"))
+    val_labels = np.array(val_df.pop("species"))
+    test_labels = np.array(test_df.pop("species"))
 
-    # test 
-    X_test = torch.FloatTensor(X_test)
-    y_test = torch.LongTensor(y_test)
+    train_features = np.array(train_df)
+    val_features = np.array(val_df)
+    test_features = np.array(test_df)
+
+    # scaling data. 
+    scaler = StandardScaler() 
+    train_features = scaler.fit_transform(train_features)
+    val_features = scaler.transform(val_features)
+    test_features = scaler.transform(test_features)
+
+    print('iris training labels shape: {}'.format(train_labels.shape))
+    print("iris training features.shape: {}".format(train_features.shape))
+
+    print('iris validation labels shape: {}'.format(val_labels.shape))
+    print("iris validation features.shape: {}".format(val_features.shape))
+
+    print('iris test labels shape: {}'.format(test_labels.shape))
+    print("iris test features.shape: {}".format(test_features.shape))
 
     return {
         'train': {
-            'X': X_train,
-            'y': y_train
+            'X': train_features,
+            'y': train_labels
+        },
+        'val': {
+            'X': val_features,
+            'y': val_labels
         },
         'test': {
-            'X': X_test,
-            'y': y_test
+            'X': test_features,
+            'y': test_labels
         },
     }
 
 
-def train_iris(data_splits, loss_metric): 
+def train_iris(data_splits, loss_metric, epochs): 
+    # setting train, validation, and test sets 
     X_train, y_train = data_splits['train']['X'], data_splits['train']['y']
+    X_valid, y_valid = data_splits['val']['X'], data_splits['val']['y']
     X_test, y_test = data_splits['test']['X'], data_splits['test']['y']
 
-    # initialize metric
-    f1_score = Fbeta(1)
-    f1_score.initialize()
-    f1_score.enforce_special_case_positive()
+    dataparams = {'batch_size': 1, 'shuffle': True, 'num_workers': 1}
+    trainset = Dataset(data_splits['train'])
+    validationset = Dataset(data_splits['val'])
+    testset = Dataset(data_splits['test'])
 
-    # accuracy metric
-    accm = AccuracyMetric()
-    accm.initialize()
+    train_loader = DataLoader(trainset, **dataparams)
+    val_loader = DataLoader(validationset, **dataparams)
+    test_loader = DataLoader(testset, **dataparams)
 
-    # initialize 
-    epochs = 100
-    losses = []
+    # initialization
+    now = int(time.time())
+    early_stopping = False
     model = Model()
+    print(model)
 
+    val_losses = [] 
+    best_test = {
+        "now": now, 
+        "loss": float('inf'),
+        "f1_score": 0, 
+        "accuracy": 0
+    }
+    
     # criterion 
     if loss_metric == "ce":
         criterion = nn.CrossEntropyLoss()
@@ -481,30 +266,119 @@ def train_iris(data_splits, loss_metric):
         criterion = mean_f1_approx_loss_on(thresholds=torch.tensor([0.5]))
     elif loss_metric == 'approx-accuracy':
         criterion = mean_accuracy_approx_loss_on(thresholds=torch.tensor([0.5]))
-    elif loss_metric == 'approx-auroc':
-        criterion = mean_auroc_approx_loss_on()
+    # elif loss_metric == 'approx-auroc':
+    #     criterion = mean_auroc_approx_loss_on()
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
     
     # setting optimizer 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
-    for i in range(epochs):
-        y_pred = model.forward(X_train)
-        loss = criterion(y_pred, y_train)
-        losses.append(loss)
-        print(f'epoch: {i:2}  loss: {loss.item():10.8f}')
+    # ----- TRAINING -----
+    for epoch in range(epochs):
+        if early_stopping:
+            logging.info("[{}] Early Stopping at Epoch {}/{}".format(now, epoch, epochs))
+            break
+        losses = [] 
 
-        # backprop, updating weights and biases
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        # loops through the entire training set 
+        for batch, (inputs, labels) in enumerate(train_loader): 
+            labels = labels.type(torch.LongTensor)
+
+            # FORWARD 
+            model.train()   
+            optimizer.zero_grad()
+            y_pred = model.forward(inputs)
+            loss = criterion(y_pred, labels)
+            losses.append(loss)
+
+            # BACKPROP, updating weights and biases
+            loss.backward()
+            optimizer.step()
+
+        # EVALUATE (after every epoch)! 
+        model.eval()
+        mloss = np.array([x.detach().numpy() for x in losses]).mean()
+        # https://github.com/rizalzaf/ap_perf/blob/master/examples/tabular.py
+        
+        # TRAIN Metrics: Accuracy, F1, Loss 
+        train_data = torch.Tensor(X_train)
+        tr_output = model(train_data)
+        tr_pred = torch.Tensor([torch.argmax(x) for x in tr_output])                # for each array, get the array of max index
+        tr_pred_np = [int(x) for x in  tr_pred.cpu().numpy()]
+        tr_acc = accuracy_score(y_true=y_train, y_pred=tr_pred_np)
+        tr_f1_micro = f1_score(y_true=y_train, y_pred=tr_pred_np, average='micro')
+        tr_f1_macro = f1_score(y_true=y_train, y_pred=tr_pred_np, average='macro')
+        tr_f1_weighted = f1_score(y_true=y_train, y_pred=tr_pred_np, average='weighted')
+        
+        # TEST Metrics: Accuracy, F1, Loss
+        test_data = torch.Tensor(X_test)
+        ts_output = model(test_data)
+        ts_pred = torch.Tensor([torch.argmax(x) for x in ts_output])
+        ts_pred_np = [int(x) for x in ts_pred.cpu().numpy()]
+        ts_acc = accuracy_score(y_true=y_test, y_pred=ts_pred_np)
+        ts_f1_micro = f1_score(y_true=y_test, y_pred=ts_pred_np, average='micro')
+        ts_f1_macro = f1_score(y_true=y_test, y_pred=ts_pred_np, average='macro')
+        ts_f1_weighted = f1_score(y_true=y_test, y_pred=ts_pred_np, average='weighted')
+
+        # storing test metrics in dict based on loss 
+        if best_test['loss'] > mloss: 
+            best_test['loss'] = mloss
+            best_test['now'] = int(time.time()) - now
+        if best_test['f1_score'] < ts_f1_weighted: 
+            best_test['f1_score'] = ts_f1_weighted
+        if best_test['accuracy'] < ts_acc: 
+            best_test['accuracy'] = ts_acc
+
+        print("-- Mean Loss: {:.3f}".format(mloss))
+        print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
+            epoch, tr_acc, tr_f1_weighted, tr_f1_macro)
+        )
+        print("Test - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
+            epoch, ts_acc, ts_f1_weighted, ts_f1_macro)
+        )
+
+
+        # ----- VALIDATION -----
+        model.eval() 
+        total_val_loss = 0 
+        with torch.no_grad(): 
+            for batch, (inputs, labels) in enumerate(val_loader):
+                labels = labels.type(torch.LongTensor)
+                output = model.forward(inputs)
+                val_loss = criterion(output, labels)
+                total_val_loss += val_loss
+
+            # computing validation metrics via val_data
+            valid_data = torch.Tensor(X_valid)
+            val_output = model(valid_data)
+            val_pred = torch.Tensor([torch.argmax(x) for x in val_output])
+            val_pred_np = [int(x) for x in val_pred.cpu().numpy()]
+            val_acc = accuracy_score(y_true=y_valid, y_pred=val_pred_np)
+            val_f1_micro = f1_score(y_true=y_valid, y_pred=val_pred_np, average='micro')
+            val_f1_macro = f1_score(y_true=y_valid, y_pred=val_pred_np, average='macro')
+            val_f1_weighted = f1_score(y_true=y_valid, y_pred=val_pred_np, average='weighted')
+
+            # breaking out of training if validation moves in other direction after last 2
+            if epoch > 5: 
+                if (total_val_loss > val_losses[-1]) & (total_val_loss > val_losses[-2]): 
+                    early_stopping = True 
+            else:
+                val_losses.append(total_val_loss)
+
+            print("Valid - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
+                epoch, val_acc, val_f1_weighted, val_f1_macro)
+            )
+
+    print(best_test)
+    return         
 
 @click.command() 
 @click.option("--loss", required=True)
-def run(loss): 
+@click.option("--epochs", required=True)
+def run(loss, epochs): 
     data_splits = load_iris()
-    train_iris(data_splits, loss_metric=loss)
+    train_iris(data_splits, loss_metric=loss, epochs=int(epochs))
 
 def main():
     run() 

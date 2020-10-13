@@ -111,4 +111,5 @@ def confusion(gt, pt, thresholds, agg='sum'):
     fn = l_fn(gt, pt, thresholds, agg)
     fp = l_fp(gt, pt, thresholds, agg)
     tn = l_tn(gt, pt, thresholds, agg)
+    print("tp: {} | fn: {} | fp: {} | tn: {}".format(tp.numpy(), fn.numpy(), fp.numpy(), tn.numpy()))
     return tp, fn, fp, tn
