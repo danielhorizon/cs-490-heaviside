@@ -1,7 +1,7 @@
 import numpy as np 
 import pandas as pd 
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 
 def _accuracy(gt, pt):
@@ -93,7 +93,31 @@ def _overall_recall(gt, pt, average=None):
         return sum(weighted_recalls)/len(gt)
 
 
-def _f1_score(gt, pt, average=None): 
+def _f1_score(gt, pt, average=None):
+    classes = list(set(gt))
+    f1_scores, wt_f1_scores = [], [] 
+
+    for c in classes: 
+        tp, fn = _recall(gt, pt, class_value=c)
+        tp, fp = _precision(gt, pt, class_value=c)
+        recall = tp / (tp + fn)
+        precision = tp / (tp + fp)
+        
+        f1_score = 2 * (precision * recall) / (precision + recall)
+        wt_f1_score = f1_score * gt.count(c)
+        f1_scores.append(f1_score)
+        wt_f1_scores.append(wt_f1_score)
+
+    if average == "macro": 
+        return np.mean(np.array(f1_scores))
+    if average == "weighted": 
+        return sum(wt_f1_scores)/len(gt)
+    else: 
+        # return macro as default
+        return np.mean(np.array(f1_scores))
+
+
+def _overall_f1_score(gt, pt, average=None): 
     '''
     F1 = 2 * (precision * recall) / (precision + recall)
     https://scikit-learn.org/stable/modules/generated/sklearn.metrics.f1_score.html#sklearn.metrics.f1_score
@@ -101,32 +125,40 @@ def _f1_score(gt, pt, average=None):
     the F1 score of each class with weighting depending on the ``average``
     parameter.
     '''
-    
+    if average == "micro": 
+        micro_p = _overall_precision(gt, pt, average="micro")
+        micro_r = _overall_recall(gt, pt, average="micro")
+        return 2 * (micro_p * micro_r) / (micro_p + micro_r)
+
+    # average of per-class f1 scores
+    if average == "macro": 
+        return _f1_score(gt, pt, average="macro")
+
+    if average == "weighted": 
+        return _f1_score(gt, pt, average="weighted")
 
 
 def test():
-    gt = [0, 1, 2, 3, 0, 1, 2, 3, 4]
-    pt = [0, 1, 3, 2, 0, 1, 3, 2, 4]
+    gt = [0, 1, 2, 3, 0, 1, 2, 3, 4, 3, 2, 1]
+    pt = [0, 1, 3, 2, 0, 1, 3, 2, 4, 3, 2, 2]
     # Accuracy
-    print(_accuracy(gt, pt))       
-    print(accuracy_score(gt, pt))
+    print("--- ACCURACY") 
+    print("daniel: {}, sklearn: {}".format(_accuracy(gt, pt), accuracy_score(gt, pt)))
 
     y_true = [0, 1, 2, 0, 1 ,2, 3, 3]
     y_pred = [0, 2, 1, 0, 0, 1, 3, 1]
-    print("PRECISION")
-    print("daniel: {}, sklearn :{}".format(
-        _overall_precision(y_true, y_pred, average="micro"), 
-        precision_score(y_true, y_pred, average="micro")))
-    print("daniel: {}, sklearn :{}".format(
-        _overall_precision(y_true, y_pred, average="macro"),
-        precision_score(y_true, y_pred, average="macro")))
-    print("daniel: {}, sklearn :{}".format(
-        _overall_precision(y_true, y_pred, average="weighted"),
-        precision_score(y_true, y_pred, average="weighted")))
+    # print("PRECISION")
+    # print("daniel: {}, sklearn :{}".format(
+    #     _overall_precision(y_true, y_pred, average="micro"), 
+    #     precision_score(y_true, y_pred, average="micro")))
+    # print("daniel: {}, sklearn :{}".format(
+    #     _overall_precision(y_true, y_pred, average="macro"),
+    #     precision_score(y_true, y_pred, average="macro")))
+    # print("daniel: {}, sklearn :{}".format(
+    #     _overall_precision(y_true, y_pred, average="weighted"),
+    #     precision_score(y_true, y_pred, average="weighted")))
 
-
-    print("\n")
-    print("RECALL")
+    print("--- RECALL")
     print("daniel: {}, sklearn :{}".format(
         _overall_recall(y_true, y_pred, average="micro"),
         recall_score(y_true, y_pred, average="micro")))
@@ -136,6 +168,22 @@ def test():
     print("daniel: {}, sklearn :{}".format(
         _overall_recall(y_true, y_pred, average="weighted"),
         recall_score(y_true, y_pred, average="weighted")))
+
+    print("--- F1 Score")
+    print("MICRO: daniel: {}, sklearn :{}".format(
+        _overall_f1_score(gt, pt, average="micro"),
+        f1_score(gt, pt, average="micro")))
+    print("MICRO: daniel: {}, sklearn :{}".format(
+        _overall_f1_score(y_true, y_pred, average="micro"),
+        f1_score(y_true, y_pred, average="micro")))
+
+    print("daniel: {}, sklearn :{}".format(
+        _overall_f1_score(gt, pt, average="macro"),
+        f1_score(gt, pt, average="macro")))
+    
+    print("daniel: {}, sklearn :{}".format(
+        _overall_f1_score(gt, pt, average="weighted"),
+        f1_score(gt, pt, average="weighted")))
 
 if __name__ == '__main__':
     test()
