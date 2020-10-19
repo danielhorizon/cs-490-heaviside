@@ -1,7 +1,37 @@
 import numpy as np 
 import pandas as pd 
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, cohen_kappa_score
+# https://docs.cloud.oracle.com/en-us/iaas/tools/ads-sdk/latest/user_guide/eval/Multiclass.html
+# https://blog.floydhub.com/a-pirates-guide-to-accuracy-precision-recall-and-other-scores/#recall
+
+
+# def perf_measure(y_actual, y_hat):
+#     TP = 0
+#     FP = 0
+#     TN = 0
+#     FN = 0
+#     for i in range(len(y_hat)):
+#         if y_actual[i] == y_hat[i] == 1:
+#            TP += 1
+#         if y_hat[i] == 1 and y_actual[i] != y_hat[i]:
+#            FP += 1
+#         if y_actual[i] == y_hat[i] == 0:
+#            TN += 1
+#         if y_hat[i] == 0 and y_actual[i] != y_hat[i]:
+#            FN += 1
+#     return(TP, FP, TN, FN)
+
+
+def get_confusion(gt, pt, class_value=None):
+    """ Getting tp, fp, fn, tn for a class. 
+    """
+    tp = len([a for a, p in zip(gt, pt) if a == p and p == class_value])
+    fp = len([a for a, p in zip(gt, pt) if a != p and p == class_value])
+    fn = len([a for a, p in zip(gt, pt) if a != p and a == class_value])
+    tn = len([a for a, p in zip(gt, pt) if a == p and p != class_value])
+    return tp, fp, fn, tn 
 
 
 def _accuracy(gt, pt):
@@ -23,10 +53,8 @@ def _precision(gt, pt, class_value):
     What proportion of predicted positives are truly positive? 
     Classifier's ability to not label as positive a sample that is negative.
     """
-    tp = len([a for a, p in zip(gt, pt) if a == p and p == class_value])
-    fp = len([a for a, p in zip(gt, pt) if a != p and p == class_value])
-    # return tp / (tp + fp)
-    return tp, fp
+    tp, fp, _, _ = get_confusion(gt, pt, class_value=class_value)
+    return (tp / (tp + fp))
 
 
 def _overall_precision(gt, pt, average=None):
@@ -34,15 +62,15 @@ def _overall_precision(gt, pt, average=None):
     """
     total_tp, total_fp = 0, 0
     classes = list(set(gt))
-    class_precisions = [] 
-    weighted_precisions = [] 
+    class_precisions = []
+    weighted_precisions = []
 
     for c in classes:
-        tp, fp = _precision(gt, pt, class_value=c) 
-        total_tp += tp 
-        total_fp += fp 
-        
-        # saving values 
+        tp, fp, _, _ = get_confusion(gt, pt, class_value=c)
+        total_tp += tp
+        total_fp += fp
+
+        # saving values
         class_precision = tp / (tp + fp)
         class_precisions.append(class_precision)
         weighted_precision = class_precision * gt.count(c)
@@ -50,10 +78,10 @@ def _overall_precision(gt, pt, average=None):
 
     if average == "micro":
         return total_tp / (total_tp + total_fp)
-    if average == "macro": 
+    if average == "macro":
         return np.mean(np.array(class_precisions))
     # average weighted by their support (# of true instances for each label)
-    if average == "weighted": 
+    if average == "weighted":
         return sum(weighted_precisions)/len(gt)
 
 
@@ -63,9 +91,9 @@ def _recall(gt, pt, class_value):
     https://scikit-learn.org/stable/modules/generated/sklearn.metrics.recall_score.html#sklearn.metrics.recall_score
     Classifier's ability to find all the positive samples 
     """
-    tp = len([a for a, p in zip(gt, pt) if a == p and p == class_value])
-    fn = len([a for a, p in zip(gt, pt) if a != p and a == class_value])
-    return tp, fn
+    tp, _, fn, _ = get_confusion(gt, pt, class_value=class_value)
+    return (tp / (tp + fn))
+
 
 def _overall_recall(gt, pt, average=None):
     total_tp, total_fn = 0, 0
@@ -74,7 +102,7 @@ def _overall_recall(gt, pt, average=None):
     weighted_recalls = [] 
 
     for c in classes:
-        tp, fn = _recall(gt, pt, class_value=c)
+        tp, _, fn, _ = get_confusion(gt, pt, class_value=c)
         total_tp += tp 
         total_fn += fn
         
@@ -98,11 +126,9 @@ def _f1_score(gt, pt, average=None):
     f1_scores, wt_f1_scores = [], [] 
 
     for c in classes: 
-        tp, fn = _recall(gt, pt, class_value=c)
-        tp, fp = _precision(gt, pt, class_value=c)
-        recall = tp / (tp + fn)
-        precision = tp / (tp + fp)
-        
+        recall = _recall(gt, pt, class_value=c)
+        precision = _precision(gt, pt, class_value=c)
+
         f1_score = 2 * (precision * recall) / (precision + recall)
         wt_f1_score = f1_score * gt.count(c)
         f1_scores.append(f1_score)
@@ -138,6 +164,61 @@ def _overall_f1_score(gt, pt, average=None):
         return _f1_score(gt, pt, average="weighted")
 
 
+def _get_tpr(gt, pt): 
+    return 
+
+def _get_fpr(gt, pt):
+    return 
+
+def _kappa_score(gt, pt): 
+    """
+    po = relative observed agreement among raters 
+    pe = hypothetical probability of chance agreement 
+    """
+
+    TP, FN, FP, TN = 0, 0, 0, 0
+    classes = list(set(gt))
+    total_pe = 0 
+
+    for c in classes:
+        tp, fp, fn, tn = get_confusion(gt, pt, class_value=c)
+        TP += tp
+        FN += fn
+        TN += tn 
+        FP += fp 
+        # n_ki = number of times rater i predicted category k 
+        total_pe += (tp + fp)*(fn + tp)
+
+    total = TP + FN + FP + TN
+    # total accuracy
+    # po = relative observed agreement among raters, i.e. accuracy 
+    po = (TP + TN) / (TP + TN + FP + FN)
+
+    # expected accuracy
+    pe = total_pe / (total*total)
+    K = (po - pe)/(1 - pe)
+    return K
+
+
+def area(x, y):
+    ''' area under curve via trapezoidal rule '''
+    direction = 1
+    # the following is equivalent to: dx = np.diff(x)
+    dx = x[1:] - x[:-1]
+    if torch.any(dx < 0):
+        if torch.all(dx <= 0):
+            direction = -1
+        else:
+            logging.warn(
+                "x is neither increasing nor decreasing\nx: {}\ndx: {}.".format(x, dx))
+            return 0
+    return direction * torch.trapz(y, x)
+
+def _auroc_score(gt, pt): 
+    """
+    """
+    return 
+
 def test():
     gt = [0, 1, 2, 3, 0, 1, 2, 3, 4, 3, 2, 1]
     pt = [0, 1, 3, 2, 0, 1, 3, 2, 4, 3, 2, 2]
@@ -147,16 +228,16 @@ def test():
 
     y_true = [0, 1, 2, 0, 1 ,2, 3, 3]
     y_pred = [0, 2, 1, 0, 0, 1, 3, 1]
-    # print("PRECISION")
-    # print("daniel: {}, sklearn :{}".format(
-    #     _overall_precision(y_true, y_pred, average="micro"), 
-    #     precision_score(y_true, y_pred, average="micro")))
-    # print("daniel: {}, sklearn :{}".format(
-    #     _overall_precision(y_true, y_pred, average="macro"),
-    #     precision_score(y_true, y_pred, average="macro")))
-    # print("daniel: {}, sklearn :{}".format(
-    #     _overall_precision(y_true, y_pred, average="weighted"),
-    #     precision_score(y_true, y_pred, average="weighted")))
+    print("PRECISION")
+    print("daniel: {}, sklearn :{}".format(
+        _overall_precision(y_true, y_pred, average="micro"), 
+        precision_score(y_true, y_pred, average="micro")))
+    print("daniel: {}, sklearn :{}".format(
+        _overall_precision(y_true, y_pred, average="macro"),
+        precision_score(y_true, y_pred, average="macro")))
+    print("daniel: {}, sklearn :{}".format(
+        _overall_precision(y_true, y_pred, average="weighted"),
+        precision_score(y_true, y_pred, average="weighted")))
 
     print("--- RECALL")
     print("daniel: {}, sklearn :{}".format(
@@ -176,14 +257,18 @@ def test():
     print("MICRO: daniel: {}, sklearn :{}".format(
         _overall_f1_score(y_true, y_pred, average="micro"),
         f1_score(y_true, y_pred, average="micro")))
-
     print("daniel: {}, sklearn :{}".format(
         _overall_f1_score(gt, pt, average="macro"),
         f1_score(gt, pt, average="macro")))
-    
     print("daniel: {}, sklearn :{}".format(
         _overall_f1_score(gt, pt, average="weighted"),
         f1_score(gt, pt, average="weighted")))
+
+    print("--- Kappa Score")
+    print("daniel: {}, sklearn :{}".format(
+        _kappa_score(gt, pt),
+        cohen_kappa_score(gt, pt)))
+
 
 if __name__ == '__main__':
     test()
