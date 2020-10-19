@@ -164,39 +164,48 @@ def _overall_f1_score(gt, pt, average=None):
         return _f1_score(gt, pt, average="weighted")
 
 
-def _get_tpr(gt, pt): 
-    return 
+def compute_confusion_matrix(true, pred):
+    '''
+    Results are identical (and similar in computation time) to: 
+    "from sklearn.metrics import confusion_matrix"
+    '''
+    K = len(np.unique(true)) # Number of classes 
+    result = np.zeros((K, K))
 
-def _get_fpr(gt, pt):
-    return 
+    for i in range(len(true)):
+        result[true[i]][pred[i]] += 1
+
+    return result
+
+def create_conf_matrix(expected, predicted, n_classes):
+    m = [[0] * n_classes for i in range(n_classes)]
+    for pred, exp in zip(predicted, expected):
+        m[pred][exp] += 1
+    return m
 
 def _kappa_score(gt, pt): 
     """
     po = relative observed agreement among raters 
     pe = hypothetical probability of chance agreement 
+     https://stats.stackexchange.com/questions/251165/cohens-kappa-with-three-categories-of-variable
     """
-
-    TP, FN, FP, TN = 0, 0, 0, 0
     classes = list(set(gt))
-    total_pe = 0 
 
-    for c in classes:
-        tp, fp, fn, tn = get_confusion(gt, pt, class_value=c)
-        TP += tp
-        FN += fn
-        TN += tn 
-        FP += fp 
-        # n_ki = number of times rater i predicted category k 
-        total_pe += (tp + fp)*(fn + tp)
+    # computing using confusion matrix 
+    cm = compute_confusion_matrix(true=gt, pred=pt)
+    col_totals = [sum(x) for x in zip(*cm)]
 
-    total = TP + FN + FP + TN
-    # total accuracy
-    # po = relative observed agreement among raters, i.e. accuracy 
-    po = (TP + TN) / (TP + TN + FP + FN)
-
-    # expected accuracy
-    pe = total_pe / (total*total)
-    K = (po - pe)/(1 - pe)
+    # computing num of agreements
+    agreements = np.trace(cm)
+    total_el = sum(map(sum, cm))
+    ef_arr = [] 
+    for i in range(len(classes)):
+        row_sum = np.sum(cm[i]) # ith row 
+        col_sum = col_totals[i] # ith col
+        ef = (row_sum*col_sum) / (total_el)
+        ef_arr.append(ef)
+    
+    K = (agreements - np.sum(ef_arr)) / (total_el - np.sum(ef_arr))
     return K
 
 
@@ -214,10 +223,23 @@ def area(x, y):
             return 0
     return direction * torch.trapz(y, x)
 
+
 def _auroc_score(gt, pt): 
+    # TODO(dlee): finish this if needed. 
     """
+    ROC - summarizes tradeoff between TPR and FPR 
+    PR - Tradeoff between P and R for different thresholds
     """
-    return 
+    classes = list(set(gt))
+    areas = []
+    for c in classes:
+        tp, fp, fn, tn = get_confusion(gt, pt, class_value=c)
+        fpr = fp/(fp+tn+EPS)
+        tpr = tp/(tp+fn+EPS)
+        a = area(fpr, tpr)
+        areas.append(a)
+    return np.mean(np.array(areas))
+
 
 def test():
     gt = [0, 1, 2, 3, 0, 1, 2, 3, 4, 3, 2, 1]
