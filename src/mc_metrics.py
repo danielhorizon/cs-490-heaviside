@@ -7,21 +7,21 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 # https://blog.floydhub.com/a-pirates-guide-to-accuracy-precision-recall-and-other-scores/#recall
 
 
-# def perf_measure(y_actual, y_hat):
-#     TP = 0
-#     FP = 0
-#     TN = 0
-#     FN = 0
-#     for i in range(len(y_hat)):
-#         if y_actual[i] == y_hat[i] == 1:
-#            TP += 1
-#         if y_hat[i] == 1 and y_actual[i] != y_hat[i]:
-#            FP += 1
-#         if y_actual[i] == y_hat[i] == 0:
-#            TN += 1
-#         if y_hat[i] == 0 and y_actual[i] != y_hat[i]:
-#            FN += 1
-#     return(TP, FP, TN, FN)
+def get_confusion_2(gt, pt, class_value=None): 
+    TP = 0
+    FP = 0
+    TN = 0
+    FN = 0
+    for i in range(len(y_hat)):
+        if y_actual[i] == y_hat[i] == 1:
+           TP += 1
+        if y_hat[i] == 1 and y_actual[i] != y_hat[i]:
+           FP += 1
+        if y_actual[i] == y_hat[i] == 0:
+           TN += 1
+        if y_hat[i] == 0 and y_actual[i] != y_hat[i]:
+           FN += 1
+    return(TP, FP, TN, FN)
 
 
 def get_confusion(gt, pt, class_value=None):
@@ -58,6 +58,16 @@ def _precision(gt, pt, class_value):
 
 
 def _overall_precision(gt, pt, average=None):
+    # for each row  in predictions 
+    # row =  [1.0638e-03, 5.6466e-01, 4.3428e-01],
+    # what is the gt for this  row? prob class b 
+    # gt = [0, 1, 0]
+
+    # comparing 0.00106 to  0
+
+    # they're not independent for sigmoid,  if you take a sigmoid  of each one of it, 
+    # you create a bunch of binary classifiers which aren't all output. 
+
     """precision = tp / (tp + fp)
     """
     total_tp, total_fp = 0, 0
@@ -174,14 +184,15 @@ def compute_confusion_matrix(true, pred):
 
     for i in range(len(true)):
         result[true[i]][pred[i]] += 1
-
     return result
+
 
 def create_conf_matrix(expected, predicted, n_classes):
     m = [[0] * n_classes for i in range(n_classes)]
     for pred, exp in zip(predicted, expected):
         m[pred][exp] += 1
     return m
+
 
 def _kappa_score(gt, pt): 
     """
@@ -200,7 +211,7 @@ def _kappa_score(gt, pt):
     total_el = sum(map(sum, cm))
     ef_arr = [] 
     for i in range(len(classes)):
-        row_sum = np.sum(cm[i]) # ith row 
+        row_sum = np.sum(cm[i]) # ith row
         col_sum = col_totals[i] # ith col
         ef = (row_sum*col_sum) / (total_el)
         ef_arr.append(ef)
@@ -239,6 +250,151 @@ def _auroc_score(gt, pt):
         a = area(fpr, tpr)
         areas.append(a)
     return np.mean(np.array(areas))
+
+
+# def mean_f1_approx_loss_on(threshold=None):
+
+
+
+
+################################################################################
+def legacy_mean_f1_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
+    def loss(pt, gt):
+        """Approximate F1:
+            - Linear interpolated Heaviside function 
+            - Harmonic mean of precision and recall
+            - Mean over a range of thresholds
+
+        We observe that H(p,tau) can be replaced with a reasonably-sized O(1) lookup table by 
+        truncating p to several decimal places and precomputing H for values of p and tau over the 
+        range [0, 1]. 
+        """
+        classes = pt.shape[1]
+        mean_f1s = torch.zeros(classes, dtype=torch.float32)
+        # mean over all classes
+        for i in range(classes):
+            thresholds = torch.arange(0.1, 1, 0.1)
+            # returns the number of tp, fn, fp, and tn.
+            tp, fn, fp, _ = confusion(
+                gt, pt[:, i] if classes > 1 else pt, thresholds)
+            precision = tp/(tp+fp+EPS)
+            recall = tp/(tp+fn+EPS)
+            mean_f1s[i] = torch.mean(
+                2 * (precision * recall) / (precision + recall + EPS))
+        loss = 1 - mean_f1s.mean()
+        return loss
+    return loss
+
+
+def legacy_mean_f1_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
+    def loss(pt, gt):
+        """Approximate F1:
+            - Linear interpolated Heaviside function 
+            - Harmonic mean of precision and recall
+            - Mean over a range of thresholds
+
+        We observe that H(p,tau) can be replaced with a reasonably-sized O(1) lookup table by 
+        truncating p to several decimal places and precomputing H for values of p and tau over the 
+        range [0, 1]. 
+        """
+        classes = pt.shape[1]
+        mean_f1s = torch.zeros(classes, dtype=torch.float32)
+        # mean over all classes
+        for i in range(classes):
+            thresholds = torch.arange(0.1, 1, 0.1)
+            # returns the number of tp, fn, fp, and tn.
+            tp, fn, fp, _ = confusion(
+                gt, pt[:, i] if classes > 1 else pt, thresholds)
+            precision = tp/(tp+fp+EPS)
+            recall = tp/(tp+fn+EPS)
+            mean_f1s[i] = torch.mean(
+                2 * (precision * recall) / (precision + recall + EPS))
+        loss = 1 - mean_f1s.mean()
+        return loss
+    return loss
+
+
+def legacy_mean_accuracy_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
+    def loss(pt, gt):
+        """Approximate Accuracy:
+            - Linear interpolated Heaviside function
+            - (TP + TN) / (TP + TN + FP + FN)
+            - Mean over a range of thresholds
+        """
+        classes = pt.shape[1]
+        mean_accs = torch.zeros(classes, dtype=torch.float32)
+        # mean over all classes
+        for i in range(classes):
+            tp, fn, fp, tn = confusion(
+                gt, pt[:, i] if classes > 1 else pt, thresholds)
+            mean_accs[i] = torch.mean((tp + tn) / (tp + tn + fp + fn))
+        loss = 1 - mean_accs.mean()
+        return loss
+    return loss
+
+
+def area(x, y):
+    ''' area under curve via trapezoidal rule'''
+    direction = 1
+    # the following is equivalent to: dx = np.diff(x)
+    dx = x[1:] - x[:-1]
+    if torch.any(dx < 0):
+        if torch.all(dx <= 0):
+            direction = -1
+        else:
+            logging.warn(
+                "x is neither increasing nor decreasing\nx: {}\ndx: {}.".format(x, dx))
+            return 0
+    return direction * torch.trapz(y, x)
+
+
+def legacy_mean_auroc_approx_loss_on(linspacing=11):
+    def loss(pt, gt):
+        """Approximate auroc:
+            - Linear interpolated Heaviside function
+            - roc (11-point approximation)
+            - integrate via trapezoidal rule under curve
+        """
+        classes = pt.shape[1]
+        thresholds = torch.linspace(0, 1, linspacing)
+        areas = []
+        # mean over all classes
+        for i in range(classes):
+            tp, fn, fp, tn = confusion(
+                gt, pt[:, i] if classes > 1 else pt, thresholds)
+            fpr = fp/(fp+tn+EPS)
+            tpr = tp/(tp+fn+EPS)
+            a = area(fpr, tpr)
+            if a > 0:
+                areas.append(a)
+        loss = 1 - torch.stack(areas).mean()
+        return loss
+    return loss
+
+
+# compute metric value from cunfusion matrix
+def compute_metric_from_cm(metric, C_val):
+    # check for special cases
+    if metric.special_case_positive:
+        if C_val.ap == 0 and C_val.pp == 0:
+            return 1.0
+        elif C_val.ap == 0:
+            return 0.0
+        elif C_val.pp == 0:
+            return 0.0
+
+    if metric.special_case_negative:
+        if C_val.an == 0 and C_val.pn == 0:
+            return 1.0
+        elif C_val.an == 0:
+            return 0.0
+        elif C_val.pn == 0:
+            return 0.0
+
+    val = metric.metric_expr.compute_value(C_val)
+    return val
+
+
 
 
 def test():
@@ -294,3 +450,5 @@ def test():
 
 if __name__ == '__main__':
     test()
+
+

@@ -42,9 +42,6 @@ def heaviside_agg(xs, thresholds, agg):
         return torch.sum(res, axis=0)
     return res
 
-# for each prediction in the tensor:
-    # using the current threshold, see what 
-
 
 def l_tp(gt, pt, thresh, agg='sum'):
     # output closer to 1 if a true positive, else closer to 0

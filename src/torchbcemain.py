@@ -455,7 +455,7 @@ def train(args):
     elif args.loss == 'auc-roc':
         criterion = roc_auc_score(device)
     else:
-        raise RuntimeError("Unknown loss {}".format(args.loss))
+        raise RuntimeError("Unknown loss {}".format(fargs.loss))
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     patience = args.early_stopping_patience
