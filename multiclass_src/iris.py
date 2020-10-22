@@ -170,6 +170,9 @@ def train_iris(data_splits, loss_metric, epochs):
                 "[{}] Early Stopping at Epoch {}/{}".format(now, epoch, epochs))
             break
         
+        # TODO(dlee): implement this with iterating through batches 
+        # for i, (inputs, labels) in enumerate(train)
+
         model.train()
         optimizer.zero_grad()
         y_pred = model(X_train)
@@ -177,14 +180,16 @@ def train_iris(data_splits, loss_metric, epochs):
 
         if not approx: 
             loss = criterion(y_pred, y_train)
-            print("LOSS: {}".format(loss))
+            
         else: 
             # transform labels, send to heaviside functions 
             train_labels = torch.zeros(len(y_train), y_train.max() +
                                 1).scatter_(1, y_train.unsqueeze(1), 1.)
             
             # print("train labels: {}".format(train_labels))
-            loss = criterion(y_pred, train_labels)
+
+            loss = criterion(train_labels, y_pred)
+        print("LOSS: {}".format(loss))
 
         losses.append(loss)
         loss.backward()

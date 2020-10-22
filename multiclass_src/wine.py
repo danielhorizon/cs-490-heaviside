@@ -216,7 +216,7 @@ def train_wine(data_splits, loss_metric, epochs):
 
         model.train()
         optimizer.zero_grad()
-        y_pred = model.forward(X_train)
+        y_pred = model(X_train)
         print("y pred: {}".format(y_pred))
         print("label: {}".format(y_train))
         loss = criterion(y_pred, y_train)

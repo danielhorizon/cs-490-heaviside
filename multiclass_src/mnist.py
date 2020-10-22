@@ -1,4 +1,4 @@
-import click 
+import click
 import torch
 import torchvision
 import matplotlib.pyplot as plt
@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+
 
 def show_image(loader):
     examples = enumerate(loader)
@@ -22,7 +23,7 @@ def show_image(loader):
         print(fig)
 
 
-def load_data(show=False): 
+def load_data(show=False):
     batch_size_train = 64
     batch_size_test = 1000
 
@@ -34,14 +35,14 @@ def load_data(show=False):
 
     train_loader = torch.utils.data.DataLoader(
         torchvision.datasets.MNIST(root='../data', train=True, download=True,
-            transform=transform), batch_size=batch_size_train, shuffle=True)
+                                   transform=transform), batch_size=batch_size_train, shuffle=True)
 
     test_loader = torch.utils.data.DataLoader(
         torchvision.datasets.MNIST(root='../data', train=False, download=True,
-            transform=transform), batch_size=batch_size_test, shuffle=True)
-    
-    if show: 
-        show_image(test_loader) 
+                                   transform=transform), batch_size=batch_size_test, shuffle=True)
+
+    if show:
+        show_image(test_loader)
 
     return train_loader, test_loader
 
@@ -66,7 +67,7 @@ class Net(nn.Module):
 
 
 def train_mnist(loss_metric=None, epochs=None):
-    
+
     train_loader, test_loader = load_data(show=False)
 
     train_losses = []
@@ -83,8 +84,8 @@ def train_mnist(loss_metric=None, epochs=None):
     else:
         criterion = nn.CrossEntropyLoss()
 
-    for epoch in range(epochs): 
-        # TRAIN MODEL 
+    for epoch in range(epochs):
+        # TRAIN MODEL
         model.train()
         for batch_idx, (data, target) in enumerate(train_loader):
             optimizer.zero_grad()
@@ -92,7 +93,6 @@ def train_mnist(loss_metric=None, epochs=None):
             loss = criterion(output, target)
             loss.backward()
             optimizer.step()
-
 
             if batch_idx % log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
@@ -102,19 +102,19 @@ def train_mnist(loss_metric=None, epochs=None):
                 train_counter.append(
                     (batch_idx*64) + ((epoch-1)*len(train_loader.dataset)))
 
-                # saving model 
+                # saving model
                 # torch.save(model.state_dict(), '/results/model.pth')
                 # torch.save(optimizer.state_dict(), '/results/optimizer.pth')
 
-
-        # TEST MODEL 
+        # TEST MODEL
         model.eval()
         test_loss = 0
         correct = 0
         with torch.no_grad():
             for data, target in test_loader:
                 output = model(data)
-                test_loss += F.nll_loss(output, target, size_average=False).item()
+                test_loss += F.nll_loss(output, target,
+                                        size_average=False).item()
                 pred = output.data.max(1, keepdim=True)[1]
                 correct += pred.eq(target.data.view_as(pred)).sum()
         test_loss /= len(test_loader.dataset)
@@ -129,6 +129,7 @@ def train_mnist(loss_metric=None, epochs=None):
 @click.option("--epochs", required=True)
 def run(loss, epochs):
     train_mnist(loss_metric='ce', epochs=int(epochs))
+
 
 def main():
     run()
