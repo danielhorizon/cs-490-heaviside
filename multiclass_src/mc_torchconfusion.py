@@ -29,9 +29,11 @@ def heaviside_approx(x, t, delta=0.1, debug=False):
         # print(f"m1 = {d}/{t}-{tt}/2")
         # print(f"m2 = (1-2*{d})/({tt}+EPS)")
         # print(f"m3 = {d}/(1-{t}-{tt}/2)")
-    res = torch.where(cm1, m1*x,
-                      torch.where(cm3, m3*x + (1-d-m3*(t+tt/2)),
-                                  m2*(x-t)+0.5))
+    res = torch.where(
+            cm1, 
+            m1*x,
+            torch.where(cm3, m3*x + (1-d-m3*(t+tt/2)), m2*(x-t)+0.5)
+        )
     if debug:
         print('res', res)
     return res
@@ -131,8 +133,6 @@ def l_tn(gt, pt, thresh, agg='sum'):
 def confusion(gt, pt, thresholds, agg='sum'):
     # print("gt: {}".format(gt))
     # print("pt: {}".format(pt))
-    # 'tp', 'fn', 'fp', 'tn'
-
     tp = l_tp(gt, pt, thresholds, agg)
     fn = l_fn(gt, pt, thresholds, agg)
     fp = l_fp(gt, pt, thresholds, agg)
