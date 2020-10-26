@@ -139,6 +139,13 @@ def confusion(gt, pt, thresholds, agg='sum'):
     tn = l_tn(gt, pt, thresholds, agg)
     return tp, fn, fp, tn
 
+'''
+make sure that the gradients are moving in the right direction 
+run the grad function for tp, fp, etc where we know the direction should be 
+if we have a TP set member - we want the gradient to be positive 
+if we have one that shouldn't be a member, the gradient needs to be negative 
+eight tests - one for positive and one for negative. 
+'''
 
 def mean_f1_approx_loss_on(y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
     # number of classes should be length of each element
