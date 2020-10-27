@@ -4,7 +4,17 @@ import pandas as pd
 import torch
 from torch.autograd import Variable
 
+from torch.autograd import gradcheck
+
 EPS = 1e-7
+
+# gradcheck takes a tuple of tensors as input, check if your gradient
+# evaluated with these tensors are close enough to numerical
+# approximations and returns True if they all verify this condition.
+# input = (torch.randn(20,20,dtype=torch.double,requires_grad=True), torch.randn(30,20,dtype=torch.double,requires_grad=True))
+# test = gradcheck(linear, input, eps=1e-6, atol=1e-4)
+# print(test)
+
 
 
 def heaviside_approx(x, t, delta=0.1, debug=False):
@@ -36,6 +46,7 @@ def heaviside_approx(x, t, delta=0.1, debug=False):
         )
     if debug:
         print('res', res)
+    # print("RESULT: {}".format(res))
     return res
 
 
@@ -64,6 +75,7 @@ def l_tp(gt, pt, thresh, agg='sum'):
         pt, thresh.shape[0]), (-1, thresh.shape[0]))
     condition = (gt_t == 0) & (pt_t >= thresh)
     xs = torch.where(condition, 1-pt_t, pt_t)
+    # print("TP XS: {}".format(xs))
     thresholds = torch.where(condition, 1-thresh, thresh)
     return heaviside_agg(xs, thresholds, agg)
 
@@ -89,7 +101,12 @@ def l_fn(gt, pt, thresh, agg='sum'):
     pt_t = torch.reshape(torch.repeat_interleave(
         pt, thresh.shape[0]), (-1, thresh.shape[0]))
     condition = (gt_t == 0) & (pt_t < thresh)
+
+    # 1-pt_t might not actually work 
+    # want to make sure that in the first case, we should have pos 
+    # need to make sure that the graident is pushing it towards the right direction 
     xs = torch.where(condition, pt_t, 1-pt_t)
+
     thresholds = torch.where(condition, thresh, 1-thresh)
     return heaviside_agg(xs, thresholds, agg)
 
@@ -108,8 +125,11 @@ def l_fp(gt, pt, thresh, agg='sum'):
         pt, thresh.shape[0]), (-1, thresh.shape[0]))
     condition = (gt_t == 1) & (pt_t >= thresh)
     xs = torch.where(condition, 1-pt_t, pt_t)
+    # print("XS: {}".format(xs))
     thresholds = torch.where(condition, 1-thresh, thresh)
-    return heaviside_agg(xs, thresholds, agg)
+    value = heaviside_agg(xs, thresholds, agg)
+    # print("VALUE: {}".format(value))
+    return value 
 
 
 def l_tn(gt, pt, thresh, agg='sum'):
@@ -118,34 +138,43 @@ def l_tn(gt, pt, thresh, agg='sum'):
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (invert = false)
     #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (invert = true)
     #  tn: (gt == 0 and pt == 0) -> closer to 1 -> (invert = true)
+
+    # thresh: tensor([0.1000, 0.2000, 0.3000, 0.4000, 0.5000, 0.6000, 0.7000, 0.8000, 0.9000])
     thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
                          torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    gt_t = torch.reshape(torch.repeat_interleave(
-        gt, thresh.shape[0]), (-1, thresh.shape[0]))
-    pt_t = torch.reshape(torch.repeat_interleave(
-        pt, thresh.shape[0]), (-1, thresh.shape[0]))
+    
+    # GT_T: tensor([[0., 0., 0., 0., 0., 0., 0., 0., 0.]])
+    # GT_T: tensor([[1., 1., 1., 1., 1., 1., 1., 1., 1.]])
+    gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
+
+    # PT_T: tensor([[0.9921, 0.9921, 0.9921, 0.9921, 0.9921, 0.9921, 0.9921, 0.9921, 0.9921]],
+    pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
+    
     condition = (gt_t == 1) & (pt_t < thresh)
+
+    # if it matches the threshold, keep the pt; otherwise, flip it. 
     xs = torch.where(condition, pt_t, 1-pt_t)
+
+    # thresholds: tensor([[0.9000, 0.8000, 0.7000, 0.6000, 0.5000, 0.4000, 0.3000, 0.2000, 0.1000]])
     thresholds = torch.where(condition, thresh, 1-thresh)
+    # print("---\n")
     return heaviside_agg(xs, thresholds, agg)
 
 
 def confusion(gt, pt, thresholds, agg='sum'):
-    # print("gt: {}".format(gt))
-    # print("pt: {}".format(pt))
     tp = l_tp(gt, pt, thresholds, agg)
     fn = l_fn(gt, pt, thresholds, agg)
     fp = l_fp(gt, pt, thresholds, agg)
     tn = l_tn(gt, pt, thresholds, agg)
+
+    # softset membership values summed over thresholds
+    print("tp: {}".format(tp))
+    print("fn: {}".format(fn))
+    print("fp: {}".format(fp))
+    print("tn: {}".format(tn))
+    
     return tp, fn, fp, tn
 
-'''
-make sure that the gradients are moving in the right direction 
-run the grad function for tp, fp, etc where we know the direction should be 
-if we have a TP set member - we want the gradient to be positive 
-if we have one that shouldn't be a member, the gradient needs to be negative 
-eight tests - one for positive and one for negative. 
-'''
 
 def mean_f1_approx_loss_on(y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
     # number of classes should be length of each element
@@ -158,7 +187,8 @@ def mean_f1_approx_loss_on(y_labels=None, y_preds=None, thresholds=torch.arange(
 
             thresholds = torch.arange(0.1, 1, 0.1)
             # returns the number of tp, fn, fp, and tn.
-            tp, fn, fp, _ = confusion(gt_list, pt_list, thresholds)
+            tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
+            # print("i: {}, TP: {}, FN: {}".format(i, tp, fn))
             precision = tp/(tp+fp+EPS)
             recall = tp/(tp+fn+EPS)
             temp_f1 = torch.mean(2 * (precision * recall) /
@@ -166,8 +196,8 @@ def mean_f1_approx_loss_on(y_labels=None, y_preds=None, thresholds=torch.arange(
             mean_f1s[i] = temp_f1
 
         loss = 1 - mean_f1s.mean() 
-        print("mean F1: {}".format(mean_f1s))
-        print("loss: {}".format(loss))
+        # print("mean F1: {}".format(mean_f1s))
+        # print("loss: {}".format(loss))
         return loss
     return loss
 

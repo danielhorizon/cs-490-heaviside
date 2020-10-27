@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-
-#import pathlib
-#ROOT_PATH = pathlib.Path(__file__).parent.parent.absolute()
-#DATA_PATH = ROOT_PATH.joinpath('data').absolute()
-#SRC_PATH = ROOT_PATH.joinpath('src').absolute()
-#print(ROOT_PATH)
-#import sys
-#sys.path.append(str(SRC_PATH))
-
 import unittest
 
 import torch
@@ -16,210 +6,69 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import random
 
-#from torchconfusion import *
+from mc_torchconfusion import *
 
-from confusion_vectorized import *
+DEVICE = 'cpu'
 
 class TestTorchConfusion(unittest.TestCase):
 
-    def test_l_tp_0_0(self):
-        ''' there should be no true positives as there are no positive pt or gt '''
-        # ground truth
-        gt = torch.tensor([0.0, 0.0, 0.0])
-        # prediction
-        pt = torch.tensor([0.0, 0.0, 0.0])
-        # thresholds
+    def test_grad_l_tp_0_0(self):
+        """ Testing TP 
+        - Should be no TP's as there are no PT or GT. 
+        - These should all non-TP's as they're not positive.
+        - Gradient should be almost 0, as it doesn't go anywhere. 
+        """
+        gt = torch.tensor([0.0, 0.0])
+        pt = torch.tensor([0.0, 0.0], requires_grad=True)
         thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        tp = l_tp(gt, pt, thresholds)
-        #print(tp, torch.zeros_like(tp))
-        torch.testing.assert_allclose(tp, torch.zeros_like(tp))
 
-    def test_l_tp_1_0(self):
-        ''' there should be no true positives as there are no positive pt even through there are positive gt'''
-        # ground truth
+        inputs = (gt, pt, thresholds)
+
+        # gradient here is 0, because they don't go anywhere. 
+        test = torch.autograd.gradcheck(l_tp, inputs, eps=1e-6, atol=1e-4, raise_exception=True)
+        jacob = torch.autograd.functional.jacobian(l_tp, inputs=inputs)
+
+        print(jacob)
+        print(test)
+
+        res = l_tp(gt, pt, thresholds)
+        # res.backward(torch.ones_like(pt))
+        res.sum().backward()
+        print(pt.grad.data)
+
+
+    def test_grad_l_tp_1_0(self):
+        """ 
+        """
         gt = torch.tensor([1.0, 1.0, 1.0])
-        # prediction
-        pt = torch.tensor([0.0, 0.0, 0.0])
-        # thresholds
+        pt = torch.tensor([1.0, 1.0, 1.0], requires_grad=True)
         thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        tp = l_tp(gt, pt, thresholds)
-        torch.testing.assert_allclose(tp, torch.zeros_like(tp))
 
-    def test_l_tp_1_1(self): # FAIL
-        ''' there should be all true positives as there are all positive pt and positive gt'''
-        # ground truth
+        inputs = (gt, pt, thresholds)
+
+        test = torch.autograd.gradcheck(
+            l_tp, inputs, eps=1e-2, atol=1e-2, raise_exception=True)
+
+        res = l_tp(gt, pt, thresholds)
+        res.backward(torch.ones_like(pt))
+        print(pt.grad)
+
+    def test_grad_l_fp_1_0(self):
+        """ 
+        """
         gt = torch.tensor([1.0, 1.0, 1.0])
-        # prediction
-        pt = torch.tensor([1.0, 1.0, 1.0])
-        # thresholds
+        pt = torch.tensor([0.0, 0.0, 0.0], requires_grad=True)
         thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        tp = l_tp(gt, pt, thresholds)
-        #print(tp)
-        torch.testing.assert_allclose(tp, torch.tensor(9., device='cuda:0')) # torch.ones_like(tp) # summing across 9 values in an array all of which are 1
 
-    def test_l_tp_0_1(self):
-        ''' there should be no true positives as there are all positive pt but no positive gt'''
-        # ground truth
-        gt = torch.tensor([0.0, 0.0, 0.0])
-        # prediction
-        pt = torch.tensor([1.0, 1.0, 1.0])
-        # thresholds
-        thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        tp = l_tp(gt, pt, thresholds)
-        torch.testing.assert_allclose(tp, torch.zeros_like(tp))
+        inputs = (gt, pt, thresholds)
 
-    def test_l_fn_0_0(self):
-        '''Zero false negatives, all true negatives'''
-        # ground truth
-        gt = torch.tensor([0.0, 0.0, 0.0])
-        # prediction
-        pt = torch.tensor([0.0, 0.0, 0.0])
-        # thresholds
-        thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        fn = l_fn(gt, pt, thresholds)
-        torch.testing.assert_allclose(fn, torch.zeros_like(fn))
+        # gradient here is 0, because they don't go anywhere.
+        torch.autograd.gradcheck(
+            l_tp, inputs, eps=1e-2, atol=1e-2, raise_exception=True)
 
-    def test_l_fn_0_1(self):
-        '''No labeled negatives, all false positives'''
-        # ground truth
-        gt = torch.tensor([0.0, 0.0, 0.0])
-        # prediction
-        pt = torch.tensor([1.0, 1.0, 1.0])
-        # thresholds
-        thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        fn = l_fn(gt, pt, thresholds)
-        torch.testing.assert_allclose(fn, torch.zeros_like(fn))
 
-    def test_l_fn_1_0(self): # FAIL
-        '''All false negatives'''
-        # ground truth
-        gt = torch.tensor([1.0, 1.0, 1.0])
-        # prediction
-        pt = torch.tensor([0.0, 0.0, 0.0])
-        # thresholds
-        thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        fn = l_fn(gt, pt, thresholds)
-        torch.testing.assert_allclose(fn, torch.tensor(9., device='cuda:0')) # torch.ones_like(fn) # summing across 9 values in an array all of which are 1
-
-    def test_1_fn_1_1(self):
-        '''No false negatives, all true positives'''
-        # ground truth
-        gt = torch.tensor([1.0, 1.0, 1.0])
-        # prediction
-        pt = torch.tensor([1.0, 1.0, 1.0])
-        # thresholds
-        thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        fn = l_fn(gt, pt, thresholds)
-        torch.testing.assert_allclose(fn, torch.zeros_like(fn))
-
-    def test_l_fp_0_0(self):
-        '''No false positives, all true negatives'''
-        # ground truth
-        gt = torch.tensor([0.0, 0.0, 0.0])
-        # prediction
-        pt = torch.tensor([0.0, 0.0, 0.0])
-        # thresholds
-        thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        fp = l_fp(gt, pt, thresholds)
-        torch.testing.assert_allclose(fp, torch.zeros_like(fp))
-
-    def test_l_fp_0_1(self): # FAIL
-        '''All false positives'''
-        # ground truth
-        gt = torch.tensor([0.0, 0.0, 0.0])
-        # prediction
-        pt = torch.tensor([1.0, 1.0, 1.0])
-        # thresholds
-        thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        fp = l_fp(gt, pt, thresholds)
-        # debugging set:
-        torch.testing.assert_allclose(fp, torch.tensor(9., device='cuda:0')) # torch.ones_like(fp) # summing across 9 values in an array all of which are 1
-
-    def test_l_fp_1_0(self):
-        '''No false positives, all false negatives'''
-        # ground truth
-        gt = torch.tensor([1.0, 1.0, 1.0])
-        # prediction
-        pt = torch.tensor([0.0, 0.0, 0.0])
-        # thresholds
-        thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        fp = l_fp(gt, pt, thresholds)
-        torch.testing.assert_allclose(fp, torch.zeros_like(fp))
-
-    def test_l_fp_1_1(self):
-        '''No false positives, all true positives'''
-        # ground truth
-        gt = torch.tensor([1.0, 1.0, 1.0])
-        # prediction
-        pt = torch.tensor([1.0, 1.0, 1.0])
-        # thresholds
-        thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        fp = l_fp(gt, pt, thresholds)
-        torch.testing.assert_allclose(fp, torch.zeros_like(fp))
-
-    def test_l_tn_0_0(self): # FAIL
-        '''All true negatives'''
-        # ground truth
-        gt = torch.tensor([0.0, 0.0, 0.0])
-        # prediction
-        pt = torch.tensor([0.0, 0.0, 0.0])
-        # thresholds
-        thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        tn = l_tn(gt, pt, thresholds)
-        #print(tn)
-        torch.testing.assert_allclose(tn, torch.tensor(9., device='cuda:0')) # torch.ones_like(tn) # summing across 9 values in an array all of which are 1
-
-    def test_l_tn_0_1(self):
-        '''No true negatives, all false positives'''
-        # ground truth
-        gt = torch.tensor([0.0, 0.0, 0.0])
-        # prediction
-        pt = torch.tensor([1.0, 1.0, 1.0])
-        # thresholds
-        thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        tn = l_tn(gt, pt, thresholds)
-        torch.testing.assert_allclose(tn, torch.zeros_like(tn))
-    
-    def test_l_tn_1_0(self):
-        '''No true negatives, all false negatives'''
-        # ground truth
-        gt = torch.tensor([1.0, 1.0, 1.0])
-        # prediction
-        pt = torch.tensor([0.0, 0.0, 0.0])
-        # thresholds
-        thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        tn = l_tn(gt, pt, thresholds)
-        torch.testing.assert_allclose(tn, torch.zeros_like(tn))
-
-    def test_l_tn_1_1(self):
-        '''No true negatives, all true positives''' 
-        # ground truth
-        gt = torch.tensor([1.0, 1.0, 1.0])
-        # prediction
-        pt = torch.tensor([1.0, 1.0, 1.0])
-        # thresholds
-        thresholds = torch.tensor([0.1, 0.5, 0.9])
-        #agg = None
-        tn = l_tn(gt, pt, thresholds)
-        torch.testing.assert_allclose(tn, torch.zeros_like(tn))
 
     def test_ordering_correctness(self):
-        
         def make_orderings(num_tensor):
             '''
             Returns a tensor with entries 0, 0.5 and 1 based on how
@@ -241,8 +90,8 @@ class TestTorchConfusion(unittest.TestCase):
             This function checks if the output of the predictions are in the right order
             and on the right side of the thresholds.
             '''
-            thresh = torch.where(thresh==0.0, torch.tensor([0.01], device=thresh.device),
-                    torch.where(thresh==1.0, torch.tensor([0.99], device=thresh.device), thresh))
+            thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=DEVICE),
+                                 torch.where(thresh == 1.0, torch.tensor([0.99], device=DEVICE), thresh))
             pred = torch.reshape(torch.repeat_interleave(_pred, \
                 thresh.shape[0]), (-1, thresh.shape[0]))
             outputs = torch.where(pred < thresh, torch.tensor([0.0]),\

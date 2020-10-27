@@ -20,11 +20,12 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
-from torchconfusion import confusion
 from keras.utils import to_categorical
 
-from mc_torchconfusion import mean_f1_approx_loss_on
+from matplotlib.lines import Line2D
 
+from mc_torchconfusion import mean_f1_approx_loss_on
+from gradient_flow import * 
 
 EPS = 1e-7
 _IRIS_DATA_PATH = "../data/iris.csv"
@@ -61,6 +62,37 @@ class Model(nn.Module):
         x = self.fc3(x) 
         x = self.softmax(x) 
         return x
+
+
+def plot_grad_flow(named_parameters):
+    '''Plots the gradients flowing through different layers in the net during training.
+    Can be used for checking for possible gradient vanishing / exploding problems.
+    
+    Usage: Plug this function in Trainer class after loss.backwards() as 
+    "plot_grad_flow(self.model.named_parameters())" to visualize the gradient flow'''
+    ave_grads = []
+    max_grads = []
+    layers = []
+    for n, p in named_parameters:
+        if(p.requires_grad) and ("bias" not in n):
+            layers.append(n)
+            ave_grads.append(p.grad.abs().mean())
+            max_grads.append(p.grad.abs().max())
+    plt.bar(np.arange(len(max_grads)), max_grads, alpha=0.1, lw=1, color="c")
+    plt.bar(np.arange(len(max_grads)), ave_grads, alpha=0.1, lw=1, color="b")
+    plt.hlines(0, 0, len(ave_grads)+1, lw=2, color="k")
+    plt.xticks(range(0, len(ave_grads), 1), layers, rotation="vertical")
+    plt.xlim(left=0, right=len(ave_grads))
+    plt.ylim(bottom=-0.001, top=0.02)  # zoom in on the lower gradient regions
+    plt.xlabel("Layers")
+    plt.ylabel("average gradient")
+    plt.title("Gradient flow")
+    plt.grid(True)
+    plt.legend([Line2D([0], [0], color="c", lw=4),
+                Line2D([0], [0], color="b", lw=4),
+                Line2D([0], [0], color="k", lw=4)], ['max-gradient', 'mean-gradient', 'zero-gradient'])
+    plt.show()
+    return 
 
 
 def load_iris(shuffle=True):
@@ -125,12 +157,19 @@ def train_iris(data_splits, loss_metric, epochs):
 
     X_train = Variable(torch.Tensor(X_train).float(), requires_grad=True)
     y_train = Variable(torch.Tensor(y_train).long())
-
     X_test = Variable(torch.Tensor(X_test).float())
     X_valid = Variable(torch.Tensor(X_valid).float())
-    
     y_test = Variable(torch.Tensor(y_test).long())
     y_valid = Variable(torch.Tensor(y_valid).long())
+
+    # using DataSet and DataLoader
+    dataparams = {'batch_size': 1, 'shuffle': True, 'num_workers': 1}
+    trainset = Dataset(data_splits['train'])
+    validationset = Dataset(data_splits['val'])
+    testset = Dataset(data_splits['test'])
+    train_loader = DataLoader(trainset, **dataparams)
+    val_loader = DataLoader(validationset, **dataparams)
+    test_loader = DataLoader(testset, **dataparams)
 
     # initialization
     now = int(time.time())
@@ -148,21 +187,22 @@ def train_iris(data_splits, loss_metric, epochs):
         "accuracy": 0
     }
 
-    # criterion
-    if loss_metric == "ce":
-        criterion = nn.CrossEntropyLoss()
-
-    elif loss_metric == "approx-f1":
-        approx = True
-        criterion = mean_f1_approx_loss_on()
-
-    else:
-        raise RuntimeError("Unknown loss {}".format(loss_metric))
-
     # setting optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
+    # criterion
+    if loss_metric == "ce":
+        criterion = nn.CrossEntropyLoss()
+    elif loss_metric == "approx-f1":
+        approx = True
+        criterion = mean_f1_approx_loss_on()
+    else:
+        raise RuntimeError("Unknown loss {}".format(loss_metric))
+
+    
+
     # ----- TRAINING -----
+    batching = True
     losses = []
     for epoch in range(epochs):
         if early_stopping:
@@ -170,30 +210,48 @@ def train_iris(data_splits, loss_metric, epochs):
                 "[{}] Early Stopping at Epoch {}/{}".format(now, epoch, epochs))
             break
         
-        # TODO(dlee): implement this with iterating through batches 
-        # for i, (inputs, labels) in enumerate(train)
+        # BATCHING 
+        # if batching: 
+        for batch, (inputs, labels) in enumerate(train_loader): 
 
-        model.train()
-        optimizer.zero_grad()
-        y_pred = model(X_train)
-        # print("y_pred: {}".format(y_pred))
+            labels = labels.type(torch.LongTensor)
+            model.train()
+            optimizer.zero_grad()
+            y_pred = model(inputs)
+            # print("y_pred: {}".format(y_pred))
+            if not approx: 
+                loss = criterion(y_pred, labels)
+            else: 
+                # TODO(dlee): this is hard coded in 
+                train_labels = torch.zeros(len(labels), 3).scatter_(1, labels.unsqueeze(1), 1.)
+                # print("train labels: {}".format(train_labels))
+                loss = criterion(train_labels, y_pred)
+        
+            losses.append(loss)
+            loss.backward()
+            optimizer.step()
 
-        if not approx: 
-            loss = criterion(y_pred, y_train)
-            
-        else: 
-            # transform labels, send to heaviside functions 
-            train_labels = torch.zeros(len(y_train), y_train.max() +
-                                1).scatter_(1, y_train.unsqueeze(1), 1.)
-            
-            # print("train labels: {}".format(train_labels))
+        # # NO BATCHING 
+        # else: 
+        #     model.train()
+        #     optimizer.zero_grad()
+        #     y_pred = model(X_train)
+        #     # print("y_pred: {}".format(y_pred))
+        #     if not approx:
+        #         loss = criterion(y_pred, y_train)
+        #     else:
+        #         # transform labels, send to heaviside functions
+        #         train_labels = torch.zeros(len(y_train), y_train.max() +
+        #                                     1).scatter_(1, y_train.unsqueeze(1), 1.)
+        #         # print("train labels: {}".format(train_labels))
+        #         loss = criterion(train_labels, y_pred)
 
-            loss = criterion(train_labels, y_pred)
+        #     losses.append(loss)
+        #     loss.backward()
+        #     optimizer.step()
+
+        
         print("LOSS: {}".format(loss))
-
-        losses.append(loss)
-        loss.backward()
-        optimizer.step()
 
         # ----- EVALUATE -----
         model.eval()
