@@ -11,7 +11,7 @@ from mc_torchconfusion import *
 
 DEVICE = 'cpu'
 
-class TestTorchConfusion(unittest.TestCase):
+class TestTorchGradients(unittest.TestCase):
     def test_grad_l_tp_zero(self):
         """ Testing TP 
         - Should be no TP's as there are no PT or GT. These should all non-TP's as they're not positive.
