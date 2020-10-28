@@ -22,13 +22,17 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
-from torchconfusion import confusion
 from keras.utils import to_categorical
+
+from mc_torchconfusion import mean_f1_approx_loss_on
+from gradient_flow import *
 
 
 EPS = 1e-7
 _WHITE_WINE = "../data/winequality-white.csv"
 _RED_WINE = "../data/winequality-red.csv"
+torch.manual_seed(0)
+np.random.seed(0)
 
 '''
 https://www.koreascience.or.kr/article/JAKO201832073079660.pdf
@@ -45,6 +49,7 @@ Actual wine-quality BASELINE
 https://link.springer.com/chapter/10.1007/978-3-030-52249-0_27
 https://link.springer.com/chapter/10.1007/978-3-030-52249-0_27#enumeration
 '''
+
 
 def load_white_wine(shuffle=True):
     # https://link.springer.com/chapter/10.1007/978-3-030-52249-0_27
@@ -177,52 +182,71 @@ def train_wine(data_splits, loss_metric, epochs):
     y_test = Variable(torch.Tensor(y_test).long())
     y_valid = Variable(torch.Tensor(y_valid).long())
 
+    # using DataSet and DataLoader
+    dataparams = {'batch_size': 256, 'shuffle': True, 'num_workers': 1}
+    trainset = Dataset(data_splits['train'])
+    validationset = Dataset(data_splits['val'])
+    testset = Dataset(data_splits['test'])
+    train_loader = DataLoader(trainset, **dataparams)
+    val_loader = DataLoader(validationset, **dataparams)
+    test_loader = DataLoader(testset, **dataparams)
+
+
     # initialization
-    now = int(time.time())
     early_stopping = False
+    approx = False
     model = Model()
     print(model)
 
     val_losses = []
     best_test = {
-        "now": now,
         "best-epoch": 0,
         "loss": float('inf'),
         "f1_score": 0,
         "accuracy": 0
     }
 
+    # setting optimizer
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+
     # criterion
     if loss_metric == "ce":
         criterion = nn.CrossEntropyLoss()
-    # elif loss_metric == "approx-f1":
-    #     criterion = mean_f1_approx_loss_on(thresholds=torch.tensor([0.5]))
+    elif loss_metric == "approx-f1":
+        criterion = mean_f1_approx_loss_on(thresholds=torch.tensor([0.5]))
+        approx = True
     # elif loss_metric == 'approx-accuracy':
     #     criterion = mean_accuracy_approx_loss_on(
     #         thresholds=torch.tensor([0.5]))
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
-    # setting optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
-
     # ----- TRAINING -----
     losses = []
     for epoch in range(epochs):
         if early_stopping:
             logging.info(
-                "[{}] Early Stopping at Epoch {}/{}".format(now, epoch, epochs))
+                "Early Stopping at Epoch {}/{}".format(epoch, epochs))
             break
+        
+        for batch, (inputs, labels) in enumerate(train_loader):
+            labels = labels.type(torch.LongTensor)
+            model.train()
+            optimizer.zero_grad()
+            y_pred = model(X_train)
+            print("y pred: {}".format(y_pred))
+            print("label: {}".format(y_train))
 
-        model.train()
-        optimizer.zero_grad()
-        y_pred = model(X_train)
-        print("y pred: {}".format(y_pred))
-        print("label: {}".format(y_train))
-        loss = criterion(y_pred, y_train)
-        losses.append(loss)
-        loss.backward()
-        optimizer.step()
+            if not approx:
+                loss = criterion(y_pred, labels)
+            else: 
+                # TODO(dlee): this is hard coded in (the 3 part)
+                train_labels = torch.zeros(len(labels), 3).scatter_(1, labels.unsqueeze(1), 1.)
+                loss = criterion(y_labels=train_labels, y_preds=y_pred)
+            
+            losses.append(loss)
+            loss.backward()
+            optimizer.step()
 
         # ----- EVALUATE -----
         model.eval()

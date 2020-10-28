@@ -133,7 +133,7 @@ def train_iris(data_splits, loss_metric, epochs):
     y_valid = Variable(torch.Tensor(y_valid).long())
 
     # using DataSet and DataLoader
-    dataparams = {'batch_size': 1, 'shuffle': True, 'num_workers': 1}
+    dataparams = {'batch_size': 256, 'shuffle': True, 'num_workers': 1}
     trainset = Dataset(data_splits['train'])
     validationset = Dataset(data_splits['val'])
     testset = Dataset(data_splits['test'])
@@ -142,7 +142,6 @@ def train_iris(data_splits, loss_metric, epochs):
     test_loader = DataLoader(testset, **dataparams)
 
     # initialization
-    now = int(time.time())
     early_stopping = False
     approx = False 
     model = Model()
@@ -150,7 +149,6 @@ def train_iris(data_splits, loss_metric, epochs):
 
     val_losses = []
     best_test = {
-        "now": now,
         "best-epoch": 0,
         "loss": float('inf'),
         "f1_score": 0,
@@ -158,7 +156,7 @@ def train_iris(data_splits, loss_metric, epochs):
     }
 
     # setting optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     # criterion
     if loss_metric == "ce":
@@ -169,66 +167,41 @@ def train_iris(data_splits, loss_metric, epochs):
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
-    
-
     # ----- TRAINING -----
-    batching = True
     losses = []
     for epoch in range(epochs):
         if early_stopping:
             logging.info(
-                "[{}] Early Stopping at Epoch {}/{}".format(now, epoch, epochs))
+                "Early Stopping at Epoch {}/{}".format(epoch, epochs))
             break
         
-        # BATCHING 
-        # if batching: 
         for batch, (inputs, labels) in enumerate(train_loader): 
-
             labels = labels.type(torch.LongTensor)
-            model.train()
+
+            # setting into train mode. 
+            model.train() 
+            
+            # zero grad
             optimizer.zero_grad()
             y_pred = model(inputs)
-            # print("y_pred: {}".format(y_pred))
+
             if not approx: 
                 loss = criterion(y_pred, labels)
             else: 
-                # TODO(dlee): this is hard coded in 
+                # TODO(dlee): this is hard coded in (the 3 part)
                 train_labels = torch.zeros(len(labels), 3).scatter_(1, labels.unsqueeze(1), 1.)
-                # print("train labels: {}".format(train_labels))
-                loss = criterion(train_labels, y_pred)
+                loss = criterion(y_labels=train_labels, y_preds=y_pred)
         
             losses.append(loss)
             loss.backward()
             optimizer.step()
-
-        # # NO BATCHING 
-        # else: 
-        #     model.train()
-        #     optimizer.zero_grad()
-        #     y_pred = model(X_train)
-        #     # print("y_pred: {}".format(y_pred))
-        #     if not approx:
-        #         loss = criterion(y_pred, y_train)
-        #     else:
-        #         # transform labels, send to heaviside functions
-        #         train_labels = torch.zeros(len(y_train), y_train.max() +
-        #                                     1).scatter_(1, y_train.unsqueeze(1), 1.)
-        #         # print("train labels: {}".format(train_labels))
-        #         loss = criterion(train_labels, y_pred)
-
-        #     losses.append(loss)
-        #     loss.backward()
-        #     optimizer.step()
-
         
-        print("LOSS: {}".format(loss))
-
         # ----- EVALUATE -----
         model.eval()
         mloss = np.array([x.detach().numpy() for x in losses]).mean()
         # https://github.com/rizalzaf/ap_perf/blob/master/examples/tabular.py
 
-        # TRAIN Metrics: Accuracy, F1, Loss
+        # TRAIN Metrics: Accuracy, F1
         tr_output = model(X_train)
         # for each array, get the array of max index
         tr_pred = torch.Tensor([torch.argmax(x) for x in tr_output])
@@ -239,11 +212,13 @@ def train_iris(data_splits, loss_metric, epochs):
         tr_f1_macro = f1_score(y_true=y_train, y_pred=tr_pred_np, average='macro')
         tr_f1_weighted = f1_score(y_true=y_train, y_pred=tr_pred_np, average='weighted')
 
-        # TEST Metrics: Accuracy, F1, Loss
+        # TEST Metrics: Accuracy, F1
         test_data = torch.Tensor(X_test)
         ts_output = model(test_data)
         ts_pred = torch.Tensor([torch.argmax(x) for x in ts_output])
         ts_pred_np = [int(x) for x in ts_pred.cpu().numpy()]
+
+        # Calculate Test Metrics 
         ts_acc = accuracy_score(y_true=y_test, y_pred=ts_pred_np)
         ts_f1_micro = f1_score(
             y_true=y_test, y_pred=ts_pred_np, average='micro')
@@ -255,7 +230,6 @@ def train_iris(data_splits, loss_metric, epochs):
         # storing test metrics in dict based on loss
         if best_test['loss'] > mloss:
             best_test['loss'] = mloss
-            best_test['now'] = int(time.time()) - now
             best_test['best-epoch'] = epoch
         if best_test['f1_score'] < ts_f1_weighted:
             best_test['f1_score'] = ts_f1_weighted
@@ -263,40 +237,47 @@ def train_iris(data_splits, loss_metric, epochs):
             best_test['accuracy'] = ts_acc
 
         print("-- Mean Loss: {:.3f}".format(mloss))
-        print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
+        print("Train - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Macro F1: {:.4f}".format(
             epoch, tr_acc, tr_f1_weighted, tr_f1_macro)
         )
-        print("Test - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
+        print("Test - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Macro F1: {:.4f}".format(
             epoch, ts_acc, ts_f1_weighted, ts_f1_macro)
         )
 
         # ----- VALIDATION -----
-        # model.eval()
-        # total_val_loss = 0
-        # with torch.no_grad():
-        #     output = model.forward(X_valid)
-        #     curr_val_loss = criterion(output, y_valid)
-            
-        #     # computing validation metrics via val_data
-        #     val_output = model(X_valid)
-        #     val_pred = torch.Tensor([torch.argmax(x) for x in val_output])
-        #     val_pred_np = [int(x) for x in val_pred.cpu().numpy()]
-        #     val_acc = accuracy_score(y_true=y_valid, y_pred=val_pred_np)
-        #     val_f1_micro = f1_score(y_true=y_valid, y_pred=val_pred_np, average='micro')
-        #     val_f1_macro = f1_score(y_true=y_valid, y_pred=val_pred_np, average='macro')
-        #     val_f1_weighted = f1_score(y_true=y_valid, y_pred=val_pred_np, average='weighted')
+        model.eval()
+        with torch.no_grad():
+            y_valpred = model.forward(X_valid)
 
-        #     # breaking out of training if validation moves in other direction after last 2
-        #     if epoch > 5:
-        #         if (curr_val_loss > val_losses[-1]):
-        #             early_stopping = True
-        #         if (curr_val_loss == val_losses[-1]) & (curr_val_loss == val_losses[-2]):
-        #             early_stopping = True
+            # valid loss if APPROX 
+            if approx: 
+                valid_labels = torch.zeros(len(y_valid), 3).scatter_(
+                    1, y_valid.unsqueeze(1), 1.)
+                curr_val_loss = criterion(y_labels=valid_labels, y_preds=y_valpred)
+            # using regular CE 
+            else:
+                curr_val_loss = criterion(y_valpred, y_valid)
+        
+            # computing validation metrics via val_data
+            val_output = model(X_valid)
+            val_pred = torch.Tensor([torch.argmax(x) for x in val_output])
+            val_pred_np = [int(x) for x in val_pred.cpu().numpy()]
+            val_acc = accuracy_score(y_true=y_valid, y_pred=val_pred_np)
+            val_f1_micro = f1_score(y_true=y_valid, y_pred=val_pred_np, average='micro')
+            val_f1_macro = f1_score(y_true=y_valid, y_pred=val_pred_np, average='macro')
+            val_f1_weighted = f1_score(y_true=y_valid, y_pred=val_pred_np, average='weighted')
 
-        #     val_losses.append(curr_val_loss)
-        #     print("Valid - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
-        #         epoch, val_acc, val_f1_weighted, val_f1_macro)
-        #     )
+            # breaking out of training if validation moves in other direction after last 2
+            if epoch > 5:
+                if (curr_val_loss > val_losses[-1]):
+                    early_stopping = True
+                if (curr_val_loss == val_losses[-1]) & (curr_val_loss == val_losses[-2]):
+                    early_stopping = True
+
+            val_losses.append(curr_val_loss)
+            print("Valid - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Macro F1: {:.4f}".format(
+                epoch, val_acc, val_f1_weighted, val_f1_macro)
+            )
 
     print(best_test)
     return

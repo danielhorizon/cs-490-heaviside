@@ -168,10 +168,10 @@ def confusion(gt, pt, thresholds, agg='sum'):
     tn = l_tn(gt, pt, thresholds, agg)
 
     # softset membership values summed over thresholds
-    print("tp: {}".format(tp))
-    print("fn: {}".format(fn))
-    print("fp: {}".format(fp))
-    print("tn: {}".format(tn))
+    # print("tp: {}".format(tp))
+    # print("fn: {}".format(fn))
+    # print("fp: {}".format(fp))
+    # print("tn: {}".format(tn))
     
     return tp, fn, fp, tn
 
@@ -200,6 +200,35 @@ def mean_f1_approx_loss_on(y_labels=None, y_preds=None, thresholds=torch.arange(
         # print("loss: {}".format(loss))
         return loss
     return loss
+
+
+def mean_accuracy_approx_loss_on(y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
+    # number of classes should be length of each element
+    def loss(y_labels, y_preds):
+        classes = len(y_labels[0])
+        mean_f1s = torch.zeros(classes, dtype=torch.float32)
+        for i in range(classes):
+            gt_list = torch.Tensor([x[i] for x in y_labels])
+            pt_list = y_preds[:, i]
+
+            thresholds = torch.arange(0.1, 1, 0.1)
+            # returns the number of tp, fn, fp, and tn.
+            tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
+            # print("i: {}, TP: {}, FN: {}".format(i, tp, fn))
+            precision = tp/(tp+fp+EPS)
+            recall = tp/(tp+fn+EPS)
+            temp_f1 = torch.mean(2 * (precision * recall) /
+                                 (precision + recall + EPS))
+            mean_f1s[i] = temp_f1
+
+        loss = 1 - mean_f1s.mean()
+        # print("mean F1: {}".format(mean_f1s))
+        # print("loss: {}".format(loss))
+        return loss
+    return loss
+
+
+# TODO(dlee): adding in approximated accuracy and other metrics.
 
 
 def test(): 
