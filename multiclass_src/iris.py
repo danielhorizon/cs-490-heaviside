@@ -29,7 +29,8 @@ from gradient_flow import *
 
 EPS = 1e-7
 _IRIS_DATA_PATH = "../data/iris.csv"
-
+torch.manual_seed(0)
+np.random.seed(0)
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, ds_split):

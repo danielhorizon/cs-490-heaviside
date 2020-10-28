@@ -16,9 +16,9 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import random
 
-from mc_torchconfusion import *
+#from torchconfusion import *
 
-# from confusion_vectorized import *
+from confusion_vectorized import *
 
 
 class TestTorchConfusion(unittest.TestCase):
@@ -60,7 +60,7 @@ class TestTorchConfusion(unittest.TestCase):
         tp = l_tp(gt, pt, thresholds)
         #print(tp)
         # torch.ones_like(tp) # summing across 9 values in an array all of which are 1
-        torch.testing.assert_allclose(tp, torch.tensor(9., device='cpu'))
+        torch.testing.assert_allclose(tp, torch.tensor(9., device='cuda:0'))
 
     def test_l_tp_0_1(self):
         ''' there should be no true positives as there are all positive pt but no positive gt'''
@@ -109,7 +109,7 @@ class TestTorchConfusion(unittest.TestCase):
         #agg = None
         fn = l_fn(gt, pt, thresholds)
         # torch.ones_like(fn) # summing across 9 values in an array all of which are 1
-        torch.testing.assert_allclose(fn, torch.tensor(9., device='cpu'))
+        torch.testing.assert_allclose(fn, torch.tensor(9., device='cuda:0'))
 
     def test_1_fn_1_1(self):
         '''No false negatives, all true positives'''
@@ -147,7 +147,7 @@ class TestTorchConfusion(unittest.TestCase):
         fp = l_fp(gt, pt, thresholds)
         # debugging set:
         # torch.ones_like(fp) # summing across 9 values in an array all of which are 1
-        torch.testing.assert_allclose(fp, torch.tensor(9., device='cpu'))
+        torch.testing.assert_allclose(fp, torch.tensor(9., device='cuda:0'))
 
     def test_l_fp_1_0(self):
         '''No false positives, all false negatives'''
@@ -185,7 +185,7 @@ class TestTorchConfusion(unittest.TestCase):
         tn = l_tn(gt, pt, thresholds)
         #print(tn)
         # torch.ones_like(tn) # summing across 9 values in an array all of which are 1
-        torch.testing.assert_allclose(tn, torch.tensor(9., device='cpu'))
+        torch.testing.assert_allclose(tn, torch.tensor(9., device='cuda:0'))
 
     def test_l_tn_0_1(self):
         '''No true negatives, all false positives'''
