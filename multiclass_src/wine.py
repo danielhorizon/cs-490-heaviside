@@ -27,6 +27,8 @@ from keras.utils import to_categorical
 from mc_torchconfusion import mean_f1_approx_loss_on
 from gradient_flow import *
 
+# for early stopping.
+from pytorchtools import EarlyStopping
 
 EPS = 1e-7
 _WHITE_WINE = "../data/winequality-white.csv"
@@ -58,13 +60,14 @@ def load_white_wine(shuffle=True):
     raw_df.columns = raw_df.columns.str.replace(' ', '-')
     raw_df = raw_df[raw_df.quality != 3]
     raw_df = raw_df[raw_df.quality != 9]
+    print("shape before: {}".format(raw_df.shape))
 
     # Re-labeling quality data.
     mappings = {
-        4: 0,
-        5: 1,
-        6: 2,
-        7: 3,
+        4: 0,       #low 
+        5: 1,       #below average 
+        6: 2,       #average 
+        7: 3,       #above average/high 
         8: 3
     }
     raw_df["quality"] = raw_df["quality"].apply(lambda x: mappings[x])
@@ -76,6 +79,9 @@ def load_white_wine(shuffle=True):
                  'pH', 'sulphates', 'alcohol']
     raw_df[x_columns] = raw_df[x_columns][raw_df[x_columns].apply(
         lambda x:(x-x.mean()).abs() <= (3*x.std())).all(1)]
+    
+    raw_df = raw_df.dropna()
+    print("shape after: {}".format(raw_df.shape))
 
     # Split and shuffle
     train_df, test_df = train_test_split(raw_df, test_size=0.2, shuffle=shuffle)
@@ -175,7 +181,7 @@ def train_wine(data_splits, loss_metric, epochs):
     X_valid, y_valid = data_splits['val']['X'], data_splits['val']['y']
     X_test, y_test = data_splits['test']['X'], data_splits['test']['y']
 
-    X_train = Variable(torch.Tensor(X_train).float())
+    X_train = Variable(torch.Tensor(X_train).float(), requires_grad=True)
     X_test = Variable(torch.Tensor(X_test).float())
     X_valid = Variable(torch.Tensor(X_valid).float())
     y_train = Variable(torch.Tensor(y_train).long())
@@ -191,14 +197,17 @@ def train_wine(data_splits, loss_metric, epochs):
     val_loader = DataLoader(validationset, **dataparams)
     test_loader = DataLoader(testset, **dataparams)
 
-
     # initialization
     early_stopping = False
     approx = False
     model = Model()
     print(model)
 
-    val_losses = []
+    # initialize the early_stopping object
+    patience = 15
+    early_stopping = EarlyStopping(patience=patience, verbose=True)
+
+    avg_val_losses = []
     best_test = {
         "best-epoch": 0,
         "loss": float('inf'),
@@ -213,7 +222,7 @@ def train_wine(data_splits, loss_metric, epochs):
     if loss_metric == "ce":
         criterion = nn.CrossEntropyLoss()
     elif loss_metric == "approx-f1":
-        criterion = mean_f1_approx_loss_on(thresholds=torch.tensor([0.5]))
+        criterion = mean_f1_approx_loss_on()
         approx = True
     # elif loss_metric == 'approx-accuracy':
     #     criterion = mean_accuracy_approx_loss_on(
@@ -224,24 +233,22 @@ def train_wine(data_splits, loss_metric, epochs):
     # ----- TRAINING -----
     losses = []
     for epoch in range(epochs):
-        if early_stopping:
-            logging.info(
-                "Early Stopping at Epoch {}/{}".format(epoch, epochs))
-            break
-        
         for batch, (inputs, labels) in enumerate(train_loader):
             labels = labels.type(torch.LongTensor)
+            # setting into train mode. 
             model.train()
+
+            # zeroing out gradients 
             optimizer.zero_grad()
-            y_pred = model(X_train)
-            print("y pred: {}".format(y_pred))
-            print("label: {}".format(y_train))
+
+            # making predictions
+            y_pred = model(inputs)
 
             if not approx:
                 loss = criterion(y_pred, labels)
             else: 
                 # TODO(dlee): this is hard coded in (the 3 part)
-                train_labels = torch.zeros(len(labels), 3).scatter_(1, labels.unsqueeze(1), 1.)
+                train_labels = torch.zeros(len(labels), 4).scatter_(1, labels.unsqueeze(1), 1.)
                 loss = criterion(y_labels=train_labels, y_preds=y_pred)
             
             losses.append(loss)
@@ -284,7 +291,6 @@ def train_wine(data_splits, loss_metric, epochs):
         # storing test metrics in dict based on loss
         if best_test['loss'] > mloss:
             best_test['loss'] = mloss
-            best_test['now'] = int(time.time()) - now
             best_test['best-epoch'] = epoch
         if best_test['f1_score'] < ts_f1_weighted:
             best_test['f1_score'] = ts_f1_weighted
@@ -301,35 +307,43 @@ def train_wine(data_splits, loss_metric, epochs):
 
         # ----- VALIDATION -----
         model.eval()
-        total_val_loss = 0
-        with torch.no_grad():
-            output = model.forward(X_valid)
-            curr_val_loss = criterion(output, y_valid)
+        valid_losses = []
+        for data, target in val_loader: 
+            target = target.type(torch.LongTensor)
+            output = model.forward(data)
+            if approx: 
+                target = target.type(torch.int64)
+                # there are 3 wine classes
+                valid_labels = torch.zeros(len(target), 4).scatter_(
+                    1, target.unsqueeze(1), 1.)
+                curr_val_loss = criterion(
+                    y_labels=valid_labels, y_preds=output)
+            else: 
+                curr_val_loss = criterion(output, target)
 
-            # computing validation metrics via val_data
-            val_output = model(X_valid)
-            val_pred = torch.Tensor([torch.argmax(x) for x in val_output])
-            val_pred_np = [int(x) for x in val_pred.cpu().numpy()]
-            val_acc = accuracy_score(y_true=y_valid, y_pred=val_pred_np)
-            val_f1_micro = f1_score(
-                y_true=y_valid, y_pred=val_pred_np, average='micro')
-            val_f1_macro = f1_score(
-                y_true=y_valid, y_pred=val_pred_np, average='macro')
-            val_f1_weighted = f1_score(
-                y_true=y_valid, y_pred=val_pred_np, average='weighted')
+            valid_losses.append(curr_val_loss.detach().numpy())
 
-            # breaking out of training if validation moves in other direction after last 2
-            if epoch > 5:
-                if (curr_val_loss > val_losses[-1]):
-                    early_stopping = True
-                if (curr_val_loss == val_losses[-1]) & (curr_val_loss == val_losses[-2]):
-                    early_stopping = True
+        # computing validation metrics via val_data
+        val_output = model(X_valid)
+        val_pred = torch.Tensor([torch.argmax(x) for x in val_output])
+        val_pred_np = [int(x) for x in val_pred.cpu().numpy()]
+        val_acc = accuracy_score(y_true=y_valid, y_pred=val_pred_np)
+        val_f1_micro = f1_score(
+            y_true=y_valid, y_pred=val_pred_np, average='micro')
+        val_f1_macro = f1_score(
+            y_true=y_valid, y_pred=val_pred_np, average='macro')
+        val_f1_weighted = f1_score(
+            y_true=y_valid, y_pred=val_pred_np, average='weighted')
 
-            val_losses.append(curr_val_loss)
-            print("Valid - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
-                epoch, val_acc, val_f1_weighted, val_f1_macro)
-            )
+        # computing the losses             
+        valid_loss = np.mean(valid_losses)
+        print("Validation Loss: {}".format(valid_loss))
+        avg_val_losses.append(valid_loss)
 
+        early_stopping(valid_loss, model)
+        if early_stopping.early_stop: 
+            print("Early Stopping")
+            break 
     print(best_test)
     return
 
