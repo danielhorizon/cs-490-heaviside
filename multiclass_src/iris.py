@@ -1,8 +1,8 @@
-import time 
+import time
 import torch
-import click 
+import click
 import logging
-import math 
+import math
 
 import pandas as pd
 import numpy as np
@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
-from sklearn import metrics 
+from sklearn import metrics
 
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -24,8 +24,8 @@ from keras.utils import to_categorical
 
 from matplotlib.lines import Line2D
 
-from mc_torchconfusion import mean_f1_approx_loss_on
-from gradient_flow import * 
+from mc_torchconfusion import *
+from gradient_flow import *
 
 # for early stopping.
 from pytorchtools import EarlyStopping
@@ -34,6 +34,7 @@ EPS = 1e-7
 _IRIS_DATA_PATH = "../data/iris.csv"
 torch.manual_seed(0)
 np.random.seed(0)
+
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, ds_split):
@@ -50,8 +51,8 @@ class Dataset(torch.utils.data.Dataset):
 class Model(nn.Module):
     # http://airccse.org/journal/ijsc/papers/2112ijsc07.pdf
     # https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8620866&tag=1
-    def __init__(self, input_features=4, hidden_layer1=50, hidden_layer2=20, 
-                    output_features=3):
+    def __init__(self, input_features=4, hidden_layer1=50, hidden_layer2=20,
+                 output_features=3):
         super().__init__()
         self.fc1 = nn.Linear(input_features, hidden_layer1)
         self.fc2 = nn.Linear(hidden_layer1, hidden_layer2)
@@ -59,14 +60,14 @@ class Model(nn.Module):
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
-        x = self.fc1(x) 
+        x = self.fc1(x)
         x = F.relu(x)
-        x = self.fc2(x) 
-        x = F.relu(x) 
-        x = self.fc3(x) 
-        x = self.softmax(x) 
+        x = self.fc2(x)
+        x = F.relu(x)
+        x = self.fc3(x)
+        x = self.softmax(x)
         return x
-        
+
 
 def load_iris(shuffle=True):
     # https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8620866&tag=1
@@ -78,11 +79,12 @@ def load_iris(shuffle=True):
     }
     raw_df["species"] = raw_df["species"].apply(lambda x: mappings[x])
 
-    # split and shuffle; shuffle=true will shuffle the elements before the split. 
-    train_df, test_df = train_test_split(raw_df, test_size=0.20, shuffle=shuffle)
+    # split and shuffle; shuffle=true will shuffle the elements before the split.
+    train_df, test_df = train_test_split(
+        raw_df, test_size=0.20, shuffle=shuffle)
     train_df, val_df = train_test_split(
         train_df, test_size=0.20, shuffle=shuffle)
-    
+
     train_labels = np.array(train_df.pop("species"))
     val_labels = np.array(val_df.pop("species"))
     test_labels = np.array(test_df.pop("species"))
@@ -91,8 +93,8 @@ def load_iris(shuffle=True):
     val_features = np.array(val_df)
     test_features = np.array(test_df)
 
-    # scaling data. 
-    scaler = StandardScaler() 
+    # scaling data.
+    scaler = StandardScaler()
     train_features = scaler.fit_transform(train_features)
     val_features = scaler.transform(val_features)
     test_features = scaler.transform(test_features)
@@ -146,7 +148,7 @@ def train_iris(data_splits, loss_metric, epochs):
 
     # initialization
     early_stopping = False
-    approx = False 
+    approx = False
     model = Model()
     print(model)
 
@@ -159,46 +161,52 @@ def train_iris(data_splits, loss_metric, epochs):
     }
 
     # initialize the early_stopping object
-    patience=15
+    patience = 15
     early_stopping = EarlyStopping(patience=patience, verbose=True)
 
     # setting optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    
+
     # criterion
     if loss_metric == "ce":
         criterion = nn.CrossEntropyLoss()
     elif loss_metric == "approx-f1":
         approx = True
         criterion = mean_f1_approx_loss_on()
+    elif loss_metric == "approx-acc":
+        approx = True
+        criterion = mean_accuracy_approx_loss_on()
+    elif loss_metric == "approx-auroc":
+        approx = True
+        criterion = mean_auroc_approx_loss_on()
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
     # ----- TRAINING -----
     losses = []
     for epoch in range(epochs):
-        for batch, (inputs, labels) in enumerate(train_loader): 
+        for batch, (inputs, labels) in enumerate(train_loader):
             labels = labels.type(torch.LongTensor)
 
-            # setting into train mode. 
-            model.train() 
-            
+            # setting into train mode.
+            model.train()
+
             # zero grad
             optimizer.zero_grad()
             y_pred = model(inputs)
 
-            if not approx: 
+            if not approx:
                 loss = criterion(y_pred, labels)
-            else: 
+            else:
                 # TODO(dlee): this is hard coded in (the 3 part)
-                train_labels = torch.zeros(len(labels), 3).scatter_(1, labels.unsqueeze(1), 1.)
+                train_labels = torch.zeros(len(labels), 3).scatter_(
+                    1, labels.unsqueeze(1), 1.)
                 loss = criterion(y_labels=train_labels, y_preds=y_pred)
-        
+
             losses.append(loss)
             loss.backward()
             optimizer.step()
-            
-        
+
         # ----- EVALUATE -----
         model.eval()
         mloss = np.array([x.detach().numpy() for x in losses]).mean()
@@ -211,9 +219,12 @@ def train_iris(data_splits, loss_metric, epochs):
         tr_pred_np = [int(x) for x in tr_pred.cpu().numpy()]
 
         tr_acc = accuracy_score(y_true=y_train, y_pred=tr_pred_np)
-        tr_f1_micro = f1_score(y_true=y_train, y_pred=tr_pred_np, average='micro')
-        tr_f1_macro = f1_score(y_true=y_train, y_pred=tr_pred_np, average='macro')
-        tr_f1_weighted = f1_score(y_true=y_train, y_pred=tr_pred_np, average='weighted')
+        tr_f1_micro = f1_score(
+            y_true=y_train, y_pred=tr_pred_np, average='micro')
+        tr_f1_macro = f1_score(
+            y_true=y_train, y_pred=tr_pred_np, average='macro')
+        tr_f1_weighted = f1_score(
+            y_true=y_train, y_pred=tr_pred_np, average='weighted')
 
         # TEST Metrics: Accuracy, F1
         test_data = torch.Tensor(X_test)
@@ -221,7 +232,7 @@ def train_iris(data_splits, loss_metric, epochs):
         ts_pred = torch.Tensor([torch.argmax(x) for x in ts_output])
         ts_pred_np = [int(x) for x in ts_pred.cpu().numpy()]
 
-        # Calculate Test Metrics 
+        # Calculate Test Metrics
         ts_acc = accuracy_score(y_true=y_test, y_pred=ts_pred_np)
         ts_f1_micro = f1_score(
             y_true=y_test, y_pred=ts_pred_np, average='micro')
@@ -251,17 +262,18 @@ def train_iris(data_splits, loss_metric, epochs):
         model.eval()
         valid_losses = []
 
-        for data, target in val_loader: 
+        for data, target in val_loader:
             y_valpred = model.forward(data)
-            # valid loss if APPROX 
-            if approx: 
+            # valid loss if APPROX
+            if approx:
                 # print(target)
                 target = target.type(torch.int64)
                 valid_labels = torch.zeros(len(target), 3).scatter_(
                     1, target.unsqueeze(1), 1.)
                 # print(valid_labels)
-                curr_val_loss = criterion(y_labels=valid_labels, y_preds=y_valpred)
-            # using regular CE 
+                curr_val_loss = criterion(
+                    y_labels=valid_labels, y_preds=y_valpred)
+            # using regular CE
             else:
                 target = target.type(torch.int64)
                 curr_val_loss = criterion(y_valpred, target)
@@ -274,34 +286,38 @@ def train_iris(data_splits, loss_metric, epochs):
         val_pred = torch.Tensor([torch.argmax(x) for x in val_output])
         val_pred_np = [int(x) for x in val_pred.cpu().numpy()]
         val_acc = accuracy_score(y_true=y_valid, y_pred=val_pred_np)
-        val_f1_micro = f1_score(y_true=y_valid, y_pred=val_pred_np, average='micro')
-        val_f1_macro = f1_score(y_true=y_valid, y_pred=val_pred_np, average='macro')
-        val_f1_weighted = f1_score(y_true=y_valid, y_pred=val_pred_np, average='weighted')
+        val_f1_micro = f1_score(
+            y_true=y_valid, y_pred=val_pred_np, average='micro')
+        val_f1_macro = f1_score(
+            y_true=y_valid, y_pred=val_pred_np, average='macro')
+        val_f1_weighted = f1_score(
+            y_true=y_valid, y_pred=val_pred_np, average='weighted')
 
-        # computing the losses             
+        # computing the losses
         valid_loss = np.mean(valid_losses)
         print("Validation Loss: {}".format(valid_loss))
         avg_val_losses.append(valid_loss)
 
         early_stopping(valid_loss, model)
-        if early_stopping.early_stop: 
+        if early_stopping.early_stop:
             print("Early Stopping")
-            break 
+            break
 
     print(best_test)
     return
 
 
-@click.command() 
+@click.command()
 @click.option("--loss", required=True)
 @click.option("--epochs", required=True)
-def run(loss, epochs): 
+def run(loss, epochs):
     data_splits = load_iris()
     train_iris(data_splits, loss_metric=loss, epochs=int(epochs))
 
+
 def main():
-    run() 
-    
+    run()
+
+
 if __name__ == '__main__':
     main()
-

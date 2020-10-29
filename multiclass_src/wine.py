@@ -24,7 +24,7 @@ from torch.autograd import Variable
 
 from keras.utils import to_categorical
 
-from mc_torchconfusion import mean_f1_approx_loss_on
+from mc_torchconfusion import *
 from gradient_flow import *
 
 # for early stopping.
@@ -55,7 +55,7 @@ https://link.springer.com/chapter/10.1007/978-3-030-52249-0_27#enumeration
 
 def load_white_wine(shuffle=True):
     # https://link.springer.com/chapter/10.1007/978-3-030-52249-0_27
-    # solely doing this on white wine 
+    # solely doing this on white wine
     raw_df = pd.read_csv(_WHITE_WINE, sep=';')
     raw_df.columns = raw_df.columns.str.replace(' ', '-')
     raw_df = raw_df[raw_df.quality != 3]
@@ -64,28 +64,30 @@ def load_white_wine(shuffle=True):
 
     # Re-labeling quality data.
     mappings = {
-        4: 0,       #low 
-        5: 1,       #below average 
-        6: 2,       #average 
-        7: 3,       #above average/high 
+        4: 0,  # low
+        5: 1,  # below average
+        6: 2,  # average
+        7: 3,  # above average/high
         8: 3
     }
     raw_df["quality"] = raw_df["quality"].apply(lambda x: mappings[x])
 
     # Removing outliers that are +/- 3 SD's, as done in the paper
-    # only for the x columns, not for quality. 
+    # only for the x columns, not for quality.
     x_columns = ['fixed-acidity', 'volatile-acidity', 'citric-acid', 'residual-sugar',
                  'chlorides', 'free-sulfur-dioxide', 'total-sulfur-dioxide', 'density',
                  'pH', 'sulphates', 'alcohol']
     raw_df[x_columns] = raw_df[x_columns][raw_df[x_columns].apply(
         lambda x:(x-x.mean()).abs() <= (3*x.std())).all(1)]
-    
+
     raw_df = raw_df.dropna()
     print("shape after: {}".format(raw_df.shape))
 
     # Split and shuffle
-    train_df, test_df = train_test_split(raw_df, test_size=0.2, shuffle=shuffle)
-    train_df, val_df = train_test_split(train_df, test_size=0.2, shuffle=shuffle)
+    train_df, test_df = train_test_split(
+        raw_df, test_size=0.2, shuffle=shuffle)
+    train_df, val_df = train_test_split(
+        train_df, test_size=0.2, shuffle=shuffle)
 
     train_labels = np.array(train_df.pop("quality"))
     val_labels = np.array(val_df.pop("quality"))
@@ -148,19 +150,19 @@ class Model(nn.Module):
     - Output layer: output = 4 with "Softmax" activation and L2 regularization of 0.0001 
     75 epochs and 60% classification accuracy 
     '''
-    
-    def __init__(self, 
-        input_features = 11, 
-        hidden_layer1 = 1000, 
-        hidden_layer2 = 500, 
-        output_inputs = 250, 
-        output_features = 4):
+
+    def __init__(self,
+                 input_features=11,
+                 hidden_layer1=1000,
+                 hidden_layer2=500,
+                 output_inputs=250,
+                 output_features=4):
 
         super().__init__()
-        self.fc1 = nn.Linear(input_features, hidden_layer1) # 11 -> 1000 
-        self.fc2 = nn.Linear(hidden_layer1, hidden_layer2) # 1000 -> 500 
+        self.fc1 = nn.Linear(input_features, hidden_layer1)  # 11 -> 1000
+        self.fc2 = nn.Linear(hidden_layer1, hidden_layer2)  # 1000 -> 500
         self.fc3 = nn.Linear(hidden_layer2, output_inputs)  # 500 -> 250
-        self.output = nn.Linear(output_inputs, output_features) # 250 -> 4 
+        self.output = nn.Linear(output_inputs, output_features)  # 250 -> 4
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
@@ -216,17 +218,20 @@ def train_wine(data_splits, loss_metric, epochs):
     }
 
     # setting optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     # criterion
     if loss_metric == "ce":
         criterion = nn.CrossEntropyLoss()
     elif loss_metric == "approx-f1":
-        criterion = mean_f1_approx_loss_on()
         approx = True
-    # elif loss_metric == 'approx-accuracy':
-    #     criterion = mean_accuracy_approx_loss_on(
-    #         thresholds=torch.tensor([0.5]))
+        criterion = mean_f1_approx_loss_on()
+    elif loss_metric == "approx-acc":
+        approx = True
+        criterion = mean_accuracy_approx_loss_on()
+    elif loss_metric == "approx-auroc":
+        approx = True
+        criterion = mean_auroc_approx_loss_on()
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
@@ -235,10 +240,10 @@ def train_wine(data_splits, loss_metric, epochs):
     for epoch in range(epochs):
         for batch, (inputs, labels) in enumerate(train_loader):
             labels = labels.type(torch.LongTensor)
-            # setting into train mode. 
+            # setting into train mode.
             model.train()
 
-            # zeroing out gradients 
+            # zeroing out gradients
             optimizer.zero_grad()
 
             # making predictions
@@ -246,11 +251,12 @@ def train_wine(data_splits, loss_metric, epochs):
 
             if not approx:
                 loss = criterion(y_pred, labels)
-            else: 
+            else:
                 # TODO(dlee): this is hard coded in (the 3 part)
-                train_labels = torch.zeros(len(labels), 4).scatter_(1, labels.unsqueeze(1), 1.)
+                train_labels = torch.zeros(len(labels), 4).scatter_(
+                    1, labels.unsqueeze(1), 1.)
                 loss = criterion(y_labels=train_labels, y_preds=y_pred)
-            
+
             losses.append(loss)
             loss.backward()
             optimizer.step()
@@ -308,17 +314,17 @@ def train_wine(data_splits, loss_metric, epochs):
         # ----- VALIDATION -----
         model.eval()
         valid_losses = []
-        for data, target in val_loader: 
+        for data, target in val_loader:
             target = target.type(torch.LongTensor)
             output = model.forward(data)
-            if approx: 
+            if approx:
                 target = target.type(torch.int64)
                 # there are 3 wine classes
                 valid_labels = torch.zeros(len(target), 4).scatter_(
                     1, target.unsqueeze(1), 1.)
                 curr_val_loss = criterion(
                     y_labels=valid_labels, y_preds=output)
-            else: 
+            else:
                 curr_val_loss = criterion(output, target)
 
             valid_losses.append(curr_val_loss.detach().numpy())
@@ -335,23 +341,24 @@ def train_wine(data_splits, loss_metric, epochs):
         val_f1_weighted = f1_score(
             y_true=y_valid, y_pred=val_pred_np, average='weighted')
 
-        # computing the losses             
+        # computing the losses
         valid_loss = np.mean(valid_losses)
         print("Validation Loss: {}".format(valid_loss))
         avg_val_losses.append(valid_loss)
 
         early_stopping(valid_loss, model)
-        if early_stopping.early_stop: 
+        if early_stopping.early_stop:
             print("Early Stopping")
-            break 
+            break
     print(best_test)
     return
+
 
 @click.command()
 @click.option("--loss", required=True)
 @click.option("--epochs", required=True)
 def run(loss, epochs):
-    data_splits = load_white_wine() 
+    data_splits = load_white_wine()
     train_wine(data_splits, loss_metric=loss, epochs=int(epochs))
 
 
