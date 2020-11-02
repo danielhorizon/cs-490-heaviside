@@ -60,7 +60,7 @@ class TestTorchConfusion(unittest.TestCase):
         tp = l_tp(gt, pt, thresholds)
         print("test_l_tp_1_1: {}".format(tp))
         # torch.ones_like(tp) # summing across 9 values in an array all of which are 1
-        torch.testing.assert_allclose(tp, torch.tensor(9., device='cpu'))
+        torch.testing.assert_allclose(tp, torch.tensor(3., device='cpu'))
 
     def test_l_tp_0_1(self):
         ''' there should be no true positives as there are all positive pt but no positive gt'''

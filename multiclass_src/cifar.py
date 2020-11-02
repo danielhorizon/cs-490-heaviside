@@ -26,6 +26,9 @@ from sklearn import metrics
 from pytorchtools import EarlyStopping
 from mc_torchconfusion import *
 
+torch.manual_seed(0)
+np.random.seed(0)
+
 # displaying images: 
 def show_image(img): 
     img = img / 2 + 0.5     # unnormalize
@@ -153,7 +156,7 @@ def train_cifar(loss_metric=None, epochs=None):
     model = Net().to(device)
     patience = 100
     early_stopping = EarlyStopping(patience=patience, verbose=True)
-    optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 
     # criterion
     if loss_metric == "ce":
