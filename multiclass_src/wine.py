@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -21,8 +21,6 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-
-from keras.utils import to_categorical
 
 from mc_torchconfusion import *
 from gradient_flow import *
@@ -178,6 +176,17 @@ class Model(nn.Module):
 
 
 def train_wine(data_splits, loss_metric, epochs):
+    using_gpu = False 
+    if torch.cuda.is_available(): 
+        print("device = cuda")
+        device = "cuda"
+        using_gpu = True 
+    else: 
+        print("device = cpu")
+        device = "cpu"
+    
+    print("using DEVICE: {}".format(device))
+
     # setting train, validation, and test sets
     X_train, y_train = data_splits['train']['X'], data_splits['train']['y']
     X_valid, y_valid = data_splits['val']['X'], data_splits['val']['y']
@@ -202,11 +211,11 @@ def train_wine(data_splits, loss_metric, epochs):
     # initialization
     early_stopping = False
     approx = False
-    model = Model()
+    model = Model().to(device)
     print(model)
 
     # initialize the early_stopping object
-    patience = 15
+    patience = 100
     early_stopping = EarlyStopping(patience=patience, verbose=True)
 
     avg_val_losses = []
@@ -219,19 +228,20 @@ def train_wine(data_splits, loss_metric, epochs):
 
     # setting optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    first_run = True
 
     # criterion
     if loss_metric == "ce":
         criterion = nn.CrossEntropyLoss()
     elif loss_metric == "approx-f1":
         approx = True
-        criterion = mean_f1_approx_loss_on()
+        criterion = mean_f1_approx_loss_on(device=device)
     elif loss_metric == "approx-acc":
         approx = True
-        criterion = mean_accuracy_approx_loss_on()
+        criterion = mean_accuracy_approx_loss_on(device=device)
     elif loss_metric == "approx-auroc":
         approx = True
-        criterion = mean_auroc_approx_loss_on()
+        criterion = mean_auroc_approx_loss_on(device=device)
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
@@ -239,7 +249,8 @@ def train_wine(data_splits, loss_metric, epochs):
     losses = []
     for epoch in range(epochs):
         for batch, (inputs, labels) in enumerate(train_loader):
-            labels = labels.type(torch.LongTensor)
+            labels = labels.type(torch.LongTensor).to(device)
+            inputs = inputs.to(device)
             # setting into train mode.
             model.train()
 
@@ -253,8 +264,9 @@ def train_wine(data_splits, loss_metric, epochs):
                 loss = criterion(y_pred, labels)
             else:
                 # TODO(dlee): this is hard coded in (the 3 part)
-                train_labels = torch.zeros(len(labels), 4).scatter_(
-                    1, labels.unsqueeze(1), 1.)
+                # print("DEVICE: {}".format(device))
+                train_labels = torch.zeros(len(labels), 4).to(device).scatter_(
+                    1, labels.unsqueeze(1), 1.).to(device)
                 loss = criterion(y_labels=train_labels, y_preds=y_pred)
 
             losses.append(loss)
@@ -263,13 +275,27 @@ def train_wine(data_splits, loss_metric, epochs):
 
         # ----- EVALUATE -----
         model.eval()
-        mloss = np.array([x.detach().numpy() for x in losses]).mean()
+        # print("losses:{}".format(losses))
+        if using_gpu:
+            mloss = torch.mean(torch.stack(losses))
+        else: 
+            mloss = np.array([x.item for x in losses]).mean()
+        
         # https://github.com/rizalzaf/ap_perf/blob/master/examples/tabular.py
 
         # TRAIN Metrics: Accuracy, F1, Loss
+        if first_run:
+            X_train = X_train.to(device)
+            y_train = y_train.numpy()
+            X_test = X_test.to(device)
+            y_test = y_test.numpy()
+            X_valid = X_valid.to(device)
+            y_valid = y_valid.numpy() 
+            first_run = False
+            
         tr_output = model(X_train)
         # for each array, get the array of max index
-        tr_pred = torch.Tensor([torch.argmax(x) for x in tr_output])
+        tr_pred = torch.Tensor([torch.argmax(x) for x in tr_output]).to(device)
         tr_pred_np = [int(x) for x in tr_pred.cpu().numpy()]
 
         # TODO(dlee): you should do these manually, not using sci-kit
@@ -282,11 +308,13 @@ def train_wine(data_splits, loss_metric, epochs):
             y_true=y_train, y_pred=tr_pred_np, average='weighted')
 
         # TEST Metrics: Accuracy, F1, Loss
-        test_data = torch.Tensor(X_test)
-        ts_output = model(test_data)
-        ts_pred = torch.Tensor([torch.argmax(x) for x in ts_output])
+        # test_data = torch.Tensor(X_test).to(device)
+        ts_output = model(X_test)
+        ts_pred = torch.Tensor([torch.argmax(x) for x in ts_output]).to(device)
         ts_pred_np = [int(x) for x in ts_pred.cpu().numpy()]
+
         ts_acc = accuracy_score(y_true=y_test, y_pred=ts_pred_np)
+        print("Test Acc: {}".format(ts_acc))
         ts_f1_micro = f1_score(
             y_true=y_test, y_pred=ts_pred_np, average='micro')
         ts_f1_macro = f1_score(
@@ -315,23 +343,25 @@ def train_wine(data_splits, loss_metric, epochs):
         model.eval()
         valid_losses = []
         for data, target in val_loader:
-            target = target.type(torch.LongTensor)
+            target = target.type(torch.LongTensor).to(device)
+            data = data.to(device)
             output = model.forward(data)
             if approx:
                 target = target.type(torch.int64)
                 # there are 3 wine classes
-                valid_labels = torch.zeros(len(target), 4).scatter_(
+                valid_labels = torch.zeros(len(target), 4).to(device).scatter_(
                     1, target.unsqueeze(1), 1.)
                 curr_val_loss = criterion(
                     y_labels=valid_labels, y_preds=output)
             else:
                 curr_val_loss = criterion(output, target)
 
-            valid_losses.append(curr_val_loss.detach().numpy())
+            # valid_losses.append(curr_val_loss.detach().numpy())
+            valid_losses.append(curr_val_loss.detach().cpu().numpy())
 
         # computing validation metrics via val_data
         val_output = model(X_valid)
-        val_pred = torch.Tensor([torch.argmax(x) for x in val_output])
+        val_pred = torch.Tensor([torch.argmax(x) for x in val_output]).to(device)
         val_pred_np = [int(x) for x in val_pred.cpu().numpy()]
         val_acc = accuracy_score(y_true=y_valid, y_pred=val_pred_np)
         val_f1_micro = f1_score(

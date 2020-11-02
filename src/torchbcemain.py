@@ -536,7 +536,6 @@ def train(args):
 
         logging.info("Train - Epoch ({}): Loss: {:.4f} Accuracy: {:.4f} | F1: {:.4f}".format(epoch, mloss, acc_val, f1_val))
 
-
         ### Validation
         model.eval()
         with torch.no_grad():

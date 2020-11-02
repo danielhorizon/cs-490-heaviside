@@ -7,17 +7,25 @@
     "type": "git"
   },
   "scripts": {
-    "build": "docker build --build-arg gid=$(id -g) --build-arg uid=$(id -u) . -t tf-fmo-nogpu -f docker/Dockerfile-nogpu",
-    "start": "docker run --rm -v $(pwd):/app/timeseries -v $HOME/.bash_history:/app/.bash_history -it -d --name=tf-fmo-nogpu -p 3334:2222 -p 6012:6009 -p 9998:9999 tf-fmo-nogpu",
-    "stop": "docker stop $(docker container ls -q --filter name=tf-fmo-nogpu*)",
+    "build": "docker build --build-arg gid=$(id -g) --build-arg uid=$(id -u) . -t tf-fmo -f docker/Dockerfile",
+    "start": "docker run --gpus all --rm -v $(pwd):/app/timeseries -v $HOME/.ssh/authorized_keys:/app/.ssh/authorized_keys -v $HOME/.bash_history:/app/.bash_history -it -d --name=tf-fmo -p 3334:2222 -p 6012:6009 -p 9998:9999 tf-fmo",
+    "stop": "docker stop $(docker container ls -q --filter name=tf-fmo*)",
     "restart": "yarn stop; yarn start",
-    "shell": "docker exec -it $(docker container ls -q --filter name=tf-fmo-nogpu*) /bin/bash",
-    "torch-build": "docker build --build-arg gid=$(id -g) --build-arg uid=$(id -u) . -t torch-fmo-nogpu -f docker/Dockerfile-torch-nogpu",
-    "torch-start": "docker run -it -d --name=torch-fmo-nogpu -p 6013:6009 torch-fmo-nogpu",
-    "torch-stop": "docker stop $(docker container ls -q --filter name=torch-fmo-nogpu*)",
-    "torch-shell": "docker exec -it $(docker container ls -q --filter name=torch-fmo-nogpu*) /bin/bash"
+    "shell": "docker exec -it $(docker container ls -q --filter name=tf-fmo*) /bin/bash",
+    "torch-build": "docker build --build-arg gid=$(id -g) --build-arg uid=$(id -u) . -t torch-fmo -f docker/Dockerfile-torch",
+    "torch-start": "docker run --runtime=nvidia --rm -v $(pwd):/app/timeseries -v $HOME/.ssh/authorized_keys:/app/.ssh/authorized_keys -v $HOME/.bash_history:/app/.bash_history -it -d --name=torch-fmo -p 7013:6009 torch-fmo",
+    "torch-stop": "docker stop $(docker container ls -q --filter name=torch-fmo*)",
+    "torch-shell": "docker exec -it $(docker container ls -q --filter name=torch-fmo*) /bin/bash",
+
+    "build-nogpu": "docker build --build-arg gid=$(id -g) --build-arg uid=$(id -u) . -t tf-fmo-nogpu -f docker/Dockerfile-nogpu",
+    "start-nogpu": "docker run --rm -v $(pwd):/app/timeseries -v $HOME/.bash_history:/app/.bash_history -it -d --name=tf-fmo-nogpu -p 3334:2222 -p 6012:6009 -p 9998:9999 tf-fmo-nogpu",
+    "stop-nogpu": "docker stop $(docker container ls -q --filter name=tf-fmo-nogpu*)",
+    "shell-nogpu": "docker exec -it $(docker container ls -q --filter name=tf-fmo-nogpu*) /bin/bash",
+    "torch-build-nogpu": "docker build --build-arg gid=$(id -g) --build-arg uid=$(id -u) . -t torch-fmo-nogpu -f docker/Dockerfile-torch-nogpu",
+    "torch-start-nogpu": "docker run -it -d --name=torch-fmo-nogpu -p 6013:6009 torch-fmo-nogpu",
+    "torch-stop-nogpu": "docker stop $(docker container ls -q --filter name=torch-fmo-nogpu*)",
+    "torch-shell-nogpu": "docker exec -it $(docker container ls -q --filter name=torch-fmo-nogpu*) /bin/bash"
   },
   "author": "Nathan Tsoi <nathan.tsoi@yale.edu>",
   "license": "GPL3"
 }
-

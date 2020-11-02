@@ -121,9 +121,19 @@ class Net(nn.Module):
         x = self.fc3(x)
         return x
 
+
 def train_cifar(loss_metric=None, epochs=None): 
+
+    if torch.cuda.is_available(): 
+        print("device = cuda")
+        device = "cuda"
+        using_gpu = True 
+    else: 
+        print("device = cpu")
+        device = "cpu"
+
     classes = ('plane', 'car', 'bird', 'cat', 'deer','dog', 'frog', 'horse', 'ship', 'truck')
-    model = Net()
+    model = Net().to(device)
 
     train_loader, _, test_loader = load_data(show=False)
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
@@ -134,11 +144,14 @@ def train_cifar(loss_metric=None, epochs=None):
         criterion = nn.CrossEntropyLoss()
 
     for epoch in range(epochs):  # loop over the dataset multiple times
+        print("running epoch: {}".format(epoch))
         running_loss = 0.0
         # going over in batches of 4 
-        for i, data in enumerate(train_loader, 0):
+        for i, data in enumerate(train_loader):
             # get the inputs; data is a list of [inputs, labels]
             inputs, labels = data
+            inputs = inputs.to(device)
+            labels = labels.to(device)
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -164,6 +177,9 @@ def train_cifar(loss_metric=None, epochs=None):
     with torch.no_grad():
         for data in test_loader:
             images, labels = data
+            images = images.to(device)
+            labels = labels.to(device)
+
             outputs = model(images)
             _, predicted = torch.max(outputs, 1)
             c = (predicted == labels).squeeze()
@@ -171,7 +187,6 @@ def train_cifar(loss_metric=None, epochs=None):
                 label = labels[i]
                 class_correct[label] += c[i].item()
                 class_total[label] += 1
-
 
     for i in range(10):
         print('Accuracy of %5s : %2d %%' % (
@@ -185,7 +200,7 @@ def run(loss, epochs):
     train_cifar(loss_metric=loss, epochs=int(epochs))
 
 def main():
-    run(3)
+    run()
 
 if __name__ == '__main__':
     main()
