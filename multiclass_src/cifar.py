@@ -17,6 +17,15 @@ from torch.utils.data.dataloader import DataLoader
 from torch.utils.data import random_split
 
 
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn import metrics
+
+# for early stopping.
+from pytorchtools import EarlyStopping
+from mc_torchconfusion import *
+
 # displaying images: 
 def show_image(img): 
     img = img / 2 + 0.5     # unnormalize
@@ -44,10 +53,10 @@ def load_data(show=False):
     train_ds, val_ds = random_split(dataset, [train_size, val_size])
 
     # forming batches, putting into loader:
-    train_loader = DataLoader(train_ds, batch_size=4,
-                              shuffle=True, num_workers=2)
-    val_loader = DataLoader(val_ds, batch_size=4, num_workers=4)
-    test_loader = DataLoader(test_data, batch_size=4, num_workers=4)
+    batch_size=128 
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=2)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, num_workers=4)
+    test_loader = DataLoader(test_data, batch_size=batch_size, num_workers=4)
 
     # loading the dataset --> DataLoader class (torch.utils.data.DataLoader)
     classes = dataset.classes 
@@ -123,7 +132,8 @@ class Net(nn.Module):
 
 
 def train_cifar(loss_metric=None, epochs=None): 
-
+    using_gpu = False 
+    
     if torch.cuda.is_available(): 
         print("device = cuda")
         device = "cuda"
@@ -131,25 +141,51 @@ def train_cifar(loss_metric=None, epochs=None):
     else: 
         print("device = cpu")
         device = "cpu"
+    print("using DEVICE: {}".format(device))
 
+    # loading in data 
+    train_loader, val_loader, test_loader = load_data(show=False)
+
+    # setting inits, initialize the early_stopping object
+    first_run = True 
+    approx = False
     classes = ('plane', 'car', 'bird', 'cat', 'deer','dog', 'frog', 'horse', 'ship', 'truck')
     model = Net().to(device)
-
-    train_loader, _, test_loader = load_data(show=False)
+    patience = 100
+    early_stopping = EarlyStopping(patience=patience, verbose=True)
     optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-    # TODO(dlee): add the metrics in when training. 
-    if loss_metric == "ce": 
-        criterion = nn.CrossEntropyLoss()
-    else: 
-        criterion = nn.CrossEntropyLoss()
 
+    # criterion
+    if loss_metric == "ce":
+        criterion = nn.CrossEntropyLoss()
+    elif loss_metric == "approx-f1":
+        approx = True
+        criterion = mean_f1_approx_loss_on(device=device)
+    elif loss_metric == "approx-acc":
+        approx = True
+        criterion = mean_accuracy_approx_loss_on(device=device)
+    elif loss_metric == "approx-auroc":
+        approx = True
+        criterion = mean_auroc_approx_loss_on(device=device)
+    else:
+        raise RuntimeError("Unknown loss {}".format(loss_metric))
+
+    best_test = {
+        "best-epoch": 0,
+        "loss": float('inf'),
+        "f1_score": 0,
+        "accuracy": 0
+    }
+
+    # ----- TRAINING -----
+    losses = [] 
     for epoch in range(epochs):  # loop over the dataset multiple times
-        print("running epoch: {}".format(epoch))
-        running_loss = 0.0
-        # going over in batches of 4 
-        for i, data in enumerate(train_loader):
+        running_loss = 0.0 
+        accs =  []
+        microf1s, macrof1s, wf1s = [], [], [] 
+        # going over in batches of 128
+        for i, (inputs, labels) in enumerate(train_loader):
             # get the inputs; data is a list of [inputs, labels]
-            inputs, labels = data
             inputs = inputs.to(device)
             labels = labels.to(device)
 
@@ -157,8 +193,17 @@ def train_cifar(loss_metric=None, epochs=None):
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
+            output = model(inputs) # batchsize * 10 
+            
+            if not approx: 
+                loss = criterion(output, labels)
+            else: 
+                train_labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                    1, labels.unsqueeze(1), 1.).to(device)
+
+                loss = criterion(y_labels=train_labels, y_preds=output)
+            
+            losses.append(loss)
             loss.backward()
             optimizer.step()
 
@@ -169,28 +214,112 @@ def train_cifar(loss_metric=None, epochs=None):
                     (epoch + 1, i + 1, running_loss / 2000))
                 running_loss = 0.0
 
-    print('--Finished Training')
+            ## check prediction
+            model.eval() 
+            y_pred = model(inputs)
+            _, train_preds = torch.max(y_pred, 1)
 
-    # Test
-    class_correct = list(0. for i in range(10))
-    class_total = list(0. for i in range(10))
-    with torch.no_grad():
-        for data in test_loader:
-            images, labels = data
-            images = images.to(device)
+            accs.append(accuracy_score(y_true=labels.cpu(), y_pred=train_preds.cpu()))
+            microf1s.append(f1_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
+            macrof1s.append(f1_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
+            wf1s.append(f1_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
+        
+        print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
+                epoch, np.array(accs).mean(), np.array(microf1s).mean(), 
+                np.array(macrof1s).mean(), np.array(wf1s).mean()
+            )
+        )
+        
+        if using_gpu:
+            mloss = torch.mean(torch.stack(losses))
+        else: 
+            mloss = np.array([x.item for x in losses]).mean()
+
+        # ----- TEST SET -----
+        # Calculate metrics after going through all the batches 
+        model.eval() 
+        test_preds, test_labels = np.array([]), np.array([])
+        for i, (inputs, labels) in enumerate(test_loader): 
+            inputs = inputs.to(device)
             labels = labels.to(device)
 
-            outputs = model(images)
-            _, predicted = torch.max(outputs, 1)
-            c = (predicted == labels).squeeze()
-            for i in range(4):
-                label = labels[i]
-                class_correct[label] += c[i].item()
-                class_total[label] += 1
+            output = model(inputs) 
+            _, predicted = torch.max(output, 1)
 
-    for i in range(10):
-        print('Accuracy of %5s : %2d %%' % (
-            classes[i], 100 * class_correct[i] / class_total[i]))
+            pred_arr = predicted.cpu().numpy()
+            label_arr = labels.cpu().numpy() 
+
+            test_labels = np.concatenate([test_labels, label_arr])
+            test_preds = np.concatenate([test_preds, pred_arr])
+
+        test_acc = accuracy_score(y_true=test_labels, y_pred=test_preds)
+        test_f1_micro = f1_score(y_true=test_labels, y_pred=test_preds, average='micro')
+        test_f1_macro = f1_score(y_true=test_labels, y_pred=test_preds, average='macro')
+        test_f1_weighted = f1_score(y_true=test_labels, y_pred=test_preds, average='weighted')
+
+        if best_test['loss'] > mloss:
+            best_test['loss'] = mloss
+            best_test['best-epoch'] = epoch
+        if best_test['f1_score'] < test_f1_weighted:
+            best_test['f1_score'] = test_f1_weighted
+        if best_test['accuracy'] < test_acc:
+            best_test['accuracy'] = test_acc
+
+        print("Test - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
+            epoch, test_acc, test_f1_weighted, test_f1_macro)
+        )
+
+
+        # ----- VALIDATION SET -----
+        # Calculate metrics after going through all the batches 
+        model.eval()
+        valid_losses = [] 
+        with torch.no_grad(): 
+            val_preds, val_labels = np.array([]), np.array([])
+            for i, (inputs, labels) in enumerate(val_loader): 
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+
+                output = model(inputs) 
+                _, predicted = torch.max(output, 1)
+
+                # calculate metrics 
+                model.eval() 
+                pred_arr = predicted.cpu().numpy()
+                label_arr = labels.cpu().numpy() 
+
+                val_labels = np.concatenate([val_labels, label_arr])
+                val_preds = np.concatenate([val_preds, pred_arr])
+
+                if approx:
+                    labels = labels.type(torch.int64)
+                    valid_labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                        1, labels.unsqueeze(1), 1.)
+                    curr_val_loss = criterion(
+                        y_labels=valid_labels, y_preds=output)
+                else:
+                    curr_val_loss = criterion(output, labels)
+                
+                valid_losses.append(curr_val_loss.detach().cpu().numpy())
+
+            val_acc = accuracy_score(y_true=val_labels, y_pred=val_preds)
+            val_f1_micro = f1_score(y_true=val_labels, y_pred=val_preds, average='micro')
+            val_f1_macro = f1_score(y_true=val_labels, y_pred=val_preds, average='macro')
+            val_f1_weighted = f1_score(y_true=val_labels, y_pred=val_preds, average='weighted')
+
+            valid_loss = np.mean(valid_losses)
+            early_stopping(valid_loss, model)
+            if early_stopping.early_stop:
+                print("Early Stopping")
+                break
+
+            print("Val - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
+                epoch, val_acc, val_f1_weighted, val_f1_macro)
+            )
+
+    print(best_test)
+    return 
+
         
     
 @click.command()

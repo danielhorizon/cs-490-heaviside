@@ -228,11 +228,40 @@ def area(x, y):
         if torch.all(dx <= 0):
             direction = -1
         else:
+            # when you compute area under the curve using trapezoidal approx, 
+            # assume that the whole area under the curve is going one direction
+            # compute one trapezoidal rule 
+
+            # INSTEAD, compute under every part of the curve. 
+            # TODO(dlee): compute from every single point, and compute 
+            # the trapezoidal rule under every single one of these points.
             logging.warn(
                 "x is neither increasing nor decreasing\nx: {}\ndx: {}.".format(x, dx))
             return 0
     return direction * torch.trapz(y, x)
 
+'''
+Traceback (most recent call last):
+  File "wine.py", line 400, in <module>
+    main()
+  File "wine.py", line 396, in main
+    run()
+  File "/app/.local/lib/python3.6/site-packages/click/core.py", line 829, in __call__
+    return self.main(*args, **kwargs)
+  File "/app/.local/lib/python3.6/site-packages/click/core.py", line 782, in main
+    rv = self.invoke(ctx)
+  File "/app/.local/lib/python3.6/site-packages/click/core.py", line 1066, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+  File "/app/.local/lib/python3.6/site-packages/click/core.py", line 610, in invoke
+    return callback(*args, **kwargs)
+  File "wine.py", line 392, in run
+    train_wine(data_splits, loss_metric=loss, epochs=int(epochs))
+  File "wine.py", line 270, in train_wine
+    loss = criterion(y_labels=train_labels, y_preds=y_pred)
+  File "/app/timeseries/multiclass_src/mc_torchconfusion.py", line 258, in loss
+    loss = 1 - torch.stack(areas).mean()
+RuntimeError: stack expects a non-empty TensorList
+'''
 
 def mean_auroc_approx_loss_on(device, y_labels=None, y_preds=None, linspacing=11):
     def loss(y_labels, y_preds):

@@ -263,8 +263,6 @@ def train_wine(data_splits, loss_metric, epochs):
             if not approx:
                 loss = criterion(y_pred, labels)
             else:
-                # TODO(dlee): this is hard coded in (the 3 part)
-                # print("DEVICE: {}".format(device))
                 train_labels = torch.zeros(len(labels), 4).to(device).scatter_(
                     1, labels.unsqueeze(1), 1.).to(device)
                 loss = criterion(y_labels=train_labels, y_preds=y_pred)
@@ -308,7 +306,6 @@ def train_wine(data_splits, loss_metric, epochs):
             y_true=y_train, y_pred=tr_pred_np, average='weighted')
 
         # TEST Metrics: Accuracy, F1, Loss
-        # test_data = torch.Tensor(X_test).to(device)
         ts_output = model(X_test)
         ts_pred = torch.Tensor([torch.argmax(x) for x in ts_output]).to(device)
         ts_pred_np = [int(x) for x in ts_pred.cpu().numpy()]

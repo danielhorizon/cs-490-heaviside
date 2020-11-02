@@ -58,7 +58,7 @@ class TestTorchConfusion(unittest.TestCase):
         thresholds = torch.tensor([0.1, 0.5, 0.9])
         #agg = None
         tp = l_tp(gt, pt, thresholds)
-        #print(tp)
+        print("test_l_tp_1_1: {}".format(tp))
         # torch.ones_like(tp) # summing across 9 values in an array all of which are 1
         torch.testing.assert_allclose(tp, torch.tensor(9., device='cpu'))
 
@@ -146,6 +146,8 @@ class TestTorchConfusion(unittest.TestCase):
         #agg = None
         fp = l_fp(gt, pt, thresholds)
         # debugging set:
+        print(fp)
+        print(torch.ones_like(fp))
         # torch.ones_like(fp) # summing across 9 values in an array all of which are 1
         torch.testing.assert_allclose(fp, torch.tensor(9., device='cpu'))
 

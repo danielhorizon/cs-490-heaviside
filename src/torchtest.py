@@ -16,9 +16,9 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 import random
 
-#from torchconfusion import *
+from torchconfusion import *
 
-from confusion_vectorized import *
+# from confusion_vectorized import *
 
 
 class TestTorchConfusion(unittest.TestCase):
@@ -58,7 +58,7 @@ class TestTorchConfusion(unittest.TestCase):
         thresholds = torch.tensor([0.1, 0.5, 0.9])
         #agg = None
         tp = l_tp(gt, pt, thresholds)
-        #print(tp)
+        print("TP FAIL: {}".format(tp))
         # torch.ones_like(tp) # summing across 9 values in an array all of which are 1
         torch.testing.assert_allclose(tp, torch.tensor(9., device='cuda:0'))
 
