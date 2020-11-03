@@ -19,7 +19,7 @@ from torch.utils.data import random_split
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
 from sklearn import metrics
 
 # for early stopping.
@@ -37,7 +37,40 @@ def show_image(img):
     plt.show()
 
 
-def load_data(show=False):
+def check_class_balance(dataset): 
+    targets = np.array(dataset.targets)
+    classes, class_counts = np.unique(targets, return_counts=True)
+    nb_classes = len(classes)
+    print(class_counts)
+    
+
+def create_imbalance(dataset): 
+    check_class_balance(dataset)
+    targets = np.array(dataset.targets)
+    # Create artificial imbalanced class counts
+    # One of the classes has 805 of observations removed
+    imbal_class_counts = [5000,5000,5000,5000,5000,5000,5000,5000,5000,1000]
+
+    # Get class indices
+    class_indices = [np.where(targets == i)[0] for i in range(10)]
+
+    # Get imbalanced number of instances
+    imbal_class_indices = [class_idx[:class_count] for class_idx, class_count in zip(class_indices, imbal_class_counts)]
+    imbal_class_indices = np.hstack(imbal_class_indices)
+
+    # Set target and data to dataset
+    dataset.targets = targets[imbal_class_indices]
+    dataset.data = dataset.data[imbal_class_indices]
+
+    assert len(dataset.targets) == len(dataset.data)
+    print("After imbalance: {}".format(check_class_balance(dataset)))
+
+    return dataset 
+    
+
+def load_data(show=False, imbalanced=None):
+    torch.manual_seed(1)
+
     transform = transforms.Compose(
         [transforms.ToTensor(),
          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
@@ -45,14 +78,18 @@ def load_data(show=False):
     # transform - transforms data during creation, downloads it locally, stores it in root, is train 
     dataset = CIFAR10(train=True, download=True, root="../data", transform=transform)
     test_data = CIFAR10(train=False, download=True, root="../data", transform=transform)
-    print("Train Size: {}".format(len(dataset)))
-    print("Test Size: {}".format(len(test_data)))
+    print("Train Size: {}, Test Size: {}".format(len(dataset), len(test_data)))
 
-    torch.manual_seed(1)
     val_size = 5000
+    if imbalanced:
+        dataset = create_imbalance(dataset)
+        val_size = 4600  # dataset is now 46000
+    
+    print("Train Size: {}, Test Size: {}".format(len(dataset), len(test_data)))
+
     train_size = len(dataset) - val_size
 
-    # Splitting into train/test/vallidation
+    # Splitting into train/test/validation
     train_ds, val_ds = random_split(dataset, [train_size, val_size])
 
     # forming batches, putting into loader:
@@ -123,7 +160,8 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(16 * 5 * 5, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 10)
-
+        self.softmax = nn.Softmax(dim=1)
+        
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
@@ -131,10 +169,11 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
+        x = self.softmax(x)
         return x
 
 
-def train_cifar(loss_metric=None, epochs=None): 
+def train_cifar(loss_metric=None, epochs=None, imbalanced=None): 
     using_gpu = False 
     
     if torch.cuda.is_available(): 
@@ -147,16 +186,24 @@ def train_cifar(loss_metric=None, epochs=None):
     print("using DEVICE: {}".format(device))
 
     # loading in data 
-    train_loader, val_loader, test_loader = load_data(show=False)
+    train_loader, val_loader, test_loader = load_data(show=False, imbalanced=imbalanced)
 
     # setting inits, initialize the early_stopping object
     first_run = True 
     approx = False
     classes = ('plane', 'car', 'bird', 'cat', 'deer','dog', 'frog', 'horse', 'ship', 'truck')
     model = Net().to(device)
-    patience = 100
+
+    # Step 1: 
+    # remove 80 % of one class -> look at f1 score for just the one that is imbalanced 
+    # add in F1 per class, as well as the macro F1. 
+    # print the f1 score for each class. 
+
+    # Step 2: change it with the single sample [1, 3, 5, 10]
+
+    patience = 50
     early_stopping = EarlyStopping(patience=patience, verbose=True)
-    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # criterion
     if loss_metric == "ce":
@@ -227,9 +274,9 @@ def train_cifar(loss_metric=None, epochs=None):
             macrof1s.append(f1_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
             wf1s.append(f1_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
         
-        print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
+        print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
                 epoch, np.array(accs).mean(), np.array(microf1s).mean(), 
-                np.array(macrof1s).mean(), np.array(wf1s).mean()
+                np.array(macrof1s).mean(), np.array(microf1s).mean(), np.array(wf1s).mean()
             )
         )
         
@@ -250,6 +297,7 @@ def train_cifar(loss_metric=None, epochs=None):
             _, predicted = torch.max(output, 1)
 
             pred_arr = predicted.cpu().numpy()
+            print("test:{}".format(list(set(pred_arr))))
             label_arr = labels.cpu().numpy() 
 
             test_labels = np.concatenate([test_labels, label_arr])
@@ -268,10 +316,15 @@ def train_cifar(loss_metric=None, epochs=None):
         if best_test['accuracy'] < test_acc:
             best_test['accuracy'] = test_acc
 
-        print("Test - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
-            epoch, test_acc, test_f1_weighted, test_f1_macro)
+        print("Test - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}".format(
+            epoch, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
         )
+        print(list(set(test_preds)))
+        print("Count of 9's in Preds: {} and Labels: {}".format(
+            np.count_nonzero(test_preds == 9.0), np.count_nonzero(test_labels == 9.0)))
 
+        # 0 = airplane, 1 = automobile, 2 = bird, 3 = cat, 4 = deer, 5 = dog, 6 = frog, 7 = horse, 8 = ship, 9 = truck
+        print(classification_report(y_true=test_labels, y_pred=test_preds, target_names = ['0','1','2','3','4','5','6','7','8','9']))
 
         # ----- VALIDATION SET -----
         # Calculate metrics after going through all the batches 
@@ -316,7 +369,7 @@ def train_cifar(loss_metric=None, epochs=None):
                 print("Early Stopping")
                 break
 
-            print("Val - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
+            print("Val - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}\n".format(
                 epoch, val_acc, val_f1_weighted, val_f1_macro)
             )
 
@@ -328,14 +381,22 @@ def train_cifar(loss_metric=None, epochs=None):
 @click.command()
 @click.option("--loss", required=True)
 @click.option("--epochs", required=True)
-def run(loss, epochs):
-    train_cifar(loss_metric=loss, epochs=int(epochs))
+@click.option("--imb", required=False, is_flag=True, default=False)
+
+def run(loss, epochs, imb):
+    # check if forcing imbalance 
+    imbalanced = False 
+    if imb:
+        imbalanced = True 
+
+    # train 
+    train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced)
 
 def main():
     run()
 
 if __name__ == '__main__':
-    main()
+    main(), 
 
 
 
