@@ -24,6 +24,7 @@ def show_image(loader):
 
 
 def load_data(show=False):
+    torch.manual_seed(1)
     batch_size_train = 64
     batch_size_test = 1000
 
@@ -33,6 +34,7 @@ def load_data(show=False):
             (0.1307,), (0.3081,))
     ])
 
+
     train_loader = torch.utils.data.DataLoader(
         torchvision.datasets.MNIST(root='../data', train=True, download=True,
                                    transform=transform), batch_size=batch_size_train, shuffle=True)
@@ -41,6 +43,9 @@ def load_data(show=False):
         torchvision.datasets.MNIST(root='../data', train=False, download=True,
                                    transform=transform), batch_size=batch_size_test, shuffle=True)
 
+    print("Train Size: {}, Test Size: {}".format(
+        len(train_loader), len(test_loader)))
+    
     if show:
         show_image(test_loader)
 
