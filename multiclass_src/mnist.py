@@ -1,11 +1,18 @@
 import click
 import torch
-import torchvision
 import matplotlib.pyplot as plt
 
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+
+import torchvision
+import torchvision.transforms as transforms
+from torchvision.datasets import MNIST
+from torchvision.transforms import ToTensor
+from torchvision.utils import make_grid
+from torch.utils.data.dataloader import DataLoader
+from torch.utils.data import random_split
 
 
 def show_image(loader):
@@ -23,10 +30,9 @@ def show_image(loader):
         print(fig)
 
 
-def load_data(show=False):
+def load_data(show=False, ibalanced=None):
     torch.manual_seed(1)
-    batch_size_train = 64
-    batch_size_test = 1000
+    batch_size = 128 
 
     transform = transform = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
@@ -34,22 +40,35 @@ def load_data(show=False):
             (0.1307,), (0.3081,))
     ])
 
-
-    train_loader = torch.utils.data.DataLoader(
-        torchvision.datasets.MNIST(root='../data', train=True, download=True,
-                                   transform=transform), batch_size=batch_size_train, shuffle=True)
-
-    test_loader = torch.utils.data.DataLoader(
-        torchvision.datasets.MNIST(root='../data', train=False, download=True,
-                                   transform=transform), batch_size=batch_size_test, shuffle=True)
-
-    print("Train Size: {}, Test Size: {}".format(
-        len(train_loader), len(test_loader)))
+    # train and test data 
+    dataset = MNIST(root='../data', train=True, download=True,
+                                         transform=transform)
+    test_data = MNIST(root='../data', train=False, download=True,
+                                           transform=transform)
     
+    # Should roughly be a 10th of how big the train set is (60,000)
+    val_size = 6000
+    train_size = len(dataset) - val_size
+    train_ds, val_ds = random_split(dataset, [train_size, val_size])
+
+    # train and test loader 
+    # forming batches, putting into loader:
+    batch_size = 128
+    train_loader = DataLoader(
+        train_ds, batch_size=batch_size, shuffle=True, num_workers=2)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=True, num_workers=4)
+    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=True, num_workers=4)
+
+    # loading the dataset --> DataLoader class (torch.utils.data.DataLoader)
+    classes = dataset.classes
+    print("Classes: {}".format(classes))
+    print("Train Size: {}, Test Size: {}".format(
+        train_loader.shape, test_loader.shape))
+
     if show:
         show_image(test_loader)
 
-    return train_loader, test_loader
+    return train_loader, val_loader, test_loader
 
 
 class Net(nn.Module):
@@ -60,6 +79,8 @@ class Net(nn.Module):
         self.conv2_drop = nn.Dropout2d()
         self.fc1 = nn.Linear(320, 50)
         self.fc2 = nn.Linear(50, 10)
+        self.softmax = nn.Softmax(dim=1)
+        
 
     def forward(self, x):
         x = F.relu(F.max_pool2d(self.conv1(x), 2))
@@ -68,12 +89,29 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
-        return F.log_softmax(x)
+        x = self.softmax(x)
+        return x
 
 
 def train_mnist(loss_metric=None, epochs=None):
+    using_gpu = False 
+    if torch.cuda.is_available():
+        print("device = cuda")
+        device = "cuda"
+        using_gpu = True
+    else:
+        print("device = cpu")
+        device = "cpu"
+    print("using DEVICE: {}".format(device))
 
-    train_loader, test_loader = load_data(show=False)
+    # loading in data 
+    train_loader, val_loader, test_loader = load_data(show=False)
+    
+    first_run = True 
+    approx = False 
+    model = Net().to(device)
+
+    
 
     train_losses = []
     train_counter = []
