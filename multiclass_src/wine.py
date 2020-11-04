@@ -215,7 +215,7 @@ def train_wine(data_splits, loss_metric, epochs):
     print(model)
 
     # initialize the early_stopping object
-    patience = 100
+    patience = 50
     early_stopping = EarlyStopping(patience=patience, verbose=True)
 
     avg_val_losses = []
@@ -227,7 +227,7 @@ def train_wine(data_splits, loss_metric, epochs):
     }
 
     # setting optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     first_run = True
 
     # criterion
@@ -329,11 +329,11 @@ def train_wine(data_splits, loss_metric, epochs):
             best_test['accuracy'] = ts_acc
 
         print("-- Mean Loss: {:.3f}".format(mloss))
-        print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
-            epoch, tr_acc, tr_f1_weighted, tr_f1_macro)
+        print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.4f} | Macro F1: {:.3f}".format(
+            epoch, tr_acc, tr_f1_weighted, ts_f1_micro, tr_f1_macro)
         )
-        print("Test - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}".format(
-            epoch, ts_acc, ts_f1_weighted, ts_f1_macro)
+        print("Test - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.4f} | Macro F1: {:.3f}".format(
+            epoch, ts_acc, ts_f1_weighted, ts_f1_micro, ts_f1_macro)
         )
 
         # ----- VALIDATION -----
@@ -367,6 +367,10 @@ def train_wine(data_splits, loss_metric, epochs):
             y_true=y_valid, y_pred=val_pred_np, average='macro')
         val_f1_weighted = f1_score(
             y_true=y_valid, y_pred=val_pred_np, average='weighted')
+
+        print("Valid - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f} | Macro F1: {:.4f}".format(
+            epoch, val_acc, val_f1_weighted, val_f1_weighted, val_f1_micro, val_f1_macro)
+        )
 
         # computing the losses
         valid_loss = np.mean(valid_losses)

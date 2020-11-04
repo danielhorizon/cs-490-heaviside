@@ -1,0 +1,131 @@
+########## IRIS ##########
+- Baseline: 
+    Train - Epoch (59): | Acc: 0.9792 | W F1: 0.9792 | Micro F1: 1.0000 | Macro F1: 0.9788
+    Test - Epoch (59): | Acc: 1.0000 | W F1: 1.0000 | Micro F1: 1.0000 | Macro F1: 1.0000
+    Valid - Epoch (59): | Acc: 1.0000 | W F1: 1.0000 | Micro F1: 1.0000 | Macro F1: 1.0000
+    Validation Loss: 0.5602492690086365
+    EarlyStopping counter: 15 out of 15
+    {'best-epoch': 59, 'loss': 0.675, 'f1_score': 1.0, 'accuracy': 1.0}
+
+- Approx F1: 
+    -- Mean Loss: 0.184
+    Train - Epoch (59): | Acc: 0.9479 | W F1: 0.9479 | Micro F1: 0.9667 | Macro F1: 0.9470
+    Test - Epoch (59): | Acc: 0.9667 | W F1: 0.9658 | Micro F1: 0.9667 | Macro F1: 0.9574
+    Valid - Epoch (59): | Acc: 1.0000 | W F1: 1.0000 | Micro F1: 1.0000 | Macro F1: 1.0000
+    Validation Loss: 0.004636585712432861
+    EarlyStopping counter: 15 out of 15
+    {'best-epoch': 59, 'loss': 0.1836, 'f1_score': 1.0, 'accuracy': 1.0}
+
+- Approx Acc: 
+    -- Mean Loss: 0.110
+    Train - Epoch (81): | Acc: 0.9583 | W F1: 0.9584 | Micro F1: 0.9667 | Macro F1: 0.9577
+    Test - Epoch (81): | Acc: 0.9667 | W F1: 0.9658 | Micro F1: 0.9667 | Macro F1: 0.9574
+    Valid - Epoch (81): | Acc: 1.0000 | W F1: 1.0000 | Micro F1: 1.0000 | Macro F1: 1.0000
+    Validation Loss: 0.0009115338325500488
+    EarlyStopping counter: 15 out of 15
+    {'best-epoch': 81, 'loss': 0.1103, 'f1_score': 1.0, 'accuracy': 1.0}
+
+
+
+
+
+########## WINE ##########
+- Baseline: 
+    -- Mean Loss: 1.024
+    Train - Epoch (123): | Acc: 0.775 | W F1: 0.763 | Micro F1: 0.6406 | Macro F1: 0.585
+    Test - Epoch (123): | Acc: 0.641 | W F1: 0.630 | Micro F1: 0.6406 | Macro F1: 0.479
+    Valid - Epoch (123): | Acc: 0.5927 | W F1: 0.5838 | Micro F1: 0.5838 | Macro F1: 0.5927
+    Validation Loss: 1.1427412033081055
+    EarlyStopping counter: 50 out of 50
+    {'best-epoch': 123, 'loss': 1.0237, 'f1_score': 0.640, 'accuracy': 0.652}
+
+- Approx F1 
+    -- Mean Loss: 0.379
+    Train - Epoch (183): | Acc: 0.700 | W F1: 0.699 | Macro F1: 0.678
+    Test - Epoch (183): | Acc: 0.609 | W F1: 0.604 | Macro F1: 0.496
+    Validation Loss: 0.4897085428237915
+    EarlyStopping counter: 50 out of 50
+    {'best-epoch': 183, 'loss': 0.3792, 'f1_score': 0.610, 'accuracy': 0.616}
+
+- Approx AUROC 
+    -- Mean Loss: 0.443
+    Train - Epoch (43): | Acc: 0.757 | W F1: 0.756 | Micro F1: 0.6217 | Macro F1: 0.726
+    Test - Epoch (43): | Acc: 0.622 | W F1: 0.618 | Micro F1: 0.6217 | Macro F1: 0.502
+    Valid - Epoch (43): | Acc: 0.5927 | W F1: 0.5900 | Micro F1: 0.5900 | Macro F1: 0.5927
+    Validation Loss: 0.47459903359413147
+    EarlyStopping counter: 16 out of 50
+
+Approx Accuracy 
+    * Does not learn * 
+
+    Train - Epoch (82): | Acc: 0.461 | W F1: 0.291 | Micro F1: 0.4576 | Macro F1: 0.158
+    Test - Epoch (82): | Acc: 0.458 | W F1: 0.287 | Micro F1: 0.4576 | Macro F1: 0.157
+    Valid - Epoch (82): | Acc: 0.4184 | W F1: 0.2468 | Micro F1: 0.2468 | Macro F1: 0.4184
+    Validation Loss: 0.29092034697532654
+
+
+
+
+
+
+########## CIFAR ##########
+CIFAR Balanced: 
+- Baseline
+    Train - Epoch (104): | Acc: 0.797 | W F1: 0.797 | Micro F1: 0.790| Macro F1: 0.797
+    Test - Epoch (104): | Acc: 0.604 | W F1: 0.600 | Micro F1: 0.604 | Macro F1: 0.600
+    EarlyStopping counter: 50 out of 50
+    {'best-epoch': 104, 'loss': 1.7373, 'f1_score': 0.610, 'accuracy': 0.612}
+
+- Approx F1:
+    Train - Epoch (125): | Acc: 0.744 | W F1: 0.744 | Micro F1: 0.739| Macro F1: 0.744
+    Test - Epoch (125): | Acc: 0.601 | W F1: 0.604 | Micro F1: 0.601 | Macro F1: 0.604
+    EarlyStopping counter: 50 out of 50
+    {'best-epoch': 125, 'loss': 0.3200, 'f1_score': 0.608, 'accuracy': 0.607}
+
+- Approx Accuracy
+    * Doesn't learn * 
+
+- Approx AUROC 
+
+
+CIFAR - Imbalanced (80-20, so 4001 for class 9): 
+- Baseline 
+    Train - Epoch (145): | Acc: 0.803 | W F1: 0.803 | Micro F1: 0.797| Macro F1: 0.803
+    Test - Epoch (145): | Acc: 0.613 | W F1: 0.612 | Micro F1: 0.613 | Macro F1: 0.612
+              precision    recall  f1-score   support
+           0       0.62      0.72      0.67      1000
+           1       0.69      0.78      0.73      1000
+           2       0.50      0.49      0.49      1000
+           3       0.41      0.45      0.43      1000
+           4       0.61      0.47      0.53      1000
+           5       0.49      0.50      0.50      1000
+           6       0.65      0.73      0.69      1000
+           7       0.67      0.66      0.66      1000
+           8       0.80      0.68      0.73      1000
+           9       0.74      0.65      0.69      1000
+
+    accuracy                           0.61     10000
+   macro avg       0.62      0.61      0.61     10000
+weighted avg       0.62      0.61      0.61     10000
+
+    EarlyStopping counter: 50 out of 50
+    {'best-epoch': 145, 'loss': 1.723, 'f1_score': 0.624, 'accuracy': 0.6234}
+
+- Approx F1 
+
+- Approx Acc 
+    * Doesn't learn * 
+
+- Approx AUROC 
+
+
+
+########## MNIST ##########
+
+
+
+
+
+
+
+

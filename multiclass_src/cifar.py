@@ -49,7 +49,7 @@ def create_imbalance(dataset):
     targets = np.array(dataset.targets)
     # Create artificial imbalanced class counts
     # One of the classes has 805 of observations removed
-    imbal_class_counts = [5000,5000,5000,5000,5000,5000,5000,5000,5000,1000]
+    imbal_class_counts = [5000,5000,5000,5000,5000,5000,5000,5000,5000,4001]
 
     # Get class indices
     class_indices = [np.where(targets == i)[0] for i in range(10)]
@@ -57,6 +57,7 @@ def create_imbalance(dataset):
     # Get imbalanced number of instances
     imbal_class_indices = [class_idx[:class_count] for class_idx, class_count in zip(class_indices, imbal_class_counts)]
     imbal_class_indices = np.hstack(imbal_class_indices)
+    print("imbalanced class indices: {}".format(imbal_class_indices))
 
     # Set target and data to dataset
     dataset.targets = targets[imbal_class_indices]
@@ -169,8 +170,14 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
+        # TODO(dlee) - check if we're having any probabilities 
         x = self.softmax(x)
+        # print(x)
         return x
+
+
+def check_freq(x): 
+    return np.array(np.unique(x, return_counts=True)).T
 
 
 def train_cifar(loss_metric=None, epochs=None, imbalanced=None): 
@@ -244,10 +251,11 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
 
             # forward + backward + optimize
             output = model(inputs) # batchsize * 10 
+            # print(output[0]) # this looks fine, we have 10 values in here. 
             
             if not approx: 
                 loss = criterion(output, labels)
-            else: 
+            else:
                 train_labels = torch.zeros(len(labels), 10).to(device).scatter_(
                     1, labels.unsqueeze(1), 1.).to(device)
 
@@ -294,10 +302,13 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
             labels = labels.to(device)
 
             output = model(inputs) 
+            # print(output[0])
+            
             _, predicted = torch.max(output, 1)
+            # print(predicted[0])
 
             pred_arr = predicted.cpu().numpy()
-            print("test:{}".format(list(set(pred_arr))))
+            # print("test:{}".format(list(set(pred_arr))))
             label_arr = labels.cpu().numpy() 
 
             test_labels = np.concatenate([test_labels, label_arr])
@@ -369,8 +380,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
                 print("Early Stopping")
                 break
 
-            print("Val - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Macro F1: {:.3f}\n".format(
-                epoch, val_acc, val_f1_weighted, val_f1_macro)
+            print("Val - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
+                epoch, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
             )
 
     print(best_test)

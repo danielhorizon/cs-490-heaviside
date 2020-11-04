@@ -20,10 +20,6 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
-from keras.utils import to_categorical
-
-from matplotlib.lines import Line2D
-
 from mc_torchconfusion import *
 from gradient_flow import *
 
@@ -125,6 +121,16 @@ def load_iris(shuffle=True):
 
 
 def train_iris(data_splits, loss_metric, epochs):
+
+    if torch.cuda.is_available():
+        print("device = cuda")
+        device = "cuda"
+        using_gpu = True
+    else: 
+        print("device = cpu")
+        device = "cpu"
+    print("using DEVICE: {}".format(device))
+
     # setting train, validation, and test sets
     X_train, y_train = data_splits['train']['X'], data_splits['train']['y']
     X_valid, y_valid = data_splits['val']['X'], data_splits['val']['y']
@@ -172,13 +178,13 @@ def train_iris(data_splits, loss_metric, epochs):
         criterion = nn.CrossEntropyLoss()
     elif loss_metric == "approx-f1":
         approx = True
-        criterion = mean_f1_approx_loss_on()
+        criterion = mean_f1_approx_loss_on(device=device)
     elif loss_metric == "approx-acc":
         approx = True
-        criterion = mean_accuracy_approx_loss_on()
+        criterion = mean_accuracy_approx_loss_on(device=device)
     elif loss_metric == "approx-auroc":
         approx = True
-        criterion = mean_auroc_approx_loss_on()
+        criterion = mean_auroc_approx_loss_on(device=device)
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
@@ -209,7 +215,10 @@ def train_iris(data_splits, loss_metric, epochs):
 
         # ----- EVALUATE -----
         model.eval()
-        mloss = np.array([x.detach().numpy() for x in losses]).mean()
+        if using_gpu:
+            mloss = torch.mean(torch.stack(losses))
+        else: 
+            mloss = np.array([x.item for x in losses]).mean()
         # https://github.com/rizalzaf/ap_perf/blob/master/examples/tabular.py
 
         # TRAIN Metrics: Accuracy, F1
@@ -251,11 +260,11 @@ def train_iris(data_splits, loss_metric, epochs):
             best_test['accuracy'] = ts_acc
 
         print("-- Mean Loss: {:.3f}".format(mloss))
-        print("Train - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Macro F1: {:.4f}".format(
-            epoch, tr_acc, tr_f1_weighted, tr_f1_macro)
+        print("Train - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f} | Macro F1: {:.4f}".format(
+            epoch, tr_acc, tr_f1_weighted, ts_f1_micro, tr_f1_macro)
         )
-        print("Test - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Macro F1: {:.4f}".format(
-            epoch, ts_acc, ts_f1_weighted, ts_f1_macro)
+        print("Test - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f} | Macro F1: {:.4f}".format(
+            epoch, ts_acc, ts_f1_weighted, ts_f1_micro, ts_f1_macro)
         )
 
         # ---------- VALIDATION ----------
@@ -278,7 +287,7 @@ def train_iris(data_splits, loss_metric, epochs):
                 target = target.type(torch.int64)
                 curr_val_loss = criterion(y_valpred, target)
             # print("valid loss: {}".format(curr_val_loss))
-            valid_losses.append(curr_val_loss.detach().numpy())
+            valid_losses.append(curr_val_loss.detach().cpu().numpy())
             # print("valid_losses: {}".format(valid_losses))
 
         # computing validation metrics via val_data
@@ -292,6 +301,10 @@ def train_iris(data_splits, loss_metric, epochs):
             y_true=y_valid, y_pred=val_pred_np, average='macro')
         val_f1_weighted = f1_score(
             y_true=y_valid, y_pred=val_pred_np, average='weighted')
+        
+        print("Valid - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f} | Macro F1: {:.4f}".format(
+            epoch, val_acc, val_f1_weighted, val_f1_weighted, val_f1_micro, val_f1_macro)
+        )
 
         # computing the losses
         valid_loss = np.mean(valid_losses)
