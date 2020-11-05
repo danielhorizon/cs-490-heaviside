@@ -238,8 +238,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
     losses = [] 
     for epoch in range(epochs):  # loop over the dataset multiple times
         running_loss = 0.0 
-        accs =  []
-        microf1s, macrof1s, wf1s = [], [], [] 
+        accs, microf1s, macrof1s, wf1s = [], [], [], []
         # going over in batches of 128
         for i, (inputs, labels) in enumerate(train_loader):
             # get the inputs; data is a list of [inputs, labels]
@@ -343,7 +342,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
         valid_losses = [] 
         with torch.no_grad(): 
             val_preds, val_labels = np.array([]), np.array([])
-            for i, (inputs, labels) in enumerate(val_loader): 
+            for i, (inputs, labels) in enumerate(val_loader):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 

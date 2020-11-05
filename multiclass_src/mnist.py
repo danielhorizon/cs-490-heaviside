@@ -14,6 +14,18 @@ from torchvision.utils import make_grid
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data import random_split
 
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
+from sklearn import metrics
+
+# for early stopping.
+from pytorchtools import EarlyStopping
+from mc_torchconfusion import *
+
+torch.manual_seed(0)
+np.random.seed(0)
+
 
 def show_image(loader):
     examples = enumerate(loader)
@@ -30,9 +42,42 @@ def show_image(loader):
         print(fig)
 
 
-def load_data(show=False, ibalanced=None):
+def check_class_balance(dataset):
+    targets = np.array(dataset.targets)
+    classes, class_counts = np.unique(targets, return_counts=True)
+    nb_classes = len(classes)
+    print(class_counts)
+
+
+def create_imbalance(dataset):
+    check_class_balance(dataset)
+    targets = np.array(dataset.targets)
+    # Create artificial imbalanced class counts
+    # One of the classes has 805 of observations removed
+    imbal_class_counts = [6000, 6000, 6000,
+                          6000, 6000, 6000, 6000, 6000, 6000, 4500]
+
+    # Get class indices
+    class_indices = [np.where(targets == i)[0] for i in range(10)]
+
+    # Get imbalanced number of instances
+    imbal_class_indices = [class_idx[:class_count] for class_idx,
+                           class_count in zip(class_indices, imbal_class_counts)]
+    imbal_class_indices = np.hstack(imbal_class_indices)
+    print("imbalanced class indices: {}".format(imbal_class_indices))
+
+    # Set target and data to dataset
+    dataset.targets = targets[imbal_class_indices]
+    dataset.data = dataset.data[imbal_class_indices]
+
+    assert len(dataset.targets) == len(dataset.data)
+    print("After imbalance: {}".format(check_class_balance(dataset)))
+
+    return dataset
+
+
+def load_data(show=False, imbalanced=None):
     torch.manual_seed(1)
-    batch_size = 128 
 
     transform = transform = torchvision.transforms.Compose([
         torchvision.transforms.ToTensor(),
@@ -48,6 +93,12 @@ def load_data(show=False, ibalanced=None):
     
     # Should roughly be a 10th of how big the train set is (60,000)
     val_size = 6000
+    if imbalanced:
+        dataset = create_imbalance(dataset)
+        val_size = 5000
+    
+    print("Train Size: {}, Test Size: {}".format(len(dataset), len(test_data)))
+
     train_size = len(dataset) - val_size
     train_ds, val_ds = random_split(dataset, [train_size, val_size])
 
@@ -62,8 +113,6 @@ def load_data(show=False, ibalanced=None):
     # loading the dataset --> DataLoader class (torch.utils.data.DataLoader)
     classes = dataset.classes
     print("Classes: {}".format(classes))
-    print("Train Size: {}, Test Size: {}".format(
-        train_loader.shape, test_loader.shape))
 
     if show:
         show_image(test_loader)
@@ -93,7 +142,11 @@ class Net(nn.Module):
         return x
 
 
-def train_mnist(loss_metric=None, epochs=None):
+def check_freq(x):
+    return np.array(np.unique(x, return_counts=True)).T
+
+
+def train_mnist(loss_metric=None, epochs=None, imbalanced=None):
     using_gpu = False 
     if torch.cuda.is_available():
         print("device = cuda")
@@ -105,13 +158,11 @@ def train_mnist(loss_metric=None, epochs=None):
     print("using DEVICE: {}".format(device))
 
     # loading in data 
-    train_loader, val_loader, test_loader = load_data(show=False)
+    train_loader, val_loader, test_loader = load_data(show=False, imbalanced=imbalanced)
     
     first_run = True 
     approx = False 
     model = Net().to(device)
-
-    
 
     train_losses = []
     train_counter = []
@@ -120,58 +171,210 @@ def train_mnist(loss_metric=None, epochs=None):
     log_interval = 10
     torch.manual_seed(1)
 
-    model = Net()
-    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.5)
+    model = Net().to(device)
+    patience = 50
+    early_stopping = EarlyStopping(patience=patience, verbose=True)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+    # criterion
     if loss_metric == "ce":
         criterion = nn.CrossEntropyLoss()
+    elif loss_metric == "approx-f1":
+        approx = True
+        criterion = mean_f1_approx_loss_on(device=device)
+    elif loss_metric == "approx-acc":
+        approx = True
+        criterion = mean_accuracy_approx_loss_on(device=device)
+    elif loss_metric == "approx-auroc":
+        approx = True
+        criterion = mean_auroc_approx_loss_on(device=device)
     else:
-        criterion = nn.CrossEntropyLoss()
+        raise RuntimeError("Unknown loss {}".format(loss_metric))
 
-    for epoch in range(epochs):
-        # TRAIN MODEL
-        model.train()
-        for batch_idx, (data, target) in enumerate(train_loader):
+    best_test = {
+        "best-epoch": 0,
+        "loss": float('inf'),
+        "f1_score": 0,
+        "accuracy": 0
+    }
+
+    # ----- TRAINING -----
+    losses = []
+    for epoch in range(epochs):  # loop over the dataset multiple times
+        running_loss = 0.0
+        accs, microf1s, macrof1s, wf1s = [], [], [], []
+        # going over in batches of 128
+        for i, (inputs, labels) in enumerate(train_loader):
+            # get the inputs; data is a list of [inputs, labels]
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            # print(labels[0])
+
+            # zero the parameter gradients
             optimizer.zero_grad()
-            output = model(data)
-            loss = criterion(output, target)
+
+            # forward + backward + optimize
+            output = model(inputs)  # batchsize * 10
+            # print(output[0]) # this looks fine, we have 10 values in here.
+
+            if not approx:
+                loss = criterion(output, labels)
+            else:
+                train_labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                    1, labels.unsqueeze(1), 1.).to(device)
+
+                loss = criterion(y_labels=train_labels, y_preds=output)
+
+            losses.append(loss)
             loss.backward()
             optimizer.step()
 
-            if batch_idx % log_interval == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                    epoch, batch_idx * len(data), len(train_loader.dataset),
-                    100. * batch_idx / len(train_loader), loss.item()))
-                train_losses.append(loss.item())
-                train_counter.append(
-                    (batch_idx*64) + ((epoch-1)*len(train_loader.dataset)))
+            # print statistics; every 2000 mini-batches
+            running_loss += loss.item()
+            if i % 2000 == 1999:
+                print('[%d, %5d] loss: %.3f' %
+                      (epoch + 1, i + 1, running_loss / 2000))
+                running_loss = 0.0
 
-                # saving model
-                # torch.save(model.state_dict(), '/results/model.pth')
-                # torch.save(optimizer.state_dict(), '/results/optimizer.pth')
+            ## check prediction
+            model.eval()
+            y_pred = model(inputs)
+            _, train_preds = torch.max(y_pred, 1)
 
-        # TEST MODEL
+            accs.append(accuracy_score(
+                y_true=labels.cpu(), y_pred=train_preds.cpu()))
+            microf1s.append(f1_score(y_true=labels.cpu(),
+                                     y_pred=train_preds.cpu(), average="micro"))
+            macrof1s.append(f1_score(y_true=labels.cpu(),
+                                     y_pred=train_preds.cpu(), average="macro"))
+            wf1s.append(f1_score(y_true=labels.cpu(),
+                                 y_pred=train_preds.cpu(), average="weighted"))
+
+        print("Train - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f}| Macro F1: {:.4f}".format(
+            epoch, np.array(accs).mean(), np.array(microf1s).mean(),
+            np.array(macrof1s).mean(), np.array(
+                microf1s).mean(), np.array(wf1s).mean()
+        )
+        )
+
+        if using_gpu:
+            mloss = torch.mean(torch.stack(losses))
+        else:
+            mloss = np.array([x.item for x in losses]).mean()
+        # ----- TEST SET -----
+        # Calculate metrics after going through all the batches
         model.eval()
-        test_loss = 0
-        correct = 0
+        test_preds, test_labels = np.array([]), np.array([])
+        for i, (inputs, labels) in enumerate(test_loader):
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+
+            output = model(inputs)
+            # print(output[0])
+
+            _, predicted = torch.max(output, 1)
+            # print(predicted[0])
+
+            pred_arr = predicted.cpu().numpy()
+            # print("test:{}".format(list(set(pred_arr))))
+            label_arr = labels.cpu().numpy()
+
+            test_labels = np.concatenate([test_labels, label_arr])
+            test_preds = np.concatenate([test_preds, pred_arr])
+
+        test_acc = accuracy_score(y_true=test_labels, y_pred=test_preds)
+        test_f1_micro = f1_score(
+            y_true=test_labels, y_pred=test_preds, average='micro')
+        test_f1_macro = f1_score(
+            y_true=test_labels, y_pred=test_preds, average='macro')
+        test_f1_weighted = f1_score(
+            y_true=test_labels, y_pred=test_preds, average='weighted')
+
+        if best_test['loss'] > mloss:
+            best_test['loss'] = mloss
+            best_test['best-epoch'] = epoch
+        if best_test['f1_score'] < test_f1_weighted:
+            best_test['f1_score'] = test_f1_weighted
+        if best_test['accuracy'] < test_acc:
+            best_test['accuracy'] = test_acc
+
+        print("Test - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f} | Macro F1: {:.4f}".format(
+            epoch, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
+        )
+        print(list(set(test_preds)))
+        print("Count of 9's in Preds: {} and Labels: {}".format(
+            np.count_nonzero(test_preds == 9.0), np.count_nonzero(test_labels == 9.0)))
+
+        # 0 = airplane, 1 = automobile, 2 = bird, 3 = cat, 4 = deer, 5 = dog, 6 = frog, 7 = horse, 8 = ship, 9 = truck
+        print(classification_report(y_true=test_labels, y_pred=test_preds,
+                                    target_names=['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']))
+
+        # ----- VALIDATION SET -----
+        # Calculate metrics after going through all the batches
+        model.eval()
+        valid_losses = []
         with torch.no_grad():
-            for data, target in test_loader:
-                output = model(data)
-                test_loss += F.nll_loss(output, target,
-                                        size_average=False).item()
-                pred = output.data.max(1, keepdim=True)[1]
-                correct += pred.eq(target.data.view_as(pred)).sum()
-        test_loss /= len(test_loader.dataset)
-        test_losses.append(test_loss)
-        print('\nTest set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-            test_loss, correct, len(test_loader.dataset),
-            100. * correct / len(test_loader.dataset)))
+            val_preds, val_labels = np.array([]), np.array([])
+            for i, (inputs, labels) in enumerate(val_loader):
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+
+                output = model(inputs)
+                _, predicted = torch.max(output, 1)
+
+                # calculate metrics
+                model.eval()
+                pred_arr = predicted.cpu().numpy()
+                label_arr = labels.cpu().numpy()
+
+                val_labels = np.concatenate([val_labels, label_arr])
+                val_preds = np.concatenate([val_preds, pred_arr])
+
+                if approx:
+                    labels = labels.type(torch.int64)
+                    valid_labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                        1, labels.unsqueeze(1), 1.)
+                    curr_val_loss = criterion(
+                        y_labels=valid_labels, y_preds=output)
+                else:
+                    curr_val_loss = criterion(output, labels)
+
+                valid_losses.append(curr_val_loss.detach().cpu().numpy())
+
+            val_acc = accuracy_score(y_true=val_labels, y_pred=val_preds)
+            val_f1_micro = f1_score(
+                y_true=val_labels, y_pred=val_preds, average='micro')
+            val_f1_macro = f1_score(
+                y_true=val_labels, y_pred=val_preds, average='macro')
+            val_f1_weighted = f1_score(
+                y_true=val_labels, y_pred=val_preds, average='weighted')
+
+            valid_loss = np.mean(valid_losses)
+            early_stopping(valid_loss, model)
+            if early_stopping.early_stop:
+                print("Early Stopping")
+                break
+
+            print("Val - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f} | Macro F1: {:.4f}\n".format(
+                epoch, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
+            )
+
+    print(best_test)
+    return
 
 
 @click.command()
 @click.option("--loss", required=True)
 @click.option("--epochs", required=True)
-def run(loss, epochs):
-    train_mnist(loss_metric='ce', epochs=int(epochs))
+@click.option("--imb", required=False, is_flag=True, default=False)
+def run(loss, epochs, imb):
+    # check if forcing imbalance
+    imbalanced = False
+    if imb:
+        imbalanced = True
+
+    # train
+    train_mnist(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced)
 
 
 def main():
@@ -179,4 +382,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    main(),
