@@ -1,3 +1,4 @@
+from torch.utils.data import Dataset
 import click 
 import torch                      
 import numpy as np     
@@ -14,7 +15,7 @@ from torchvision.datasets import CIFAR10
 from torchvision.transforms import ToTensor
 from torchvision.utils import make_grid
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data import random_split
+from torch.utils.data import random_split, WeightedRandomSampler
 
 
 from sklearn.model_selection import train_test_split
@@ -26,94 +27,11 @@ from sklearn import metrics
 from pytorchtools import EarlyStopping
 from mc_torchconfusion import *
 
+from download_cifar import * 
+
 torch.manual_seed(0)
 np.random.seed(0)
 
-# displaying images: 
-def show_image(img): 
-    img = img / 2 + 0.5     # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
-
-
-def check_class_balance(dataset): 
-    targets = np.array(dataset.targets)
-    classes, class_counts = np.unique(targets, return_counts=True)
-    nb_classes = len(classes)
-    print(class_counts)
-    
-
-def create_imbalance(dataset): 
-    check_class_balance(dataset)
-    targets = np.array(dataset.targets)
-    # Create artificial imbalanced class counts
-    # One of the classes has 805 of observations removed
-    imbal_class_counts = [5000,5000,5000,5000,5000,5000,5000,5000,5000,4001]
-
-    # Get class indices
-    class_indices = [np.where(targets == i)[0] for i in range(10)]
-
-    # Get imbalanced number of instances
-    imbal_class_indices = [class_idx[:class_count] for class_idx, class_count in zip(class_indices, imbal_class_counts)]
-    imbal_class_indices = np.hstack(imbal_class_indices)
-    print("imbalanced class indices: {}".format(imbal_class_indices))
-
-    # Set target and data to dataset
-    dataset.targets = targets[imbal_class_indices]
-    dataset.data = dataset.data[imbal_class_indices]
-
-    assert len(dataset.targets) == len(dataset.data)
-    print("After imbalance: {}".format(check_class_balance(dataset)))
-
-    return dataset 
-    
-
-def load_data(show=False, imbalanced=None):
-    torch.manual_seed(1)
-
-    transform = transforms.Compose(
-        [transforms.ToTensor(),
-         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-
-    # transform - transforms data during creation, downloads it locally, stores it in root, is train 
-    dataset = CIFAR10(train=True, download=True, root="../data", transform=transform)
-    test_data = CIFAR10(train=False, download=True, root="../data", transform=transform)
-    print("Train Size: {}, Test Size: {}".format(len(dataset), len(test_data)))
-
-    val_size = 5000
-    if imbalanced:
-        dataset = create_imbalance(dataset)
-        val_size = 4600  # dataset is now 46000
-    
-    print("Train Size: {}, Test Size: {}".format(len(dataset), len(test_data)))
-
-    train_size = len(dataset) - val_size
-
-    # Splitting into train/test/validation
-    train_ds, val_ds = random_split(dataset, [train_size, val_size])
-
-    # forming batches, putting into loader:
-    batch_size=128 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, num_workers=2)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, num_workers=4)
-    test_loader = DataLoader(test_data, batch_size=batch_size, num_workers=4)
-
-    # loading the dataset --> DataLoader class (torch.utils.data.DataLoader)
-    classes = dataset.classes 
-    print("Classes: {}".format(classes))
-
-    # showing image
-    if show: 
-        # getting random training images 
-        dataiter = iter(train_loader)
-        images, labels = dataiter.next() 
-
-        # showing images 
-        show_image(torchvision.utils.make_grid(images))
-        print(' '.join('%5s' % classes[labels[j]] for j in range(4)))
-
-    return train_loader, val_loader, test_loader
 
 # https://www.stefanfiott.com/machine-learning/cifar-10-classifier-using-cnn-in-pytorch/
 # https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
@@ -152,6 +70,7 @@ Output:
     Requires (84 + 1)*10 = 850 parameters
 '''
 
+
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -162,7 +81,7 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 10)
         self.softmax = nn.Softmax(dim=1)
-        
+
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
         x = self.pool(F.relu(self.conv2(x)))
@@ -170,19 +89,147 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
-        # TODO(dlee) - check if we're having any probabilities 
+        # TODO(dlee) - check if we're having any probabilities
         x = self.softmax(x)
         # print(x)
         return x
 
 
-def check_freq(x): 
+
+
+
+def _check_class_balance(dataset):
+    targets = np.array(dataset.targets)
+    classes, class_counts = np.unique(targets, return_counts=True)
+    nb_classes = len(classes)
+    print(class_counts)
+
+
+def _create_imbalance(dataset):
+    check_class_balance(dataset)
+    targets = np.array(dataset.targets)
+    # Create artificial imbalanced class counts
+    # One of the classes has 805 of observations removed
+    imbal_class_counts = [5000, 5000, 5000,
+                          5000, 5000, 5000, 5000, 5000, 5000, 1000]
+
+    # Get class indices
+    class_indices = [np.where(targets == i)[0] for i in range(10)]
+
+    # Get imbalanced number of instances
+    imbal_class_indices = [class_idx[:class_count] for class_idx,
+                           class_count in zip(class_indices, imbal_class_counts)]
+    imbal_class_indices = np.hstack(imbal_class_indices)
+    print("imbalanced class indices: {}".format(imbal_class_indices))
+
+    # Set target and data to dataset
+    dataset.targets = targets[imbal_class_indices]
+    dataset.data = dataset.data[imbal_class_indices]
+
+    assert len(dataset.targets) == len(dataset.data)
+    print("After imbalance: {}".format(check_class_balance(dataset)))
+
+    return dataset
+
+
+def _adjust_imbalance_sampler(dataset):
+    print(dataset)
+    targets = dataset.targets
+    class_count = np.unique(targets, return_counts=True)[1]
+    print(class_count)
+
+    weight = 1. / class_count
+    samples_weight = weight[targets]
+    samples_weight = torch.from_numpy(samples_weight)
+    sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
+    return sampler
+
+
+def _check_freq(x):
     return np.array(np.unique(x, return_counts=True)).T
+
+
+def _show_image(img): 
+    img = img / 2 + 0.5     # unnormalize
+    npimg = img.numpy()
+    plt.imshow(np.transpose(npimg, (1, 2, 0)))
+    plt.show()
+
+
+def load_data(show=False):
+    torch.manual_seed(1)
+
+    # Load in the data 
+    # Validation needs to come from the Train, so when 
+
+    transform = transforms.Compose(
+        [transforms.ToTensor(),
+         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+
+    # transform - transforms data during creation, downloads it locally, stores it in root, is train 
+    dataset = CIFAR10(train=True, download=True, root="../data", transform=transform)
+    test_data = CIFAR10(train=False, download=True, root="../data", transform=transform)
+    print("Train Size: {}, Test Size: {}".format(len(dataset), len(test_data)))
+
+    val_size = 5000
+    print("Train Size: {}, Test Size: {}".format(len(dataset), len(test_data)))
+
+    train_size = len(dataset) - val_size
+
+    # Splitting into train/test/validation
+    train_ds, val_ds = random_split(dataset, [train_size, val_size])
+
+    # forming batches, putting into loader:
+    batch_size=128
+    train_loader = DataLoader(
+        train_ds, batch_size=batch_size, num_workers=4, shuffle=True)
+    val_loader = DataLoader(val_ds, batch_size=batch_size, num_workers=4, shuffle=True)
+    test_loader = DataLoader(test_data, batch_size=batch_size, num_workers=4, shuffle=True)
+
+    # loading the dataset --> DataLoader class (torch.utils.data.DataLoader)
+    classes = dataset.classes 
+    print("Classes: {}".format(classes))
+
+    # showing image
+    if show: 
+        # getting random training images 
+        dataiter = iter(train_loader)
+        images, labels = dataiter.next() 
+
+        # showing images 
+        show_image(torchvision.utils.make_grid(images))
+        print(' '.join('%5s' % classes[labels[j]] for j in range(4)))
+
+    return train_loader, val_loader, test_loader
+
+
+class Dataset(torch.utils.data.Dataset):
+    def __init__(self, ds_split):
+        self.X = torch.from_numpy(np.array(ds_split['X'])).float()
+        self.y = torch.from_numpy(np.array(ds_split['y']))
+
+    def __len__(self):
+        return len(self.y)
+
+    def __getitem__(self, index):
+        return self.X[index, :], self.y[index]
+        
+
+def load_imbalanced_data(): 
+    data_splits = load_imb_data() 
+    train_set = Dataset(data_splits['train'])
+    validation_set = Dataset(data_splits['val'])
+    test_set = Dataset(data_splits['test'])
+
+    data_params = {'batch_size': 128, 'shuffle': True, 'num_workers': 1}
+    train_loader = DataLoader(train_set, **data_params) 
+    val_loader = DataLoader(validation_set, **data_params) 
+    test_loader = DataLoader(test_set, **data_params)
+    return train_loader, val_loader, test_loader
 
 
 def train_cifar(loss_metric=None, epochs=None, imbalanced=None): 
     using_gpu = False 
-    
     if torch.cuda.is_available(): 
         print("device = cuda")
         device = "cuda"
@@ -193,7 +240,10 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
     print("using DEVICE: {}".format(device))
 
     # loading in data 
-    train_loader, val_loader, test_loader = load_data(show=False, imbalanced=imbalanced)
+    if imbalanced: 
+        train_loader, val_loader, test_loader = load_imbalanced_data()
+    else: 
+        train_loader, val_loader, test_loader = load_data(show=False)
 
     # setting inits, initialize the early_stopping object
     first_run = True 
@@ -241,10 +291,10 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
         accs, microf1s, macrof1s, wf1s = [], [], [], []
         # going over in batches of 128
         for i, (inputs, labels) in enumerate(train_loader):
+            # print("batch: {}".format(i))
             # get the inputs; data is a list of [inputs, labels]
             inputs = inputs.to(device)
             labels = labels.to(device)
-
             # zero the parameter gradients
             optimizer.zero_grad()
 
@@ -404,6 +454,7 @@ def run(loss, epochs, imb):
 
 def main():
     run()
+    # load_train()
 
 if __name__ == '__main__':
     main(), 

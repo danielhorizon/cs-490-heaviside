@@ -59,15 +59,34 @@ def create_imbalance_train(images, labels):
     return imb_images, imb_labels
 
 
+def convert_shape(x): 
+    return x.reshape([1,3,32,32])
+
 def load_imb_data():
     """ Loads imbalanced data (80-20 split on class 9, and sampling again from 20%). 
     """
     maybe_download_and_extract()
-    images, cls, _ = load_training_data()
+    imgs, cls, _ = load_training_data()
+    # print("Image shape: {}".format(images[0].shape))
+    # print("Image shape: {}".format(images[0].reshape([1, 3, 32, 32]).shape))
+
+    images = [] 
+    for i in range(len(imgs)): 
+        images.append(imgs[i].reshape([3,32,32]))
+    images = np.array(images)
+
+    print("Image shape: {}".format(images[0].shape))
 
     X, y = create_imbalance_train(images, labels=cls)
     X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.20, random_state=1)
     X_test, y_test, _ = load_test_data()
+
+    # print("SHAPE: {}".format(X_test[0].shape))
+    X_test_reshaped = [] 
+    for i in range(len(X_test)):
+        X_test_reshaped.append(X_test[i].reshape([3, 32, 32]))
+    X_test_reshaped = np.array(X_test_reshaped)
+
     print("Size of train: {}".format(len(y_train)))
     print("Size of valid: {}".format(len(y_valid)))
     print("Size of test: {}".format(len(y_test)))
@@ -82,8 +101,10 @@ def load_imb_data():
             'y': y_valid
         },
         'test': {
-            'X': X_test,
+            'X': X_test_reshaped,
             'y': y_test
         },
     }
     
+
+load_imb_data()

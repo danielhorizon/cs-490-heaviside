@@ -95,7 +95,7 @@ def load_white_wine(shuffle=True):
     val_features = np.array(val_df)
     test_features = np.array(test_df)
 
-    # Scale data
+    # Scale 
     scaler = StandardScaler()
     train_features = scaler.fit_transform(train_features)
     val_features = scaler.transform(val_features)
