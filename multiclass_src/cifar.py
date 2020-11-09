@@ -1,15 +1,16 @@
+from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data import Dataset
-import click 
-import torch                      
-import numpy as np     
-import pandas as pd            
-import matplotlib.pyplot as plt    
+import click
+import torch
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-import torchvision     
+import torchvision
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import ToTensor
@@ -27,7 +28,7 @@ from sklearn import metrics
 from pytorchtools import EarlyStopping
 from mc_torchconfusion import *
 
-from download_cifar import * 
+from download_cifar import *
 
 torch.manual_seed(10)
 np.random.seed(10)
@@ -99,58 +100,73 @@ def _check_freq(x):
     return np.array(np.unique(x, return_counts=True)).T
 
 
-def _show_image(img): 
+def _show_image(img):
     img = img / 2 + 0.5     # unnormalize
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
     plt.show()
 
 
-def load_data(show=False):
+# https://gist.github.com/kevinzakka/d33bf8d6c7f06a9d8c76d97a7879f5cb
+
+
+def load_data_v2(shuffle=True):
     torch.manual_seed(10)
 
-    # Load in the data 
-    # Validation needs to come from the Train, so when 
+    normalize = transforms.Normalize(
+        mean=[0.4914, 0.4822, 0.4465],
+        std=[0.2023, 0.1994, 0.2010],
+    )
 
-    transform = transforms.Compose(
-        [transforms.ToTensor(),
-         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    # define transforms for validation and train.
+    valid_transform = transforms.Compose([
+        transforms.ToTensor(),
+        normalize,
+    ])
+    train_transform = transforms.Compose([
+        transforms.ToTensor(),
+        normalize,
+    ])
 
-    # transform - transforms data during creation, downloads it locally, stores it in root, is train 
-    dataset = CIFAR10(train=True, download=True, root="../data", transform=transform)
-    test_data = CIFAR10(train=False, download=True, root="../data", transform=transform)
-    print("Train Size: {}, Test Size: {}".format(len(dataset), len(test_data)))
+    # loading in dataset.
+    train_dataset = CIFAR10(train=True, download=True,
+                            root="../data", transform=train_transform)
+    # need to transform the test according to the train.
+    test_dataset = CIFAR10(train=False, download=True,
+                           root="../data", transform=train_transform)
+    valid_dataset = CIFAR10(train=True, download=True,
+                            root="../data", transform=valid_transform)
+    print("Train Size: {}, Test Size: {}".format(
+        len(train_dataset), len(test_dataset)))
 
-    val_size = 5000
-    print("Train Size: {}, Test Size: {}".format(len(dataset), len(test_data)))
+    # spliiting into validation/train/test.
+    num_train = len(train_dataset)
+    indices = list(range(num_train))
+    valid_size = 0.10
+    split = int(np.floor(valid_size * num_train))
+    if shuffle:
+        np.random.seed(20)
+        np.random.shuffle(indices)
 
-    train_size = len(dataset) - val_size
+    train_idx, valid_idx = indices[split:], indices[:split]
+    train_sampler = SubsetRandomSampler(train_idx)
+    valid_sampler = SubsetRandomSampler(valid_idx)
 
-    # Splitting into train/test/validation
-    train_ds, val_ds = random_split(dataset, [train_size, val_size])
-
-    # forming batches, putting into loader:
-    batch_size=128
+    batch_size = 128
     train_loader = DataLoader(
-        train_ds, batch_size=batch_size, num_workers=4, shuffle=True)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, num_workers=4, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=batch_size, num_workers=4, shuffle=True)
+        train_dataset, batch_size=batch_size, sampler=train_sampler,
+        num_workers=4, pin_memory=True,
+    )
+    valid_loader = DataLoader(
+        valid_dataset, batch_size=batch_size, sampler=valid_sampler,
+        num_workers=4, pin_memory=True,
+    )
+    test_loader = DataLoader(
+        valid_dataset, batch_size=batch_size, shuffle=True,
+        num_workers=4, pin_memory=True,
+    )
 
-    # loading the dataset --> DataLoader class (torch.utils.data.DataLoader)
-    classes = dataset.classes 
-    print("Classes: {}".format(classes))
-
-    # showing image
-    if show: 
-        # getting random training images 
-        dataiter = iter(train_loader)
-        images, labels = dataiter.next() 
-
-        # showing images 
-        show_image(torchvision.utils.make_grid(images))
-        print(' '.join('%5s' % classes[labels[j]] for j in range(4)))
-
-    return train_loader, val_loader, test_loader
+    return train_loader, valid_loader, test_loader
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -163,37 +179,37 @@ class Dataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         return self.X[index, :], self.y[index]
-        
 
-def load_imbalanced_data(): 
-    data_splits = load_imb_data() 
+
+def load_imbalanced_data():
+    data_splits = load_imb_data()
     train_set = Dataset(data_splits['train'])
     validation_set = Dataset(data_splits['val'])
     test_set = Dataset(data_splits['test'])
 
     data_params = {'batch_size': 128, 'shuffle': True, 'num_workers': 1}
-    train_loader = DataLoader(train_set, **data_params) 
-    val_loader = DataLoader(validation_set, **data_params) 
+    train_loader = DataLoader(train_set, **data_params)
+    val_loader = DataLoader(validation_set, **data_params)
     test_loader = DataLoader(test_set, **data_params)
     return train_loader, val_loader, test_loader
 
 
-def train_cifar(loss_metric=None, epochs=None, imbalanced=None): 
-    using_gpu = False 
-    if torch.cuda.is_available(): 
+def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
+    using_gpu = False
+    if torch.cuda.is_available():
         print("device = cuda")
         device = "cuda"
-        using_gpu = True 
-    else: 
+        using_gpu = True
+    else:
         print("device = cpu")
         device = "cpu"
     print("using DEVICE: {}".format(device))
 
-    # loading in data 
-    if imbalanced: 
+    # loading in data
+    if imbalanced:
         train_loader, val_loader, test_loader = load_imbalanced_data()
-    else: 
-        train_loader, val_loader, test_loader = load_data(show=False)
+    else:
+        train_loader, val_loader, test_loader = load_data_v2(shuffle=True)
 
     # setting inits, initialize the early_stopping object
     # classes = ('plane', 'car', 'bird', 'cat', 'deer','dog', 'frog', 'horse', 'ship', 'truck')
@@ -227,9 +243,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
     }
 
     # ----- TRAINING -----
-    losses = [] 
+    losses = []
     for epoch in range(epochs):  # loop over the dataset multiple times
-        running_loss = 0.0 
+        running_loss = 0.0
         accs, microf1s, macrof1s, wf1s = [], [], [], []
         # going over in batches of 128
         for i, (inputs, labels) in enumerate(train_loader):
@@ -241,74 +257,82 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
             optimizer.zero_grad()
 
             # forward + backward + optimize
-            output = model(inputs) # batchsize * 10 
-            # print(output[0]) # this looks fine, we have 10 values in here. 
-            
-            if not approx: 
+            output = model(inputs)  # batchsize * 10
+            # print(output[0]) # this looks fine, we have 10 values in here.
+
+            if not approx:
                 loss = criterion(output, labels)
             else:
                 train_labels = torch.zeros(len(labels), 10).to(device).scatter_(
                     1, labels.unsqueeze(1), 1.).to(device)
 
                 loss = criterion(y_labels=train_labels, y_preds=output)
-            
+
             losses.append(loss)
             loss.backward()
             optimizer.step()
 
-            # print statistics; every 2000 mini-batches 
+            # print statistics; every 2000 mini-batches
             running_loss += loss.item()
-            if i % 2000 == 1999:    
+            if i % 2000 == 1999:
                 print('[%d, %5d] loss: %.3f' %
-                    (epoch + 1, i + 1, running_loss / 2000))
+                      (epoch + 1, i + 1, running_loss / 2000))
                 running_loss = 0.0
 
-            ## check prediction
-            model.eval() 
+            # check prediction
+            model.eval()
             y_pred = model(inputs)
             _, train_preds = torch.max(y_pred, 1)
 
-            accs.append(accuracy_score(y_true=labels.cpu(), y_pred=train_preds.cpu()))
-            microf1s.append(f1_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
-            macrof1s.append(f1_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
-            wf1s.append(f1_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
-        
+            accs.append(accuracy_score(
+                y_true=labels.cpu(), y_pred=train_preds.cpu()))
+            microf1s.append(f1_score(y_true=labels.cpu(),
+                                     y_pred=train_preds.cpu(), average="micro"))
+            macrof1s.append(f1_score(y_true=labels.cpu(),
+                                     y_pred=train_preds.cpu(), average="macro"))
+            wf1s.append(f1_score(y_true=labels.cpu(),
+                                 y_pred=train_preds.cpu(), average="weighted"))
+
         print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
-                epoch, np.array(accs).mean(), np.array(microf1s).mean(), 
-                np.array(macrof1s).mean(), np.array(microf1s).mean(), np.array(wf1s).mean()
-            )
+            epoch, np.array(accs).mean(), np.array(microf1s).mean(),
+            np.array(macrof1s).mean(), np.array(
+                microf1s).mean(), np.array(wf1s).mean()
         )
-        
+        )
+
         if using_gpu:
             mloss = torch.mean(torch.stack(losses))
-        else: 
+        else:
             mloss = np.array([x.item for x in losses]).mean()
 
         # ----- TEST SET -----
-        # Calculate metrics after going through all the batches 
-        model.eval() 
+        # Calculate metrics after going through all the batches
+        model.eval()
         test_preds, test_labels = np.array([]), np.array([])
-        for i, (inputs, labels) in enumerate(test_loader): 
+        for i, (inputs, labels) in enumerate(test_loader):
             inputs = inputs.to(device)
             labels = labels.to(device)
 
-            output = model(inputs) 
+            output = model(inputs)
             # print(output[0])
-            
+
             _, predicted = torch.max(output, 1)
             # print(predicted[0])
 
             pred_arr = predicted.cpu().numpy()
             # print("test:{}".format(list(set(pred_arr))))
-            label_arr = labels.cpu().numpy() 
+            label_arr = labels.cpu().numpy()
 
             test_labels = np.concatenate([test_labels, label_arr])
             test_preds = np.concatenate([test_preds, pred_arr])
 
         test_acc = accuracy_score(y_true=test_labels, y_pred=test_preds)
-        test_f1_micro = f1_score(y_true=test_labels, y_pred=test_preds, average='micro')
-        test_f1_macro = f1_score(y_true=test_labels, y_pred=test_preds, average='macro')
-        test_f1_weighted = f1_score(y_true=test_labels, y_pred=test_preds, average='weighted')
+        test_f1_micro = f1_score(
+            y_true=test_labels, y_pred=test_preds, average='micro')
+        test_f1_macro = f1_score(
+            y_true=test_labels, y_pred=test_preds, average='macro')
+        test_f1_weighted = f1_score(
+            y_true=test_labels, y_pred=test_preds, average='weighted')
 
         if best_test['loss'] > mloss:
             best_test['loss'] = mloss
@@ -326,25 +350,26 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
             np.count_nonzero(test_preds == 9.0), np.count_nonzero(test_labels == 9.0)))
 
         # 0 = airplane, 1 = automobile, 2 = bird, 3 = cat, 4 = deer, 5 = dog, 6 = frog, 7 = horse, 8 = ship, 9 = truck
-        print(classification_report(y_true=test_labels, y_pred=test_preds, target_names = ['0','1','2','3','4','5','6','7','8','9']))
+        print(classification_report(y_true=test_labels, y_pred=test_preds,
+                                    target_names=['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']))
 
         # ----- VALIDATION SET -----
-        # Calculate metrics after going through all the batches 
+        # Calculate metrics after going through all the batches
         model.eval()
-        valid_losses = [] 
-        with torch.no_grad(): 
+        valid_losses = []
+        with torch.no_grad():
             val_preds, val_labels = np.array([]), np.array([])
             for i, (inputs, labels) in enumerate(val_loader):
                 inputs = inputs.to(device)
                 labels = labels.to(device)
 
-                output = model(inputs) 
+                output = model(inputs)
                 _, predicted = torch.max(output, 1)
 
-                # calculate metrics 
-                model.eval() 
+                # calculate metrics
+                model.eval()
                 pred_arr = predicted.cpu().numpy()
-                label_arr = labels.cpu().numpy() 
+                label_arr = labels.cpu().numpy()
 
                 val_labels = np.concatenate([val_labels, label_arr])
                 val_preds = np.concatenate([val_preds, pred_arr])
@@ -357,13 +382,16 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
                         y_labels=valid_labels, y_preds=output)
                 else:
                     curr_val_loss = criterion(output, labels)
-                
+
                 valid_losses.append(curr_val_loss.detach().cpu().numpy())
 
             val_acc = accuracy_score(y_true=val_labels, y_pred=val_preds)
-            val_f1_micro = f1_score(y_true=val_labels, y_pred=val_preds, average='micro')
-            val_f1_macro = f1_score(y_true=val_labels, y_pred=val_preds, average='macro')
-            val_f1_weighted = f1_score(y_true=val_labels, y_pred=val_preds, average='weighted')
+            val_f1_micro = f1_score(
+                y_true=val_labels, y_pred=val_preds, average='micro')
+            val_f1_macro = f1_score(
+                y_true=val_labels, y_pred=val_preds, average='macro')
+            val_f1_weighted = f1_score(
+                y_true=val_labels, y_pred=val_preds, average='weighted')
 
             valid_loss = np.mean(valid_losses)
             early_stopping(valid_loss, model)
@@ -376,30 +404,30 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
             )
 
     print(best_test)
-    return 
+    return
 
-        
-    
+
 @click.command()
 @click.option("--loss", required=True)
 @click.option("--epochs", required=True)
 @click.option("--imb", required=False, is_flag=True, default=False)
-
 def run(loss, epochs, imb):
-    # check if forcing imbalance 
-    imbalanced = False 
+    # check if forcing imbalance
+    imbalanced = False
     if imb:
-        imbalanced = True 
+        imbalanced = True
 
-    # train 
+    # train
     train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced)
+
 
 def main():
     run()
     # load_train()
 
+
 if __name__ == '__main__':
-    main(), 
+    main(),
 
 
 ########## DEPRECATED FUNCTIONS ##########

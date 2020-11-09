@@ -4,9 +4,12 @@ import numpy as np
 
 from random import sample 
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
+# custom imports 
 from cifar_helper import * 
 
+# portions of this are cited from: 
 # https://raw.githubusercontent.com/Hvass-Labs/TensorFlow-Tutorials/master/download.py
 
 def generate_random(n):
@@ -62,36 +65,54 @@ def create_imbalance_train(images, labels):
 def convert_shape(x): 
     return x.reshape([1,3,32,32])
 
+
 def load_imb_data():
     """ Loads imbalanced data (80-20 split on class 9, and sampling again from 20%). 
     """
     maybe_download_and_extract()
     imgs, cls, _ = load_training_data()
 
+    # reshaping images. 
     images = [] 
     for i in range(len(imgs)): 
         images.append(imgs[i].reshape([3,32,32]))
     images = np.array(images)
 
-    print("Image shape: {}".format(images[0].shape))
-
+    # creating imbalance, and oversampling. 
     X, y = create_imbalance_train(images, labels=cls)
-    X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.20, random_state=1)
+    X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.20, shuffle=True)
     X_test, y_test, _ = load_test_data()
 
-    # print("SHAPE: {}".format(X_test[0].shape))
     X_test_reshaped = [] 
     for i in range(len(X_test)):
         X_test_reshaped.append(X_test[i].reshape([3, 32, 32]))
     X_test_reshaped = np.array(X_test_reshaped)
 
-    print("Shape of train: {}".format(X_train.shape))
-    print("Shape of test: {}".format(X_test.shape))
-    print("Shape of val: {}".format(X_valid.shape))
-    
+    print("Shape of train: {}".format(X_train[0].shape))
+    print("Shape of test: {}".format(X_test[0].shape))
+    print("Shape of val: {}".format(X_valid[0].shape))
     print("Size of train labels: {}".format(len(y_train)))
     print("Size of valid labels: {}".format(len(y_valid)))
     print("Size of test labels: {}".format(len(y_test)))
+
+    X_train = np.array(X_train)
+    X_test = np.array(X_test_reshaped)
+    X_valid = np.array(X_valid)
+
+    # Adding in scaling 
+    # https://stackoverflow.com/questions/50125844/how-to-standard-scale-a-3d-matrix
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(
+        X_train.reshape(-1, X_train.shape[-1])).reshape(X_train.shape)
+    X_valid = scaler.fit_transform(
+        X_valid.reshape(-1, X_valid.shape[-1])).reshape(X_valid.shape)
+    X_test = scaler.transform(
+        X_test_reshaped.reshape(-1, X_test_reshaped.shape[-1])).reshape(X_test_reshaped.shape)
+    
+    print("Shape of train: {}".format(X_train[0].shape))
+    print("Shape of test: {}".format(X_test[0].shape))
+    print("Shape of val: {}".format(X_valid[0].shape))
+    print("Sample: {}".format(X_train[0]))
 
     return {
         'train': {
@@ -103,10 +124,11 @@ def load_imb_data():
             'y': y_valid
         },
         'test': {
-            'X': X_test_reshaped,
+            'X': X_test,
             'y': y_test
         },
     }
     
 
-# load_imb_data()
+if __name__=="__main__":
+    load_imb_data()   
