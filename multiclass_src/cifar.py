@@ -29,8 +29,8 @@ from mc_torchconfusion import *
 
 from download_cifar import * 
 
-torch.manual_seed(0)
-np.random.seed(0)
+torch.manual_seed(10)
+np.random.seed(10)
 
 
 # https://www.stefanfiott.com/machine-learning/cifar-10-classifier-using-cnn-in-pytorch/
@@ -95,56 +95,6 @@ class Net(nn.Module):
         return x
 
 
-
-
-
-def _check_class_balance(dataset):
-    targets = np.array(dataset.targets)
-    classes, class_counts = np.unique(targets, return_counts=True)
-    nb_classes = len(classes)
-    print(class_counts)
-
-
-def _create_imbalance(dataset):
-    check_class_balance(dataset)
-    targets = np.array(dataset.targets)
-    # Create artificial imbalanced class counts
-    # One of the classes has 805 of observations removed
-    imbal_class_counts = [5000, 5000, 5000,
-                          5000, 5000, 5000, 5000, 5000, 5000, 1000]
-
-    # Get class indices
-    class_indices = [np.where(targets == i)[0] for i in range(10)]
-
-    # Get imbalanced number of instances
-    imbal_class_indices = [class_idx[:class_count] for class_idx,
-                           class_count in zip(class_indices, imbal_class_counts)]
-    imbal_class_indices = np.hstack(imbal_class_indices)
-    print("imbalanced class indices: {}".format(imbal_class_indices))
-
-    # Set target and data to dataset
-    dataset.targets = targets[imbal_class_indices]
-    dataset.data = dataset.data[imbal_class_indices]
-
-    assert len(dataset.targets) == len(dataset.data)
-    print("After imbalance: {}".format(check_class_balance(dataset)))
-
-    return dataset
-
-
-def _adjust_imbalance_sampler(dataset):
-    print(dataset)
-    targets = dataset.targets
-    class_count = np.unique(targets, return_counts=True)[1]
-    print(class_count)
-
-    weight = 1. / class_count
-    samples_weight = weight[targets]
-    samples_weight = torch.from_numpy(samples_weight)
-    sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
-    return sampler
-
-
 def _check_freq(x):
     return np.array(np.unique(x, return_counts=True)).T
 
@@ -157,7 +107,7 @@ def _show_image(img):
 
 
 def load_data(show=False):
-    torch.manual_seed(1)
+    torch.manual_seed(10)
 
     # Load in the data 
     # Validation needs to come from the Train, so when 
@@ -246,17 +196,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
         train_loader, val_loader, test_loader = load_data(show=False)
 
     # setting inits, initialize the early_stopping object
-    first_run = True 
+    # classes = ('plane', 'car', 'bird', 'cat', 'deer','dog', 'frog', 'horse', 'ship', 'truck')
     approx = False
-    classes = ('plane', 'car', 'bird', 'cat', 'deer','dog', 'frog', 'horse', 'ship', 'truck')
     model = Net().to(device)
-
-    # Step 1: 
-    # remove 80 % of one class -> look at f1 score for just the one that is imbalanced 
-    # add in F1 per class, as well as the macro F1. 
-    # print the f1 score for each class. 
-
-    # Step 2: change it with the single sample [1, 3, 5, 10]
 
     patience = 50
     early_stopping = EarlyStopping(patience=patience, verbose=True)
@@ -460,11 +402,52 @@ if __name__ == '__main__':
     main(), 
 
 
+########## DEPRECATED FUNCTIONS ##########
 
-    
+def _check_class_balance(dataset):
+    targets = np.array(dataset.targets)
+    classes, class_counts = np.unique(targets, return_counts=True)
+    nb_classes = len(classes)
+    print(class_counts)
 
 
+def _create_imbalance(dataset):
+    """DEPRECATED: NO LONGER USED 
+    """
+    check_class_balance(dataset)
+    targets = np.array(dataset.targets)
+    # Create artificial imbalanced class counts
+    # One of the classes has 805 of observations removed
+    imbal_class_counts = [5000, 5000, 5000,
+                          5000, 5000, 5000, 5000, 5000, 5000, 1000]
+
+    # Get class indices
+    class_indices = [np.where(targets == i)[0] for i in range(10)]
+
+    # Get imbalanced number of instances
+    imbal_class_indices = [class_idx[:class_count] for class_idx,
+                           class_count in zip(class_indices, imbal_class_counts)]
+    imbal_class_indices = np.hstack(imbal_class_indices)
+    print("imbalanced class indices: {}".format(imbal_class_indices))
+
+    # Set target and data to dataset
+    dataset.targets = targets[imbal_class_indices]
+    dataset.data = dataset.data[imbal_class_indices]
+
+    assert len(dataset.targets) == len(dataset.data)
+    print("After imbalance: {}".format(check_class_balance(dataset)))
+
+    return dataset
 
 
+def _adjust_imbalance_sampler(dataset):
+    print(dataset)
+    targets = dataset.targets
+    class_count = np.unique(targets, return_counts=True)[1]
+    print(class_count)
 
-    
+    weight = 1. / class_count
+    samples_weight = weight[targets]
+    samples_weight = torch.from_numpy(samples_weight)
+    sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
+    return sampler

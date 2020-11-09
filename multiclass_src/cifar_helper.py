@@ -115,10 +115,19 @@ def _convert_images(raw):
     Convert images from the CIFAR-10 format and
     return a 4-dim array with shape: [image_number, height, width, channel]
     where the pixels are floats between 0.0 and 1.0.
-    """
 
+    https://github.com/kuangliu/pytorch-cifar/issues/19
+    """
     # Convert the raw images from the data-files to floating-points.
-    raw_float = np.array(raw, dtype=float) / 255.0
+    # raw_float = np.array(raw, dtype=float) / 255.0
+    raw_float = np.array(raw, dtype=float) 
+
+    debug = False
+    if debug:
+        print(raw[0])
+        print(raw_float[0])
+        print(np.mean(raw_float))
+        print(np.std(raw_float))
 
     # Reshape the array to 4-dimensions.
     # images = raw_float.reshape([-1, num_channels, img_size, img_size])
@@ -148,8 +157,8 @@ def _load_data(filename):
     cls = np.array(data[b'labels'])
 
     # Convert the images.
+    # Divides by 255 to convert them into values between 0 and 1 
     images = _convert_images(raw_images)
-    # print("testing: {}".format(images[0].shape))
 
     return images, cls
 
@@ -223,6 +232,13 @@ def load_training_data():
 
         # The begin-index for the next batch is the current end-index.
         begin = end
+
+    debug = True 
+    if debug: 
+        print("Images shape: {}".format(images.shape))
+        print("Sample Image: {}".format(images[0]))
+        print(images.mean(axis=(0, 1, 2))/255) # Close to 0 
+        print(images.std(axis=(0, 1, 2))/255) # close to 0 again 
 
     return images, cls, one_hot_encoded(class_numbers=cls, num_classes=num_classes)
 

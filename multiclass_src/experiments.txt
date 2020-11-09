@@ -115,8 +115,54 @@ CIFAR Balanced:
 
 CIFAR - Imbalanced (80-20, so 4001 for class 9): 
 - Baseline 
+    Train - Epoch (157): | Acc: 0.663 | W F1: 0.663 | Micro F1: 0.652| Macro F1: 0.663
+    Test - Epoch (157): | Acc: 0.422 | W F1: 0.415 | Micro F1: 0.422 | Macro F1: 0.415
+    [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+    Count of 9's in Preds: 629 and Labels: 1000
+                precision    recall  f1-score   support
+
+            0       0.50      0.48      0.49      1000
+            1       0.42      0.62      0.50      1000
+            2       0.39      0.22      0.28      1000
+            3       0.27      0.28      0.28      1000
+            4       0.38      0.35      0.37      1000
+            5       0.38      0.37      0.38      1000
+            6       0.44      0.51      0.47      1000
+            7       0.43      0.52      0.47      1000
+            8       0.53      0.56      0.54      1000
+            9       0.48      0.30      0.37      1000
+
+     accuracy                           0.42     10000
+    macro avg       0.42      0.42      0.42     10000
+ weighted avg       0.42      0.42      0.42     10000
+ 
+    EarlyStopping counter: 50 out of 50
+    'best-epoch': 157, 'loss': 1.8988, 'f1_score': 0.4315, 'accuracy': 0.4364
 
 - Approx F1 
+    Train - Epoch (100): | Acc: 0.597 | W F1: 0.597 | Micro F1: 0.596| Macro F1: 0.597
+    Test - Epoch (100): | Acc: 0.399 | W F1: 0.398 | Micro F1: 0.399 | Macro F1: 0.398
+    [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+    Count of 9's in Preds: 263 and Labels: 1000
+                precision    recall  f1-score   support
+
+            0       0.51      0.41      0.46      1000
+            1       0.58      0.46      0.51      1000
+            2       0.29      0.33      0.31      1000
+            3       0.23      0.38      0.28      1000
+            4       0.36      0.34      0.35      1000
+            5       0.34      0.40      0.37      1000
+            6       0.46      0.46      0.46      1000
+            7       0.43      0.46      0.44      1000
+            8       0.51      0.59      0.55      1000
+            9       0.61      0.16      0.25      1000
+
+     accuracy                           0.40     10000
+    macro avg       0.43      0.40      0.40     10000
+ weighted avg       0.43      0.40      0.40     10000
+
+    EarlyStopping counter: 50 out of 50
+    {'best-epoch': 100, 'loss': 0.4949, 'f1_score': 0.419, 'accuracy': 0.4191}
 
 - Approx AUROC 
 

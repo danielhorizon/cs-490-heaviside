@@ -67,8 +67,6 @@ def load_imb_data():
     """
     maybe_download_and_extract()
     imgs, cls, _ = load_training_data()
-    # print("Image shape: {}".format(images[0].shape))
-    # print("Image shape: {}".format(images[0].reshape([1, 3, 32, 32]).shape))
 
     images = [] 
     for i in range(len(imgs)): 
@@ -87,8 +85,9 @@ def load_imb_data():
         X_test_reshaped.append(X_test[i].reshape([3, 32, 32]))
     X_test_reshaped = np.array(X_test_reshaped)
 
-    print("Size of train: {}".format(len(y_train)))
-    print("Size of valid: {}".format(len(y_valid)))
+
+    print("Size of train labels: {}".format(len(y_train)))
+    print("Size of valid labels: {}".format(len(y_valid)))
     print("Size of test: {}".format(len(y_test)))
 
     return {
@@ -107,4 +106,4 @@ def load_imb_data():
     }
     
 
-load_imb_data()
+# load_imb_data()
