@@ -119,8 +119,8 @@ def _convert_images(raw):
     https://github.com/kuangliu/pytorch-cifar/issues/19
     """
     # Convert the raw images from the data-files to floating-points.
-    # raw_float = np.array(raw, dtype=float) / 255.0
-    raw_float = np.array(raw, dtype=float) 
+    raw_float = np.array(raw, dtype=float) / 255.0
+    # raw_float = np.array(raw, dtype=float) 
 
     debug = False
     if debug:
@@ -236,7 +236,7 @@ def load_training_data():
     debug = True 
     if debug: 
         print("Images shape: {}".format(images.shape))
-        print("Sample Image: {}".format(images[0]))
+        # print("Sample Image: {}".format(images[0]))
         print(images.mean(axis=(0, 1, 2))/255) # Close to 0 
         print(images.std(axis=(0, 1, 2))/255) # close to 0 again 
 
