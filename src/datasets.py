@@ -131,7 +131,7 @@ def kaggle_cc_fraud(invert=False):
     cleaned_df.pop('Time')
     # The `Amount` column covers a huge range. Convert to log-space.
     eps = 0.001  # 0 => 0.1¢
-    cleaned_df['Log Ammount'] = np.log(cleaned_df.pop('Amount')+eps)
+    cleaned_df['Log Amount'] = np.log(cleaned_df.pop('Amount')+eps)
 
     # Split and shuffle
     train_df, test_df = train_test_split(cleaned_df, test_size=0.2)

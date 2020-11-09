@@ -85,10 +85,13 @@ def load_imb_data():
         X_test_reshaped.append(X_test[i].reshape([3, 32, 32]))
     X_test_reshaped = np.array(X_test_reshaped)
 
-
+    print("Shape of train: {}".format(X_train.shape))
+    print("Shape of test: {}".format(X_test.shape))
+    print("Shape of val: {}".format(X_valid.shape))
+    
     print("Size of train labels: {}".format(len(y_train)))
     print("Size of valid labels: {}".format(len(y_valid)))
-    print("Size of test: {}".format(len(y_test)))
+    print("Size of test labels: {}".format(len(y_test)))
 
     return {
         'train': {
