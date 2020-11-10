@@ -39,7 +39,7 @@ def create_imbalance_train(images, labels):
     # gets us indices of all class 9's - 5000 indices 
     class_nine_idx = get_idx_list(labels)       
     # choosing 4000 of these indices to remove from images and labels 
-    remove_indices = sample(class_nine_idx, 4000)
+    remove_indices = sample(class_nine_idx, 4500)
     imb_images = [i for j, i in enumerate(images) if j not in remove_indices]
     imb_labels = [i for j, i in enumerate(labels) if j not in remove_indices]
 
@@ -50,7 +50,7 @@ def create_imbalance_train(images, labels):
     class_count = np.unique(imb_labels, return_counts=True)[1]
     print("Class Count: {}".format(class_count))
     class_nine_leftover = get_idx_list(imb_labels)
-    list_4000_indices = random.choices(class_nine_leftover, k=4000)
+    list_4000_indices = random.choices(class_nine_leftover, k=4500)
 
     for idx in list_4000_indices:
         imb_images.append(imb_images[idx])
@@ -80,7 +80,7 @@ def load_imb_data():
 
     # creating imbalance, and oversampling. 
     X, y = create_imbalance_train(images, labels=cls)
-    X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.20, shuffle=True)
+    X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.10, shuffle=True)
     X_test, y_test, _ = load_test_data()
 
     X_test_reshaped = [] 
@@ -104,7 +104,7 @@ def load_imb_data():
     scaler = StandardScaler()
     X_train = scaler.fit_transform(
         X_train.reshape(-1, X_train.shape[-1])).reshape(X_train.shape)
-    X_valid = scaler.fit_transform(
+    X_valid = scaler.transform(
         X_valid.reshape(-1, X_valid.shape[-1])).reshape(X_valid.shape)
     X_test = scaler.transform(
         X_test_reshaped.reshape(-1, X_test_reshaped.shape[-1])).reshape(X_test_reshaped.shape)
@@ -112,7 +112,6 @@ def load_imb_data():
     print("Shape of train: {}".format(X_train[0].shape))
     print("Shape of test: {}".format(X_test[0].shape))
     print("Shape of val: {}".format(X_valid[0].shape))
-    print("Sample: {}".format(X_train[0]))
 
     return {
         'train': {

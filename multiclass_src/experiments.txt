@@ -69,37 +69,53 @@ Approx Accuracy
 
 
 ########## CIFAR ##########
-CIFAR Balanced: 
-- Baseline
-    Train - Epoch (104): | Acc: 0.797 | W F1: 0.797 | Micro F1: 0.790| Macro F1: 0.797
-    Test - Epoch (104): | Acc: 0.604 | W F1: 0.600 | Micro F1: 0.604 | Macro F1: 0.600
-    EarlyStopping counter: 50 out of 50
-    {'best-epoch': 104, 'loss': 1.7373, 'f1_score': 0.610, 'accuracy': 0.612}
-
-- Approx F1:
-    Train - Epoch (244): | Acc: 0.720 | W F1: 0.720 | Micro F1: 0.712| Macro F1: 0.720
-    Test - Epoch (244): | Acc: 0.601 | W F1: 0.604 | Micro F1: 0.601 | Macro F1: 0.604
-    [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
-    Count of 9's in Preds: 796 and Labels: 1000
+########## CIFAR BALANCED ##########
+--- Baseline
+    Train - Epoch (127): | Acc: 0.782 | W F1: 0.782 | Micro F1: 0.774| Macro F1: 0.782
+    Test - Epoch (127): | Acc: 0.758 | W F1: 0.759 | Micro F1: 0.758 | Macro F1: 0.759
+    Count of 9's in Preds: 4560 and Labels: 5000
                 precision    recall  f1-score   support
+            0       0.82      0.75      0.78      5000
+            1       0.87      0.83      0.85      5000
+            2       0.77      0.63      0.69      5000
+            3       0.65      0.64      0.64      5000
+            4       0.69      0.76      0.72      5000
+            5       0.61      0.75      0.67      5000
+            6       0.83      0.78      0.81      5000
+            7       0.80      0.78      0.79      5000
+            8       0.76      0.88      0.82      5000
+            9       0.85      0.78      0.81      5000
 
-            0       0.72      0.60      0.66      1000
-            1       0.72      0.76      0.74      1000
-            2       0.48      0.49      0.49      1000
-            3       0.36      0.51      0.42      1000
-            4       0.60      0.49      0.54      1000
-            5       0.50      0.49      0.50      1000
-            6       0.72      0.64      0.68      1000
-            7       0.66      0.65      0.65      1000
-            8       0.66      0.81      0.73      1000
-            9       0.73      0.58      0.64      1000
-
-        accuracy                           0.60     10000
-    macro avg       0.61      0.60      0.60     10000
-    weighted avg       0.61      0.60      0.60     10000
-
+     accuracy                           0.76     50000
+    macro avg       0.76      0.76      0.76     50000
+ weighted avg       0.76      0.76      0.76     50000
     EarlyStopping counter: 50 out of 50
-    {'best-epoch': 244, 'loss': 0.300, 'f1_score': 0.616, 'accuracy': 0.618}
+    {'best-epoch': 127, 'loss': 1.7291, 'f1_score': 0.7717, 'accuracy': 0.77304}
+
+--- Approx F1:
+Train - Epoch (100): | Acc: 0.722 | W F1: 0.722 | Micro F1: 0.715| Macro F1: 0.722
+Test - Epoch (100): | Acc: 0.712 | W F1: 0.714 | Micro F1: 0.712 | Macro F1: 0.714
+[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+Count of 9's in Preds: 5311 and Labels: 5000
+              precision    recall  f1-score   support
+
+           0       0.79      0.69      0.74      5000
+           1       0.79      0.86      0.82      5000
+           2       0.69      0.60      0.64      5000
+           3       0.51      0.64      0.57      5000
+           4       0.67      0.66      0.67      5000
+           5       0.61      0.64      0.63      5000
+           6       0.76      0.74      0.75      5000
+           7       0.83      0.69      0.75      5000
+           8       0.79      0.81      0.80      5000
+           9       0.75      0.80      0.78      5000
+
+    accuracy                           0.71     50000
+   macro avg       0.72      0.71      0.71     50000
+weighted avg       0.72      0.71      0.71     50000
+
+EarlyStopping counter: 50 out of 50
+{'best-epoch': 100, 'loss': 0.3349, 'f1_score': 0.7213847310754337, 'accuracy': 0.72156}
 
 - Approx Accuracy
     * Doesn't learn * 
@@ -108,66 +124,146 @@ CIFAR Balanced:
     * Doesn't learn * , need to fix to approximate trapezoidal better. 
 
 
+########## CIFAR - Imbalanced (80-20) Oversampling ##########
+--- Baseline 
+Train - Epoch (121): | Acc: 0.670 | W F1: 0.670 | Micro F1: 0.660| Macro F1: 0.670
+Test - Epoch (121): | Acc: 0.432 | W F1: 0.426 | Micro F1: 0.432 | Macro F1: 0.426
+[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+Count of 9's in Preds: 577 and Labels: 1000
+              precision    recall  f1-score   support
 
-
-
-
-
-CIFAR - Imbalanced (80-20, so 4001 for class 9): 
-- Baseline 
-    Train - Epoch (157): | Acc: 0.663 | W F1: 0.663 | Micro F1: 0.652| Macro F1: 0.663
-    Test - Epoch (157): | Acc: 0.422 | W F1: 0.415 | Micro F1: 0.422 | Macro F1: 0.415
-    [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
-    Count of 9's in Preds: 629 and Labels: 1000
-                precision    recall  f1-score   support
-
-            0       0.50      0.48      0.49      1000
-            1       0.42      0.62      0.50      1000
-            2       0.39      0.22      0.28      1000
-            3       0.27      0.28      0.28      1000
-            4       0.38      0.35      0.37      1000
-            5       0.38      0.37      0.38      1000
-            6       0.44      0.51      0.47      1000
-            7       0.43      0.52      0.47      1000
-            8       0.53      0.56      0.54      1000
-            9       0.48      0.30      0.37      1000
-
-     accuracy                           0.42     10000
-    macro avg       0.42      0.42      0.42     10000
- weighted avg       0.42      0.42      0.42     10000
- 
-    EarlyStopping counter: 50 out of 50
-    'best-epoch': 157, 'loss': 1.8988, 'f1_score': 0.4315, 'accuracy': 0.4364
-
-- Approx F1 
-    Train - Epoch (100): | Acc: 0.597 | W F1: 0.597 | Micro F1: 0.596| Macro F1: 0.597
-    Test - Epoch (100): | Acc: 0.399 | W F1: 0.398 | Micro F1: 0.399 | Macro F1: 0.398
-    [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
-    Count of 9's in Preds: 263 and Labels: 1000
-                precision    recall  f1-score   support
-
-            0       0.51      0.41      0.46      1000
-            1       0.58      0.46      0.51      1000
-            2       0.29      0.33      0.31      1000
-            3       0.23      0.38      0.28      1000
-            4       0.36      0.34      0.35      1000
-            5       0.34      0.40      0.37      1000
-            6       0.46      0.46      0.46      1000
-            7       0.43      0.46      0.44      1000
-            8       0.51      0.59      0.55      1000
-            9       0.61      0.16      0.25      1000
-
-     accuracy                           0.40     10000
-    macro avg       0.43      0.40      0.40     10000
- weighted avg       0.43      0.40      0.40     10000
+           0       0.52      0.47      0.50      1000
+           1       0.47      0.60      0.53      1000
+           2       0.36      0.28      0.32      1000
+           3       0.28      0.25      0.27      1000
+           4       0.40      0.39      0.40      1000
+           5       0.39      0.35      0.37      1000
+           6       0.49      0.46      0.47      1000
+           7       0.38      0.63      0.47      1000
+           8       0.53      0.56      0.54      1000
+           9       0.54      0.31      0.39      1000
+    accuracy                           0.43     10000
+   macro avg       0.44      0.43      0.43     10000
+weighted avg       0.44      0.43      0.43     10000
 
     EarlyStopping counter: 50 out of 50
-    {'best-epoch': 100, 'loss': 0.4949, 'f1_score': 0.419, 'accuracy': 0.4191}
+    {'best-epoch': 121, 'loss': 1.8728, 'f1_score': 0.445, 'accuracy': 0.4467}
+
+
+--- Approx F1 
+Train - Epoch (96): | Acc: 0.629 | W F1: 0.629 | Micro F1: 0.625| Macro F1: 0.629
+Test - Epoch (96): | Acc: 0.421 | W F1: 0.415 | Micro F1: 0.421 | Macro F1: 0.415
+[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+Count of 9's in Preds: 227 and Labels: 1000
+              precision    recall  f1-score   support
+
+           0       0.51      0.54      0.52      1000
+           1       0.50      0.56      0.53      1000
+           2       0.32      0.32      0.32      1000
+           3       0.27      0.34      0.30      1000
+           4       0.32      0.40      0.35      1000
+           5       0.36      0.35      0.35      1000
+           6       0.47      0.51      0.49      1000
+           7       0.49      0.49      0.49      1000
+           8       0.52      0.56      0.54      1000
+           9       0.67      0.15      0.25      1000
+
+    accuracy                           0.42     10000
+   macro avg       0.44      0.42      0.41     10000
+weighted avg       0.44      0.42      0.41     10000
+
+EarlyStopping counter: 50 out of 50
+{'best-epoch': 96, 'loss': 0.4461, 'f1_score': 0.438, 'accuracy': 0.4375}
+
+/* With a different seed */ 
+Train - Epoch (78): | Acc: 0.633 | W F1: 0.633 | Micro F1: 0.628| Macro F1: 0.633
+Test - Epoch (78): | Acc: 0.423 | W F1: 0.428 | Micro F1: 0.423 | Macro F1: 0.428
+[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+Count of 9's in Preds: 611 and Labels: 1000
+              precision    recall  f1-score   support
+
+           0       0.53      0.46      0.49      1000
+           1       0.50      0.53      0.52      1000
+           2       0.31      0.37      0.34      1000
+           3       0.23      0.38      0.28      1000
+           4       0.38      0.30      0.34      1000
+           5       0.36      0.37      0.36      1000
+           6       0.54      0.44      0.49      1000
+           7       0.53      0.45      0.49      1000
+           8       0.55      0.60      0.57      1000
+           9       0.54      0.33      0.41      1000
+
+    accuracy                           0.42     10000
+   macro avg       0.45      0.42      0.43     10000
+weighted avg       0.45      0.42      0.43     10000
+
+EarlyStopping counter: 50 out of 50
+{'best-epoch': 78, 'loss': 0.4566, 'f1_score': 0.43537846550551185, 'accuracy': 0.4361}
 
 - Approx AUROC 
 
 - Approx Acc 
     * Doesn't learn * 
+
+
+
+########## CIFAR - Imbalanced (90-10) Oversampling ########## -> in 4th window 
+--- Baseline 
+Train - Epoch (174): | Acc: 0.633 | W F1: 0.633 | Micro F1: 0.623| Macro F1: 0.633
+Test - Epoch (174): | Acc: 0.431 | W F1: 0.424 | Micro F1: 0.431 | Macro F1: 0.424
+[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+Count of 9's in Preds: 362 and Labels: 1000
+              precision    recall  f1-score   support
+
+           0       0.55      0.47      0.51      1000
+           1       0.47      0.63      0.54      1000
+           2       0.39      0.30      0.34      1000
+           3       0.27      0.32      0.29      1000
+           4       0.39      0.35      0.37      1000
+           5       0.36      0.43      0.39      1000
+           6       0.48      0.48      0.48      1000
+           7       0.45      0.54      0.49      1000
+           8       0.51      0.61      0.56      1000
+           9       0.53      0.19      0.28      1000
+
+    accuracy                           0.43     10000
+   macro avg       0.44      0.43      0.42     10000
+weighted avg       0.44      0.43      0.42     10000
+
+EarlyStopping counter: 50 out of 50
+{'best-epoch': 174, 'loss': 1.8658, 'f1_score': 0.4370, 'accuracy': 0.4431}
+
+--- Approx F1 
+
+Train - Epoch (82): | Acc: 0.623 | W F1: 0.623 | Micro F1: 0.622| Macro F1: 0.623
+Test - Epoch (82): | Acc: 0.413 | W F1: 0.405 | Micro F1: 0.413 | Macro F1: 0.405
+[0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+Count of 9's in Preds: 197 and Labels: 1000
+              precision    recall  f1-score   support
+
+           0       0.58      0.45      0.51      1000
+           1       0.44      0.64      0.52      1000
+           2       0.32      0.36      0.34      1000
+           3       0.25      0.38      0.30      1000
+           4       0.38      0.35      0.36      1000
+           5       0.35      0.31      0.33      1000
+           6       0.44      0.48      0.46      1000
+           7       0.49      0.45      0.47      1000
+           8       0.55      0.59      0.57      1000
+           9       0.58      0.12      0.19      1000
+
+    accuracy                           0.41     10000
+   macro avg       0.44      0.41      0.40     10000
+weighted avg       0.44      0.41      0.40     10000
+
+EarlyStopping counter: 50 out of 50
+{'best-epoch': 82, 'loss': 0.4600, 'f1_score': 0.416, 'accuracy': 0.4198}
+
+--- Approx AUROC 
+
+--- Approx Acc 
+    * Doesn't learn * 
+
 
 
 

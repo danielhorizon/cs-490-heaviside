@@ -30,8 +30,8 @@ from mc_torchconfusion import *
 
 from download_cifar import *
 
-torch.manual_seed(11)
-np.random.seed(11)
+torch.manual_seed(10)
+np.random.seed(10)
 
 
 # https://www.stefanfiott.com/machine-learning/cifar-10-classifier-using-cnn-in-pytorch/
@@ -81,7 +81,10 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(16 * 5 * 5, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 10)
-        self.softmax = nn.Softmax(dim=1)
+        # Vector of length 10, probability sums up to 1. 
+        self.softmax = nn.Softmax(dim=1) 
+        self.sigmoid = nn.Sigmoid() 
+        # take each vector, and put it through a sigmoid, see if it learns 
 
     def forward(self, x):
         x = self.pool(F.relu(self.conv1(x)))
@@ -90,9 +93,11 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
-        # TODO(dlee) - check if we're having any probabilities
         x = self.softmax(x)
-        # print(x)
+        x = torch.max(x)
+        print("MAX: {}".format(x))
+        x = self.sigmoid(x)
+        print("SIGMOID:{}".format(x))
         return x
 
 
@@ -108,8 +113,6 @@ def _show_image(img):
 
 
 # https://gist.github.com/kevinzakka/d33bf8d6c7f06a9d8c76d97a7879f5cb
-
-
 def load_data_v2(shuffle=True):
     torch.manual_seed(10)
 
@@ -165,6 +168,7 @@ def load_data_v2(shuffle=True):
         valid_dataset, batch_size=batch_size, shuffle=True,
         num_workers=4, pin_memory=True,
     )
+
     return train_loader, valid_loader, test_loader
 
 
@@ -248,7 +252,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
         accs, microf1s, macrof1s, wf1s = [], [], [], []
         # going over in batches of 128
         for i, (inputs, labels) in enumerate(train_loader):
-
+            # print("batch: {}".format(i))
             # get the inputs; data is a list of [inputs, labels]
             inputs = inputs.to(device)
             labels = labels.to(device)
@@ -257,9 +261,10 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
 
             # forward + backward + optimize
             output = model(inputs)  # batchsize * 10
-            # print(output[0]) # this looks fine, we have 10 values in here.
+            print(output) # this looks fine, we have 10 values in here.
 
             if not approx:
+                # used to be 
                 loss = criterion(output, labels)
             else:
                 train_labels = torch.zeros(len(labels), 10).to(device).scatter_(
@@ -293,10 +298,10 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
                                  y_pred=train_preds.cpu(), average="weighted"))
 
         print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
-            epoch, np.array(accs).mean(), np.array(microf1s).mean(),
-            np.array(macrof1s).mean(), np.array(
-                microf1s).mean(), np.array(wf1s).mean()
-        )
+                epoch, np.array(accs).mean(), np.array(microf1s).mean(),
+                np.array(macrof1s).mean(), np.array(
+                    microf1s).mean(), np.array(wf1s).mean()
+            )
         )
 
         if using_gpu:
@@ -426,55 +431,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main(),
-
-
-########## DEPRECATED FUNCTIONS ##########
-
-def _check_class_balance(dataset):
-    targets = np.array(dataset.targets)
-    classes, class_counts = np.unique(targets, return_counts=True)
-    nb_classes = len(classes)
-    print(class_counts)
-
-
-def _create_imbalance(dataset):
-    """DEPRECATED: NO LONGER USED 
-    """
-    check_class_balance(dataset)
-    targets = np.array(dataset.targets)
-    # Create artificial imbalanced class counts
-    # One of the classes has 805 of observations removed
-    imbal_class_counts = [5000, 5000, 5000,
-                          5000, 5000, 5000, 5000, 5000, 5000, 1000]
-
-    # Get class indices
-    class_indices = [np.where(targets == i)[0] for i in range(10)]
-
-    # Get imbalanced number of instances
-    imbal_class_indices = [class_idx[:class_count] for class_idx,
-                           class_count in zip(class_indices, imbal_class_counts)]
-    imbal_class_indices = np.hstack(imbal_class_indices)
-    print("imbalanced class indices: {}".format(imbal_class_indices))
-
-    # Set target and data to dataset
-    dataset.targets = targets[imbal_class_indices]
-    dataset.data = dataset.data[imbal_class_indices]
-
-    assert len(dataset.targets) == len(dataset.data)
-    print("After imbalance: {}".format(check_class_balance(dataset)))
-
-    return dataset
-
-
-def _adjust_imbalance_sampler(dataset):
-    print(dataset)
-    targets = dataset.targets
-    class_count = np.unique(targets, return_counts=True)[1]
-    print(class_count)
-
-    weight = 1. / class_count
-    samples_weight = weight[targets]
-    samples_weight = torch.from_numpy(samples_weight)
-    sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
-    return sampler
+    main()
