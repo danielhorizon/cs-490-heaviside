@@ -1,3 +1,4 @@
+from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data import Dataset
 import click
@@ -30,14 +31,15 @@ from mc_torchconfusion import *
 
 from download_cifar import *
 
+# setting seeds
 torch.manual_seed(44)
 np.random.seed(44)
 
 
+'''
 # https://www.stefanfiott.com/machine-learning/cifar-10-classifier-using-cnn-in-pytorch/
 # https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
 
-'''
 Input -> Conv (ReLU) -> MaxPool -> Conv (ReLU) -> MaxPool -> 
     FC (ReLU) -> FC (ReLU) -> FC (Softmax) -> 10 outputs 
 
@@ -96,6 +98,18 @@ class Net(nn.Module):
         return x
 
 
+class Dataset(torch.utils.data.Dataset):
+    def __init__(self, ds_split):
+        self.X = torch.from_numpy(np.array(ds_split['X'])).float()
+        self.y = torch.from_numpy(np.array(ds_split['y']))
+
+    def __len__(self):
+        return len(self.y)
+
+    def __getitem__(self, index):
+        return self.X[index, :], self.y[index]
+
+
 def _check_freq(x):
     return np.array(np.unique(x, return_counts=True)).T
 
@@ -108,8 +122,6 @@ def _show_image(img):
 
 
 # https://gist.github.com/kevinzakka/d33bf8d6c7f06a9d8c76d97a7879f5cb
-
-
 def load_data_v2(shuffle=True):
     torch.manual_seed(10)
 
@@ -168,18 +180,6 @@ def load_data_v2(shuffle=True):
     return train_loader, valid_loader, test_loader
 
 
-class Dataset(torch.utils.data.Dataset):
-    def __init__(self, ds_split):
-        self.X = torch.from_numpy(np.array(ds_split['X'])).float()
-        self.y = torch.from_numpy(np.array(ds_split['y']))
-
-    def __len__(self):
-        return len(self.y)
-
-    def __getitem__(self, index):
-        return self.X[index, :], self.y[index]
-
-
 def load_imbalanced_data():
     data_splits = load_imb_data()
     train_set = Dataset(data_splits['train'])
@@ -193,7 +193,7 @@ def load_imbalanced_data():
     return train_loader, val_loader, test_loader
 
 
-def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
+def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
     using_gpu = False
     if torch.cuda.is_available():
         print("device = cuda")
@@ -214,10 +214,13 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
     # classes = ('plane', 'car', 'bird', 'cat', 'deer','dog', 'frog', 'horse', 'ship', 'truck')
     approx = False
     model = Net().to(device)
-
     patience = 50
     early_stopping = EarlyStopping(patience=patience, verbose=True)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+    # setting up tensorboard 
+    tensoboard_path = "/".join("tensorboard", run_name)
+    writer = SummaryWriter(tensoboard_path)
 
     # criterion
     if loss_metric == "ce":
@@ -246,6 +249,12 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
     for epoch in range(epochs):  # loop over the dataset multiple times
         running_loss = 0.0
         accs, microf1s, macrof1s, wf1s = [], [], [], []
+        micro_prs, macro_prs, weighted_prs = [], [], []
+        micro_recalls, macro_recalls, weighted_recalls = [], [], []
+        class_f1_scores = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[], 8:[], 9:[]} 
+        class_precision = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[], 8:[], 9:[]} 
+        class_recall = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[], 8:[], 9:[]} 
+
         # going over in batches of 128
         for i, (inputs, labels) in enumerate(train_loader):
 
@@ -283,26 +292,69 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
             y_pred = model(inputs)
             _, train_preds = torch.max(y_pred, 1)
 
+            # storing metrics for each batch 
+            # accs = array of each batch's accuracy -> averaged at each epoch 
             accs.append(accuracy_score(
                 y_true=labels.cpu(), y_pred=train_preds.cpu()))
             microf1s.append(f1_score(y_true=labels.cpu(),
-                                     y_pred=train_preds.cpu(), average="micro"))
+                                        y_pred=train_preds.cpu(), average="micro"))
             macrof1s.append(f1_score(y_true=labels.cpu(),
-                                     y_pred=train_preds.cpu(), average="macro"))
+                                        y_pred=train_preds.cpu(), average="macro"))
             wf1s.append(f1_score(y_true=labels.cpu(),
-                                 y_pred=train_preds.cpu(), average="weighted"))
+                                    y_pred=train_preds.cpu(), average="weighted"))
+            # precision 
+            micro_prs.append(precision_score(
+                y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
+            macro_prs.append(precision_score(
+                y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
+            weighted_prs.append(precision_score(
+                y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
 
+            # recall 
+            micro_recalls.append(recall_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
+            macro_recalls.append(recall_score(
+                y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
+            weighted_recalls.append(recall_score(
+                y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
+        
+            class_f1s = f1_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
+            class_re = recall_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
+            class_pr = precision_score(
+                y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
+            for i in range(len(class_f1s)):
+                class_f1_scores[i].append(class_f1s[i])
+                class_precision[i].append(class_pr[i])
+                class_recall[i].append(class_re[i])
+
+        m_loss = torch.mean(torch.stack(losses)) if using_gpu else np.array(
+            [x.item for x in losses]).mean()
+        m_accs = np.array(accs).mean()
+        m_weightedf1s = np.array(microf1s).mean()
+        m_microf1s = np.array(microf1s).mean()
+        m_macrof1s = np.array(macrof1s).mean()
         print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
-            epoch, np.array(accs).mean(), np.array(microf1s).mean(),
-            np.array(macrof1s).mean(), np.array(
-                microf1s).mean(), np.array(wf1s).mean()
+            epoch, m_accs, m_weightedf1s, m_microf1s, m_macrof1s)
         )
-        )
+        writer.add_scalar("loss", m_loss, epoch)
+        writer.add_scalar("train/accuracy", m_accs, epoch)
+        writer.add_scalar("train/w-f1", m_weightedf1s, epoch)
+        writer.add_scalar("train/micro-f1", m_microf1s, epoch)
+        writer.add_scalar("train/macro-f1", m_macrof1s, epoch)
+        writer.add_scalar("train/w-recall", np.array(weighted_recalls).mean())
+        writer.add_scalar("train/micro-recall", np.array(micro_recalls).mean())
+        writer.add_scalar("train/macro-recall", np.array(macro_recalls).mean())
+        writer.add_scalar("train/w-precision", np.array(weighted_prs).mean())
+        writer.add_scalar("train/micro-precision", np.array(micro_prs).mean())
+        writer.add_scalar("train/macro-precision", np.array(macro_prs).mean())
 
-        if using_gpu:
-            mloss = torch.mean(torch.stack(losses))
-        else:
-            mloss = np.array([x.item for x in losses]).mean()
+        # adding per-class f1, precision, and recall 
+        for i in range(10): 
+            title = "train/class-" + str(i) + "-f1"
+            writer.add_scalar(title, np.array(class_f1_scores[i]).mean())
+            title = "train/class-" + str(i) + "-precision"
+            writer.add_scalar(title, np.array(class_precision[i]).mean())
+            title = "train/class-" + str(i) + "-recall"
+            writer.add_scalar(title, np.array(class_recall[i]).mean())
 
         # ----- TEST SET -----
         # Calculate metrics after going through all the batches
@@ -333,8 +385,27 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
         test_f1_weighted = f1_score(
             y_true=test_labels, y_pred=test_preds, average='weighted')
 
-        if best_test['loss'] > mloss:
-            best_test['loss'] = mloss
+        test_class_f1s = f1_score(
+            y_true=test_labels, y_pred=test_preds, average=None)
+        test_class_prs = precision_score(y_true=test_labels, y_pred=test_preds, average=None)
+        test_class_rec = recall_score(y_true=test_labels, y_pred=test_preds, average=None)
+
+        # add in per-class metrics 
+        writer.add_scalar("test/accuracy", test_acc, epoch)
+        writer.add_scalar("test/micro-f1", test_f1_micro, epoch)
+        writer.add_scalar("test/macro-f1", test_f1_macro, epoch)
+        writer.add_scalar("test/w-f1", test_f1_weighted)
+        # adding per-class f1, precision, and recall
+        for i in range(10):
+            title = "test/class-" + str(i) + "-f1"
+            writer.add_scalar(title, np.array(test_class_f1s[i]).mean())
+            title = "test/class-" + str(i) + "-precision"
+            writer.add_scalar(title, np.array(test_class_prs[i]).mean())
+            title = "test/class-" + str(i) + "-recall"
+            writer.add_scalar(title, np.array(test_class_rec[i]).mean())
+
+        if best_test['loss'] > m_loss:
+            best_test['loss'] = m_loss
             best_test['best-epoch'] = epoch
         if best_test['f1_score'] < test_f1_weighted:
             best_test['f1_score'] = test_f1_weighted
@@ -392,7 +463,30 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None):
             val_f1_weighted = f1_score(
                 y_true=val_labels, y_pred=val_preds, average='weighted')
 
+            class_val_f1 = f1_score(y_true=val_labels, y_pred=val_preds, average=None)
+            class_val_pr = precision_score(
+                y_true=val_labels, y_pred=val_preds, average=None)
+            class_val_re = recall_score(
+                y_true=val_labels, y_pred=val_preds, average=None)
             valid_loss = np.mean(valid_losses)
+
+            # add in per-class metrics 
+            writer.add_scalar("val/accuracy", val_acc, epoch)
+            writer.add_scalar("val/micro-f1", val_f1_micro, epoch)
+            writer.add_scalar("val/macro-f1", val_f1_macro, epoch)
+            writer.add_scalar("val/w-f1", val_f1_weighted)
+
+            # adding per-class f1, precision, and recall
+            for i in range(10):
+                title = "val/class-" + str(i) + "-f1"
+                writer.add_scalar(title, np.array(class_val_f1[i]).mean())
+                title = "val/class-" + str(i) + "-precision"
+                writer.add_scalar(title, np.array(class_val_pr[i]).mean())
+                title = "val/class-" + str(i) + "-recall"
+                writer.add_scalar(title, np.array(class_val_re[i]).mean())
+
+
+            # early stopping 
             early_stopping(valid_loss, model)
             if early_stopping.early_stop:
                 print("Early Stopping")
@@ -422,7 +516,6 @@ def run(loss, epochs, imb):
 
 def main():
     run()
-    # load_train()
 
 
 if __name__ == '__main__':
