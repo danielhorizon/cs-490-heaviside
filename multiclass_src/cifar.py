@@ -30,8 +30,8 @@ from mc_torchconfusion import *
 
 from download_cifar import *
 
-torch.manual_seed(11)
-np.random.seed(11)
+torch.manual_seed(44)
+np.random.seed(44)
 
 
 # https://www.stefanfiott.com/machine-learning/cifar-10-classifier-using-cnn-in-pytorch/

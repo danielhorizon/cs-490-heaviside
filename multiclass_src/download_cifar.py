@@ -39,7 +39,7 @@ def create_imbalance_train(images, labels):
     # gets us indices of all class 9's - 5000 indices 
     class_nine_idx = get_idx_list(labels)       
     # choosing 4000 of these indices to remove from images and labels 
-    remove_indices = sample(class_nine_idx, 4500)
+    remove_indices = sample(class_nine_idx, 4000)
     imb_images = [i for j, i in enumerate(images) if j not in remove_indices]
     imb_labels = [i for j, i in enumerate(labels) if j not in remove_indices]
 
@@ -50,7 +50,9 @@ def create_imbalance_train(images, labels):
     class_count = np.unique(imb_labels, return_counts=True)[1]
     print("Class Count: {}".format(class_count))
     class_nine_leftover = get_idx_list(imb_labels)
-    list_4000_indices = random.choices(class_nine_leftover, k=4500)
+    print("Size of leftover: {}".format(len(class_nine_leftover)))
+    # sample from the 1000 indices 4000 times
+    list_4000_indices = random.choices(class_nine_leftover, k=4000)
 
     for idx in list_4000_indices:
         imb_images.append(imb_images[idx])
