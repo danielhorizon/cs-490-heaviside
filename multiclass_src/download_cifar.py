@@ -52,6 +52,7 @@ def create_imbalance_train(images, labels):
     class_nine_leftover = get_idx_list(imb_labels)
     print("Size of leftover: {}".format(len(class_nine_leftover)))
     # sample from the 1000 indices 4000 times
+    random.seed(1000)
     list_4000_indices = random.choices(class_nine_leftover, k=4000)
 
     for idx in list_4000_indices:
@@ -82,7 +83,7 @@ def load_imb_data():
 
     # creating imbalance, and oversampling. 
     X, y = create_imbalance_train(images, labels=cls)
-    X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.10, shuffle=True)
+    X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.10, shuffle=True, random_state=42)
     X_test, y_test, _ = load_test_data()
 
     X_test_reshaped = [] 

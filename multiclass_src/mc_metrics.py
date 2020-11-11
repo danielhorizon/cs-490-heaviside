@@ -258,118 +258,118 @@ def _auroc_score(gt, pt):
 
 
 ################################################################################
-def legacy_mean_f1_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
-    def loss(pt, gt):
-        """Approximate F1:
-            - Linear interpolated Heaviside function 
-            - Harmonic mean of precision and recall
-            - Mean over a range of thresholds
+# def legacy_mean_f1_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
+#     def loss(pt, gt):
+#         """Approximate F1:
+#             - Linear interpolated Heaviside function 
+#             - Harmonic mean of precision and recall
+#             - Mean over a range of thresholds
 
-        We observe that H(p,tau) can be replaced with a reasonably-sized O(1) lookup table by 
-        truncating p to several decimal places and precomputing H for values of p and tau over the 
-        range [0, 1]. 
-        """
-        classes = pt.shape[1]
-        mean_f1s = torch.zeros(classes, dtype=torch.float32)
-        # mean over all classes
-        for i in range(classes):
-            thresholds = torch.arange(0.1, 1, 0.1)
-            # returns the number of tp, fn, fp, and tn.
-            tp, fn, fp, _ = confusion(
-                gt, pt[:, i] if classes > 1 else pt, thresholds)
-            precision = tp/(tp+fp+EPS)
-            recall = tp/(tp+fn+EPS)
-            mean_f1s[i] = torch.mean(
-                2 * (precision * recall) / (precision + recall + EPS))
-        loss = 1 - mean_f1s.mean()
-        return loss
-    return loss
-
-
-def legacy_mean_f1_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
-    def loss(pt, gt):
-        """Approximate F1:
-            - Linear interpolated Heaviside function 
-            - Harmonic mean of precision and recall
-            - Mean over a range of thresholds
-
-        We observe that H(p,tau) can be replaced with a reasonably-sized O(1) lookup table by 
-        truncating p to several decimal places and precomputing H for values of p and tau over the 
-        range [0, 1]. 
-        """
-        classes = pt.shape[1]
-        mean_f1s = torch.zeros(classes, dtype=torch.float32)
-        # mean over all classes
-        for i in range(classes):
-            thresholds = torch.arange(0.1, 1, 0.1)
-            # returns the number of tp, fn, fp, and tn.
-            tp, fn, fp, _ = confusion(
-                gt, pt[:, i] if classes > 1 else pt, thresholds)
-            precision = tp/(tp+fp+EPS)
-            recall = tp/(tp+fn+EPS)
-            mean_f1s[i] = torch.mean(
-                2 * (precision * recall) / (precision + recall + EPS))
-        loss = 1 - mean_f1s.mean()
-        return loss
-    return loss
+#         We observe that H(p,tau) can be replaced with a reasonably-sized O(1) lookup table by 
+#         truncating p to several decimal places and precomputing H for values of p and tau over the 
+#         range [0, 1]. 
+#         """
+#         classes = pt.shape[1]
+#         mean_f1s = torch.zeros(classes, dtype=torch.float32)
+#         # mean over all classes
+#         for i in range(classes):
+#             thresholds = torch.arange(0.1, 1, 0.1)
+#             # returns the number of tp, fn, fp, and tn.
+#             tp, fn, fp, _ = confusion(
+#                 gt, pt[:, i] if classes > 1 else pt, thresholds)
+#             precision = tp/(tp+fp+EPS)
+#             recall = tp/(tp+fn+EPS)
+#             mean_f1s[i] = torch.mean(
+#                 2 * (precision * recall) / (precision + recall + EPS))
+#         loss = 1 - mean_f1s.mean()
+#         return loss
+#     return loss
 
 
-def legacy_mean_accuracy_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
-    def loss(pt, gt):
-        """Approximate Accuracy:
-            - Linear interpolated Heaviside function
-            - (TP + TN) / (TP + TN + FP + FN)
-            - Mean over a range of thresholds
-        """
-        classes = pt.shape[1]
-        mean_accs = torch.zeros(classes, dtype=torch.float32)
-        # mean over all classes
-        for i in range(classes):
-            tp, fn, fp, tn = confusion(
-                gt, pt[:, i] if classes > 1 else pt, thresholds)
-            mean_accs[i] = torch.mean((tp + tn) / (tp + tn + fp + fn))
-        loss = 1 - mean_accs.mean()
-        return loss
-    return loss
+# def legacy_mean_f1_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
+#     def loss(pt, gt):
+#         """Approximate F1:
+#             - Linear interpolated Heaviside function 
+#             - Harmonic mean of precision and recall
+#             - Mean over a range of thresholds
+
+#         We observe that H(p,tau) can be replaced with a reasonably-sized O(1) lookup table by 
+#         truncating p to several decimal places and precomputing H for values of p and tau over the 
+#         range [0, 1]. 
+#         """
+#         classes = pt.shape[1]
+#         mean_f1s = torch.zeros(classes, dtype=torch.float32)
+#         # mean over all classes
+#         for i in range(classes):
+#             thresholds = torch.arange(0.1, 1, 0.1)
+#             # returns the number of tp, fn, fp, and tn.
+#             tp, fn, fp, _ = confusion(
+#                 gt, pt[:, i] if classes > 1 else pt, thresholds)
+#             precision = tp/(tp+fp+EPS)
+#             recall = tp/(tp+fn+EPS)
+#             mean_f1s[i] = torch.mean(
+#                 2 * (precision * recall) / (precision + recall + EPS))
+#         loss = 1 - mean_f1s.mean()
+#         return loss
+#     return loss
 
 
-def area(x, y):
-    ''' area under curve via trapezoidal rule'''
-    direction = 1
-    # the following is equivalent to: dx = np.diff(x)
-    dx = x[1:] - x[:-1]
-    if torch.any(dx < 0):
-        if torch.all(dx <= 0):
-            direction = -1
-        else:
-            logging.warn(
-                "x is neither increasing nor decreasing\nx: {}\ndx: {}.".format(x, dx))
-            return 0
-    return direction * torch.trapz(y, x)
+# def legacy_mean_accuracy_approx_loss_on(thresholds=torch.arange(0.1, 1, 0.1)):
+#     def loss(pt, gt):
+#         """Approximate Accuracy:
+#             - Linear interpolated Heaviside function
+#             - (TP + TN) / (TP + TN + FP + FN)
+#             - Mean over a range of thresholds
+#         """
+#         classes = pt.shape[1]
+#         mean_accs = torch.zeros(classes, dtype=torch.float32)
+#         # mean over all classes
+#         for i in range(classes):
+#             tp, fn, fp, tn = confusion(
+#                 gt, pt[:, i] if classes > 1 else pt, thresholds)
+#             mean_accs[i] = torch.mean((tp + tn) / (tp + tn + fp + fn))
+#         loss = 1 - mean_accs.mean()
+#         return loss
+#     return loss
 
 
-def legacy_mean_auroc_approx_loss_on(linspacing=11):
-    def loss(pt, gt):
-        """Approximate auroc:
-            - Linear interpolated Heaviside function
-            - roc (11-point approximation)
-            - integrate via trapezoidal rule under curve
-        """
-        classes = pt.shape[1]
-        thresholds = torch.linspace(0, 1, linspacing)
-        areas = []
-        # mean over all classes
-        for i in range(classes):
-            tp, fn, fp, tn = confusion(
-                gt, pt[:, i] if classes > 1 else pt, thresholds)
-            fpr = fp/(fp+tn+EPS)
-            tpr = tp/(tp+fn+EPS)
-            a = area(fpr, tpr)
-            if a > 0:
-                areas.append(a)
-        loss = 1 - torch.stack(areas).mean()
-        return loss
-    return loss
+# def area(x, y):
+#     ''' area under curve via trapezoidal rule'''
+#     direction = 1
+#     # the following is equivalent to: dx = np.diff(x)
+#     dx = x[1:] - x[:-1]
+#     if torch.any(dx < 0):
+#         if torch.all(dx <= 0):
+#             direction = -1
+#         else:
+#             logging.warn(
+#                 "x is neither increasing nor decreasing\nx: {}\ndx: {}.".format(x, dx))
+#             return 0
+#     return direction * torch.trapz(y, x)
+
+
+# def legacy_mean_auroc_approx_loss_on(linspacing=11):
+#     def loss(pt, gt):
+#         """Approximate auroc:
+#             - Linear interpolated Heaviside function
+#             - roc (11-point approximation)
+#             - integrate via trapezoidal rule under curve
+#         """
+#         classes = pt.shape[1]
+#         thresholds = torch.linspace(0, 1, linspacing)
+#         areas = []
+#         # mean over all classes
+#         for i in range(classes):
+#             tp, fn, fp, tn = confusion(
+#                 gt, pt[:, i] if classes > 1 else pt, thresholds)
+#             fpr = fp/(fp+tn+EPS)
+#             tpr = tp/(tp+fn+EPS)
+#             a = area(fpr, tpr)
+#             if a > 0:
+#                 areas.append(a)
+#         loss = 1 - torch.stack(areas).mean()
+#         return loss
+#     return loss
 
 
 # compute metric value from cunfusion matrix
