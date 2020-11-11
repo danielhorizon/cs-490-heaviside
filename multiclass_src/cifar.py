@@ -219,7 +219,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # setting up tensorboard 
-    tensoboard_path = "/".join("tensorboard", run_name)
+    tensoboard_path = "/".join(["tensorboard", run_name])
     writer = SummaryWriter(tensoboard_path)
 
     # criterion
@@ -321,6 +321,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
             class_re = recall_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
             class_pr = precision_score(
                 y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
+            
             for i in range(len(class_f1s)):
                 class_f1_scores[i].append(class_f1s[i])
                 class_precision[i].append(class_pr[i])
@@ -340,21 +341,21 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
         writer.add_scalar("train/w-f1", m_weightedf1s, epoch)
         writer.add_scalar("train/micro-f1", m_microf1s, epoch)
         writer.add_scalar("train/macro-f1", m_macrof1s, epoch)
-        writer.add_scalar("train/w-recall", np.array(weighted_recalls).mean())
-        writer.add_scalar("train/micro-recall", np.array(micro_recalls).mean())
-        writer.add_scalar("train/macro-recall", np.array(macro_recalls).mean())
-        writer.add_scalar("train/w-precision", np.array(weighted_prs).mean())
-        writer.add_scalar("train/micro-precision", np.array(micro_prs).mean())
-        writer.add_scalar("train/macro-precision", np.array(macro_prs).mean())
+        writer.add_scalar("train/w-recall", np.array(weighted_recalls).mean(), epoch)
+        writer.add_scalar("train/micro-recall", np.array(micro_recalls).mean(), epoch)
+        writer.add_scalar("train/macro-recall", np.array(macro_recalls).mean(), epoch)
+        writer.add_scalar("train/w-precision", np.array(weighted_prs).mean(), epoch)
+        writer.add_scalar("train/micro-precision", np.array(micro_prs).mean(), epoch)
+        writer.add_scalar("train/macro-precision", np.array(macro_prs).mean(), epoch)
 
         # adding per-class f1, precision, and recall 
         for i in range(10): 
             title = "train/class-" + str(i) + "-f1"
-            writer.add_scalar(title, np.array(class_f1_scores[i]).mean())
+            writer.add_scalar(title, np.array(class_f1_scores[i]).mean(), epoch)
             title = "train/class-" + str(i) + "-precision"
-            writer.add_scalar(title, np.array(class_precision[i]).mean())
+            writer.add_scalar(title, np.array(class_precision[i]).mean(), epoch)
             title = "train/class-" + str(i) + "-recall"
-            writer.add_scalar(title, np.array(class_recall[i]).mean())
+            writer.add_scalar(title, np.array(class_recall[i]).mean(), epoch)
 
         # ----- TEST SET -----
         # Calculate metrics after going through all the batches
@@ -394,15 +395,15 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
         writer.add_scalar("test/accuracy", test_acc, epoch)
         writer.add_scalar("test/micro-f1", test_f1_micro, epoch)
         writer.add_scalar("test/macro-f1", test_f1_macro, epoch)
-        writer.add_scalar("test/w-f1", test_f1_weighted)
+        writer.add_scalar("test/w-f1", test_f1_weighted, epoch)
         # adding per-class f1, precision, and recall
         for i in range(10):
             title = "test/class-" + str(i) + "-f1"
-            writer.add_scalar(title, np.array(test_class_f1s[i]).mean())
+            writer.add_scalar(title, np.array(test_class_f1s[i]).mean(), epoch)
             title = "test/class-" + str(i) + "-precision"
-            writer.add_scalar(title, np.array(test_class_prs[i]).mean())
+            writer.add_scalar(title, np.array(test_class_prs[i]).mean(), epoch)
             title = "test/class-" + str(i) + "-recall"
-            writer.add_scalar(title, np.array(test_class_rec[i]).mean())
+            writer.add_scalar(title, np.array(test_class_rec[i]).mean(), epoch)
 
         if best_test['loss'] > m_loss:
             best_test['loss'] = m_loss
@@ -474,16 +475,16 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
             writer.add_scalar("val/accuracy", val_acc, epoch)
             writer.add_scalar("val/micro-f1", val_f1_micro, epoch)
             writer.add_scalar("val/macro-f1", val_f1_macro, epoch)
-            writer.add_scalar("val/w-f1", val_f1_weighted)
+            writer.add_scalar("val/w-f1", val_f1_weighted, epoch)
 
             # adding per-class f1, precision, and recall
             for i in range(10):
                 title = "val/class-" + str(i) + "-f1"
-                writer.add_scalar(title, np.array(class_val_f1[i]).mean())
+                writer.add_scalar(title, np.array(class_val_f1[i]).mean(), epoch)
                 title = "val/class-" + str(i) + "-precision"
-                writer.add_scalar(title, np.array(class_val_pr[i]).mean())
+                writer.add_scalar(title, np.array(class_val_pr[i]).mean(), epoch)
                 title = "val/class-" + str(i) + "-recall"
-                writer.add_scalar(title, np.array(class_val_re[i]).mean())
+                writer.add_scalar(title, np.array(class_val_re[i]).mean(), epoch)
 
 
             # early stopping 
@@ -504,14 +505,16 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
 @click.option("--loss", required=True)
 @click.option("--epochs", required=True)
 @click.option("--imb", required=False, is_flag=True, default=False)
-def run(loss, epochs, imb):
+@click.option("--run_name", required=False)
+def run(loss, epochs, imb, run_name):
     # check if forcing imbalance
+    print(run_name)
     imbalanced = False
     if imb:
         imbalanced = True
 
     # train
-    train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced)
+    train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced,run_name=run_name)
 
 
 def main():
@@ -522,52 +525,3 @@ if __name__ == '__main__':
     main(),
 
 
-########## DEPRECATED FUNCTIONS ##########
-
-def _check_class_balance(dataset):
-    targets = np.array(dataset.targets)
-    classes, class_counts = np.unique(targets, return_counts=True)
-    nb_classes = len(classes)
-    print(class_counts)
-
-
-def _create_imbalance(dataset):
-    """DEPRECATED: NO LONGER USED 
-    """
-    check_class_balance(dataset)
-    targets = np.array(dataset.targets)
-    # Create artificial imbalanced class counts
-    # One of the classes has 805 of observations removed
-    imbal_class_counts = [5000, 5000, 5000,
-                          5000, 5000, 5000, 5000, 5000, 5000, 1000]
-
-    # Get class indices
-    class_indices = [np.where(targets == i)[0] for i in range(10)]
-
-    # Get imbalanced number of instances
-    imbal_class_indices = [class_idx[:class_count] for class_idx,
-                           class_count in zip(class_indices, imbal_class_counts)]
-    imbal_class_indices = np.hstack(imbal_class_indices)
-    print("imbalanced class indices: {}".format(imbal_class_indices))
-
-    # Set target and data to dataset
-    dataset.targets = targets[imbal_class_indices]
-    dataset.data = dataset.data[imbal_class_indices]
-
-    assert len(dataset.targets) == len(dataset.data)
-    print("After imbalance: {}".format(check_class_balance(dataset)))
-
-    return dataset
-
-
-def _adjust_imbalance_sampler(dataset):
-    print(dataset)
-    targets = dataset.targets
-    class_count = np.unique(targets, return_counts=True)[1]
-    print(class_count)
-
-    weight = 1. / class_count
-    samples_weight = weight[targets]
-    samples_weight = torch.from_numpy(samples_weight)
-    sampler = WeightedRandomSampler(samples_weight, len(samples_weight))
-    return sampler
