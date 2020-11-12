@@ -338,7 +338,6 @@ def add_cm_val(cmv1, cmv2):
 
     return res
 
-
 # compute metric value from cunfusion matrix
 def compute_metric_from_cm(metric, C_val):
     # check for special cases
