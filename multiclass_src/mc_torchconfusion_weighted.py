@@ -9,21 +9,6 @@ from torch.autograd import gradcheck
 
 EPS = 1e-7
 
-
-'''
-- soft set membership function - will let you backpropagate through the entire thing. this comes from  
-having a probability to correspond that the sample is part of the set or not. 
-- when the metrics are computed, how do we get from the softmax to the label? 
-
-- each class output is a probability [0, 1] range. 
-- softmax, and then for each class, take the value at the current class array element 
-- take value from each part of the column, etc. 
-
-the network is predicting all of them in parallel, so it's predicting relative probabilities 
-the structure of the network s.t. the output is not independent. 
-'''
-
-
 def heaviside_approx(x, t, delta=0.1, debug=False):
     ''' piecewise linear approximation of the Heaviside function
         x, t: pre-inverted (x, threshold) values in a tuple
@@ -59,7 +44,7 @@ def heaviside_agg(xs, thresholds, agg):
     return new_res
 
 
-def l_tp(gt, pt, thresh, agg='sum'):
+def l_tp(gt, pt, thresh, classes, agg='sum'):
     # output closer to 1 if a true positive, else closer to 0
     #  tp: (gt == 1 and pt == 1) -> closer to 1 -> (inverter = false)
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (inverter = false)
@@ -73,13 +58,13 @@ def l_tp(gt, pt, thresh, agg='sum'):
     # 1-pt_t /nclasses - any other specific class 
     # 1-pt_t -> in all other classes 
 
-    xs = torch.where(condition, 1-pt_t, pt_t)
+    xs = torch.where(condition, (1-pt_t)/(classes-1), pt_t)
     # print("TP XS: {}".format(xs))
     thresholds = torch.where(condition, 1-thresh, thresh)
     return heaviside_agg(xs, thresholds, agg)
 
 
-def l_fn(gt, pt, thresh, agg='sum'):
+def l_fn(gt, pt, thresh, classes, agg='sum'):
     # output closer to 1 if a false negative, else closer to 0
     #  tp: (gt == 1 and pt == 1) -> closer to 0 -> (inverter = true)
     #  fn: (gt == 1 and pt == 0) -> closer to 1 -> (inverter = true)
@@ -104,13 +89,13 @@ def l_fn(gt, pt, thresh, agg='sum'):
     # 1-pt_t might not actually work
     # want to make sure that in the first case, we should have pos
     # need to make sure that the graident is pushing it towards the right direction
-    xs = torch.where(condition, pt_t, 1-pt_t)
+    xs = torch.where(condition, pt_t, (1-pt_t)/(classes-1))
 
     thresholds = torch.where(condition, thresh, 1-thresh)
     return heaviside_agg(xs, thresholds, agg)
 
 
-def l_fp(gt, pt, thresh, agg='sum'):
+def l_fp(gt, pt, thresh, classes, agg='sum'):
     # output closer to 1 if a false positive, else closer to 0
     #  tp: (gt == 1 and pt == 1) -> closer to 0 -> (inverter = true)
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (inverter = false)
@@ -121,15 +106,15 @@ def l_fp(gt, pt, thresh, agg='sum'):
     gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
     pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
     condition = (gt_t == 1) & (pt_t >= thresh)
-    xs = torch.where(condition, 1-pt_t, pt_t)
 
+    xs = torch.where(condition, (1-pt_t)/(classes-1), pt_t)
     thresholds = torch.where(condition, 1-thresh, thresh)
     value = heaviside_agg(xs, thresholds, agg)
 
     return value
 
 
-def l_tn(gt, pt, thresh, n_classes, agg='sum'):
+def l_tn(gt, pt, thresh, classes, agg='sum'):
     # output closer to 1 if a true negative, else closer to 0
     #  tp: (gt == 1 and pt == 1) -> closer to 0 -> (invert = true)
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (invert = false)
@@ -152,7 +137,7 @@ def l_tn(gt, pt, thresh, n_classes, agg='sum'):
     condition = (gt_t == 1) & (pt_t < thresh)
 
     # if it matches the threshold, keep the pt; otherwise, flip it.
-    xs = torch.where(condition, pt_t, 1-pt_t) # (1-pt_t/ (9)) -> n_classes-1 
+    xs = torch.where(condition, pt_t, (1-pt_t)/(classes-1))
 
     # print("XS: {}".format(xs.shape))
     # print("TRUE NEGATIVE X's: {}".format(xs)) 
@@ -173,21 +158,20 @@ def l_tn(gt, pt, thresh, n_classes, agg='sum'):
     - When we take 1-pt, this is almost always bigger than PT becuase of the softmax; it matters much less in the 
     negative case than in the positive case. 
     '''
-
     # thresholds: tensor([[0.9000, 0.8000, 0.7000, 0.6000, 0.5000, 0.4000, 0.3000, 0.2000, 0.1000]])
     thresholds = torch.where(condition, thresh, 1-thresh)
     return heaviside_agg(xs, thresholds, agg)
 
 
-def confusion(gt, pt, thresholds, agg='sum'):
-    tp = l_tp(gt, pt, thresholds, agg)
-    fn = l_fn(gt, pt, thresholds, agg)
-    fp = l_fp(gt, pt, thresholds, agg)
-    tn = l_tn(gt, pt, thresholds, agg)
+def confusion(gt, pt, thresholds, classes, agg='sum'):
+    tp = l_tp(gt, pt, thresholds, classes, agg)
+    fn = l_fn(gt, pt, thresholds, classes, agg)
+    fp = l_fp(gt, pt, thresholds, classes, agg)
+    tn = l_tn(gt, pt, thresholds, classes, agg)
     return tp, fn, fp, tn
 
 
-def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
+def wt_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
     ''' Mean of Heaviside Approx F1 
     F1 across the classes is evenly weighted, hence Macro F1 
 
@@ -212,7 +196,7 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch
             pt_list = y_preds[:, i] # pt list for the given class 
 
             thresholds = torch.arange(0.1, 1, 0.1).to(device)
-            tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
+            tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds, classes)
             precision = tp/(tp+fp+EPS)
             recall = tp/(tp+fn+EPS)
             temp_f1 = torch.mean(2 * (precision * recall) /

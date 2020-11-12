@@ -31,13 +31,14 @@ from sklearn import metrics
 # for early stopping.
 from pytorchtools import EarlyStopping
 from mc_torchconfusion import *
+from mc_torchconfusion_weighted import wt_mean_f1_approx_loss_on
 
 from download_cifar import *
 
 # setting seeds
-torch.manual_seed(45)
-torch.cuda.manual_seed(45)
-np.random.seed(45)
+torch.manual_seed(46)
+torch.cuda.manual_seed(46)
+np.random.seed(46)
 
 
 '''
@@ -197,11 +198,11 @@ def load_imbalanced_data():
     test_set = Dataset(data_splits['test'])
 
     data_params = {'batch_size': 128, 'shuffle': True, 'num_workers': 1, 'worker_init_fn':np.random.seed(0)}
-    set_seed(0)
+    set_seed(1)
     train_loader = DataLoader(train_set, **data_params)
-    set_seed(0)
+    set_seed(1)
     val_loader = DataLoader(validation_set, **data_params)
-    set_seed(0)
+    set_seed(1)
     test_loader = DataLoader(test_set, **data_params)
     return train_loader, val_loader, test_loader
 
@@ -233,9 +234,13 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # setting up tensorboard 
-    if run_name: 
-        tensorboard_path = "/".join(["tensorboard", run_name])
-        writer = SummaryWriter(tensorboard_path)
+    if run_name:
+        experiment_name = run_name  
+    else: 
+        experiment_name = "baseline-test"
+
+    tensorboard_path = "/".join(["tensorboard", experiment_name])
+    writer = SummaryWriter(tensorboard_path)
 
     # criterion
     if loss_metric == "ce":
@@ -249,6 +254,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
     elif loss_metric == "approx-auroc":
         approx = True
         criterion = mean_auroc_approx_loss_on(device=device)
+    elif loss_metric == "approx-f1-wt":
+        approx = True
+        criterion = wt_mean_f1_approx_loss_on(device=device)
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
@@ -402,8 +410,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
                 title = "train/class-" + str(i) + "-recall"
                 writer.add_scalar(title, 0, epoch)
 
-#approx-acc-imb	 
-
         # ----- TEST SET -----
         # Calculate metrics after going through all the batches
         model.eval()
@@ -473,9 +479,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
         print("Test - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}".format(
             epoch, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
         )
-        print(list(set(test_preds)))
-        print("Count of 9's in Preds: {} and Labels: {}".format(
-            np.count_nonzero(test_preds == 9.0), np.count_nonzero(test_labels == 9.0)))
+        # print(list(set(test_preds)))
+        # print("Count of 9's in Preds: {} and Labels: {}".format(
+        #     np.count_nonzero(test_preds == 9.0), np.count_nonzero(test_labels == 9.0)))
 
         # 0 = airplane, 1 = automobile, 2 = bird, 3 = cat, 4 = deer, 5 = dog, 6 = frog, 7 = horse, 8 = ship, 9 = truck
         print(classification_report(y_true=test_labels, y_pred=test_preds,

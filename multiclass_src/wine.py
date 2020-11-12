@@ -1,20 +1,23 @@
 
-
+import os
 import time
 import torch
 import click
 import logging
 import math
+import random 
 
 import pandas as pd
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+
+from mc_metrics import get_confusion
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
 from sklearn import metrics
 
 from torch.utils.data import DataLoader
@@ -23,6 +26,7 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
 from mc_torchconfusion import *
+from mc_torchconfusion_weighted import wt_mean_f1_approx_loss_on
 from gradient_flow import *
 
 # for early stopping.
@@ -31,8 +35,12 @@ from pytorchtools import EarlyStopping
 EPS = 1e-7
 _WHITE_WINE = "../data/winequality-white.csv"
 _RED_WINE = "../data/winequality-red.csv"
-torch.manual_seed(0)
-np.random.seed(0)
+
+# setting seeds
+torch.manual_seed(45)
+torch.cuda.manual_seed(45)
+np.random.seed(45)
+
 
 '''
 https://www.koreascience.or.kr/article/JAKO201832073079660.pdf
@@ -85,7 +93,7 @@ def load_white_wine(shuffle=True):
     train_df, test_df = train_test_split(
         raw_df, test_size=0.2, shuffle=shuffle)
     train_df, val_df = train_test_split(
-        train_df, test_size=0.2, shuffle=shuffle)
+        train_df, test_size=0.1, shuffle=shuffle)
 
     train_labels = np.array(train_df.pop("quality"))
     val_labels = np.array(val_df.pop("quality"))
@@ -95,7 +103,7 @@ def load_white_wine(shuffle=True):
     val_features = np.array(val_df)
     test_features = np.array(test_df)
 
-    # Scale 
+    # Scale
     scaler = StandardScaler()
     train_features = scaler.fit_transform(train_features)
     val_features = scaler.transform(val_features)
@@ -128,6 +136,15 @@ def load_white_wine(shuffle=True):
     }
 
 
+def set_seed(seed):
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+
+
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, ds_split):
         self.X = torch.from_numpy(ds_split['X']).float()
@@ -149,13 +166,7 @@ class Model(nn.Module):
     75 epochs and 60% classification accuracy 
     '''
 
-    def __init__(self,
-                 input_features=11,
-                 hidden_layer1=1000,
-                 hidden_layer2=500,
-                 output_inputs=250,
-                 output_features=4):
-
+    def __init__(self, input_features=11, hidden_layer1=1000, hidden_layer2=500, output_inputs=250, output_features=4):
         super().__init__()
         self.fc1 = nn.Linear(input_features, hidden_layer1)  # 11 -> 1000
         self.fc2 = nn.Linear(hidden_layer1, hidden_layer2)  # 1000 -> 500
@@ -175,17 +186,15 @@ class Model(nn.Module):
         return x
 
 
-def train_wine(data_splits, loss_metric, epochs):
-    using_gpu = False 
-    if torch.cuda.is_available(): 
+def train_wine(data_splits, loss_metric, epochs, run_name):
+    using_gpu = False
+    if torch.cuda.is_available():
         print("device = cuda")
         device = "cuda"
-        using_gpu = True 
-    else: 
+        using_gpu = True
+    else:
         print("device = cpu")
         device = "cpu"
-    
-    print("using DEVICE: {}".format(device))
 
     # setting train, validation, and test sets
     X_train, y_train = data_splits['train']['X'], data_splits['train']['y']
@@ -200,23 +209,29 @@ def train_wine(data_splits, loss_metric, epochs):
     y_valid = Variable(torch.Tensor(y_valid).long())
 
     # using DataSet and DataLoader
-    dataparams = {'batch_size': 256, 'shuffle': True, 'num_workers': 1}
+    dataparams = {'batch_size': 128, 'shuffle': True, 'num_workers': 1}
     trainset = Dataset(data_splits['train'])
     validationset = Dataset(data_splits['val'])
     testset = Dataset(data_splits['test'])
+    set_seed(0)
     train_loader = DataLoader(trainset, **dataparams)
+    set_seed(0)
     val_loader = DataLoader(validationset, **dataparams)
+    set_seed(0)
     test_loader = DataLoader(testset, **dataparams)
 
     # initialization
     early_stopping = False
     approx = False
     model = Model().to(device)
-    print(model)
 
     # initialize the early_stopping object
     patience = 50
     early_stopping = EarlyStopping(patience=patience, verbose=True)
+
+    # setting up tensorboard
+    tensorboard_path = "/".join(["tensorboard", "wine", run_name])
+    writer = SummaryWriter(tensorboard_path)
 
     avg_val_losses = []
     best_test = {
@@ -227,7 +242,7 @@ def train_wine(data_splits, loss_metric, epochs):
     }
 
     # setting optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     first_run = True
 
     # criterion
@@ -242,145 +257,269 @@ def train_wine(data_splits, loss_metric, epochs):
     elif loss_metric == "approx-auroc":
         approx = True
         criterion = mean_auroc_approx_loss_on(device=device)
+    elif loss_metric == "approx-f1-wt":
+        approx = True
+        criterion = wt_mean_f1_approx_loss_on(device=device)
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
     # ----- TRAINING -----
     losses = []
     for epoch in range(epochs):
-        for batch, (inputs, labels) in enumerate(train_loader):
-            labels = labels.type(torch.LongTensor).to(device)
-            inputs = inputs.to(device)
-            # setting into train mode.
-            model.train()
-
-            # zeroing out gradients
-            optimizer.zero_grad()
-
-            # making predictions
-            y_pred = model(inputs)
-
-            if not approx:
-                loss = criterion(y_pred, labels)
-            else:
-                train_labels = torch.zeros(len(labels), 4).to(device).scatter_(
-                    1, labels.unsqueeze(1), 1.).to(device)
-                loss = criterion(y_labels=train_labels, y_preds=y_pred)
-
-            losses.append(loss)
-            loss.backward()
-            optimizer.step()
-
-        # ----- EVALUATE -----
-        model.eval()
-        # print("losses:{}".format(losses))
-        if using_gpu:
-            mloss = torch.mean(torch.stack(losses))
-        else: 
-            mloss = np.array([x.item for x in losses]).mean()
-        
-        # https://github.com/rizalzaf/ap_perf/blob/master/examples/tabular.py
-
-        # TRAIN Metrics: Accuracy, F1, Loss
         if first_run:
             X_train = X_train.to(device)
             y_train = y_train.numpy()
             X_test = X_test.to(device)
             y_test = y_test.numpy()
             X_valid = X_valid.to(device)
-            y_valid = y_valid.numpy() 
+            y_valid = y_valid.numpy()
             first_run = False
-            
-        tr_output = model(X_train)
-        # for each array, get the array of max index
-        tr_pred = torch.Tensor([torch.argmax(x) for x in tr_output]).to(device)
-        tr_pred_np = [int(x) for x in tr_pred.cpu().numpy()]
 
-        # TODO(dlee): you should do these manually, not using sci-kit
-        tr_acc = accuracy_score(y_true=y_train, y_pred=tr_pred_np)
-        tr_f1_micro = f1_score(
-            y_true=y_train, y_pred=tr_pred_np, average='micro')
-        tr_f1_macro = f1_score(
-            y_true=y_train, y_pred=tr_pred_np, average='macro')
-        tr_f1_weighted = f1_score(
-            y_true=y_train, y_pred=tr_pred_np, average='weighted')
+        if epochs != 0:
+            for i, (inputs, labels) in enumerate(train_loader):
+                labels = labels.type(torch.LongTensor).to(device)
+                inputs = inputs.to(device)
+                # setting into train mode.
+                model.train()
 
-        # TEST Metrics: Accuracy, F1, Loss
-        ts_output = model(X_test)
-        ts_pred = torch.Tensor([torch.argmax(x) for x in ts_output]).to(device)
-        ts_pred_np = [int(x) for x in ts_pred.cpu().numpy()]
+                # zeroing out gradients
+                optimizer.zero_grad()
 
-        ts_acc = accuracy_score(y_true=y_test, y_pred=ts_pred_np)
-        print("Test Acc: {}".format(ts_acc))
-        ts_f1_micro = f1_score(
-            y_true=y_test, y_pred=ts_pred_np, average='micro')
-        ts_f1_macro = f1_score(
-            y_true=y_test, y_pred=ts_pred_np, average='macro')
-        ts_f1_weighted = f1_score(
-            y_true=y_test, y_pred=ts_pred_np, average='weighted')
+                # making predictions
+                y_pred = model(inputs)
+
+                if not approx:
+                    loss = criterion(y_pred, labels)
+                else:
+                    train_labels = torch.zeros(len(labels), 4).to(device).scatter_(
+                        1, labels.unsqueeze(1), 1.).to(device)
+                    loss = criterion(y_labels=train_labels, y_preds=y_pred)
+
+                losses.append(loss)
+                loss.backward()
+                optimizer.step()
+
+            # TRAIN Metrics: Accuracy, F1, Loss
+            model.eval()
+            if using_gpu:
+                mloss = torch.mean(torch.stack(losses))
+            else:
+                mloss = np.array([x.item for x in losses]).mean()
+            tr_output = model(X_train)
+            tr_pred = torch.Tensor([torch.argmax(x)
+                                    for x in tr_output]).to(device)
+            tr_pred_np = [int(x) for x in tr_pred.cpu().numpy()]
+            y_preds = tr_pred_np
+
+            tr_acc = accuracy_score(y_true=y_train, y_pred=y_preds)
+            tr_f1_micro = f1_score(
+                y_true=y_train, y_pred=y_preds, average='micro')
+            tr_f1_macro = f1_score(
+                y_true=y_train, y_pred=y_preds, average='macro')
+            tr_f1_weighted = f1_score(
+                y_true=y_train, y_pred=y_preds, average='weighted')
+            class_f1s = f1_score(y_true=y_train, y_pred=y_preds, average=None)
+            class_re = recall_score(
+                y_true=y_train, y_pred=y_preds, average=None)
+            class_pr = precision_score(
+                y_true=y_train, y_pred=y_preds, average=None)
+
+            if run_name:
+                writer.add_scalar("loss", mloss, epoch)
+                writer.add_scalar("train/accuracy", tr_acc, epoch)
+                writer.add_scalar("train/w-f1", tr_f1_weighted, epoch)
+                writer.add_scalar("train/micro-f1", tr_f1_micro, epoch)
+                writer.add_scalar("train/macro-f1", tr_f1_macro, epoch)
+                # adding per-class f1, precision, and recall
+                for i in range(4):
+                    title = "train/class-" + str(i) + "-f1"
+                    writer.add_scalar(title, np.array(
+                        class_f1s[i]).mean(), epoch)
+                    title = "train/class-" + str(i) + "-precision"
+                    writer.add_scalar(title, np.array(
+                        class_pr[i]).mean(), epoch)
+                    title = "train/class-" + str(i) + "-recall"
+                    writer.add_scalar(title, np.array(
+                        class_re[i]).mean(), epoch)
+        else:
+            # adding in 0 for now.
+            writer.add_scalar("loss", 0, epoch)
+            writer.add_scalar("train/accuracy", 0, epoch)
+            writer.add_scalar("train/w-f1", 0, epoch)
+            writer.add_scalar("train/micro-f1", 0, epoch)
+            writer.add_scalar("train/macro-f1", 0, epoch)
+            for i in range(4):
+                title = "train/class-" + str(i) + "-f1"
+                writer.add_scalar(title, 0, epoch)
+                title = "train/class-" + str(i) + "-precision"
+                writer.add_scalar(title, 0, epoch)
+                title = "train/class-" + str(i) + "-recall"
+                writer.add_scalar(title, 0, epoch)
+
+        # Printing out train metrics:
+        print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
+            epoch, tr_acc, tr_f1_weighted, tr_f1_micro, tr_f1_macro)
+        )
+
+        # ----- TEST SET -----
+        # Calculate metrics after going through all the batches
+        model.eval() 
+        test_preds, test_labels = np.array([]), np.array([])
+        for i, (inputs, labels) in enumerate(test_loader):
+            inputs = inputs.to(device)
+            labels = labels.to(device) 
+            output = model(inputs)
+            _, predicted = torch.max(output, 1)
+
+            pred_arr = predicted.cpu().numpy()
+            label_arr = labels.cpu().numpy() 
+
+            test_labels = np.concatenate([test_labels, label_arr])
+            test_preds = np.concatenate([test_preds, pred_arr])
+        
+        test_acc = accuracy_score(y_true=test_labels, y_pred=test_preds)
+        test_f1_micro = f1_score(y_true=test_labels, y_pred=test_preds, average='micro')
+        test_f1_macro = f1_score(y_true=test_labels, y_pred=test_preds, average='macro')
+        test_f1_weighted = f1_score(y_true=test_labels, y_pred=test_preds, average='weighted')
+        test_class_f1s = f1_score(
+            y_true=test_labels, y_pred=test_preds, average=None)
+        test_class_prs = precision_score(
+            y_true=test_labels, y_pred=test_preds, average=None)
+        test_class_rec = recall_score(
+            y_true=test_labels, y_pred=test_preds, average=None)
+
+        # adding in tensorboard metrics 
+        if run_name: 
+            writer.add_scalar("test/accuracy", test_acc, epoch)
+            writer.add_scalar("test/micro-f1", test_f1_micro, epoch)
+            writer.add_scalar("test/macro-f1", test_f1_macro, epoch)
+            writer.add_scalar("test/w-f1", test_f1_weighted, epoch)
+            for i in range(4):
+                title = "test/class-" + str(i) + "-f1"
+                writer.add_scalar(title, np.array(
+                    test_class_f1s[i]).mean(), epoch)
+                title = "test/class-" + str(i) + "-precision"
+                writer.add_scalar(title, np.array(
+                    test_class_prs[i]).mean(), epoch)
+                title = "test/class-" + str(i) + "-recall"
+                writer.add_scalar(title, np.array(
+                    test_class_rec[i]).mean(), epoch)
+
+                tp, fp, fn, tn = get_confusion(
+                    gt=test_labels, pt=test_preds, class_value=i)
+                tp_title = 'test/class-' + str(i) + "-TP"
+                fp_title = 'test/class-' + str(i) + "-FP"
+                fn_title = 'test/class-' + str(i) + "-FN"
+                tn_title = 'test/class-' + str(i) + "-TN"
+                writer.add_scalar(tp_title, tp, epoch)
+                writer.add_scalar(fp_title, fp, epoch)
+                writer.add_scalar(fn_title, fn, epoch)
+                writer.add_scalar(tn_title, tn, epoch)
+
 
         # storing test metrics in dict based on loss
-        if best_test['loss'] > mloss:
-            best_test['loss'] = mloss
-            best_test['best-epoch'] = epoch
-        if best_test['f1_score'] < ts_f1_weighted:
-            best_test['f1_score'] = ts_f1_weighted
-        if best_test['accuracy'] < ts_acc:
-            best_test['accuracy'] = ts_acc
+        if epoch != 0: 
+            if best_test['loss'] > mloss:
+                best_test['loss'] = mloss
+                best_test['best-epoch'] = epoch
+            if best_test['f1_score'] < test_f1_weighted:
+                best_test['f1_score'] = test_f1_weighted
+            if best_test['accuracy'] < test_acc:
+                best_test['accuracy'] = test_acc
 
-        print("-- Mean Loss: {:.3f}".format(mloss))
-        print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.4f} | Macro F1: {:.3f}".format(
-            epoch, tr_acc, tr_f1_weighted, ts_f1_micro, tr_f1_macro)
-        )
         print("Test - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.4f} | Macro F1: {:.3f}".format(
-            epoch, ts_acc, ts_f1_weighted, ts_f1_micro, ts_f1_macro)
+            epoch, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
         )
+        print(classification_report(y_true=test_labels, y_pred=test_preds,
+                                    target_names=['0', '1', '2', '3']))
 
         # ----- VALIDATION -----
         model.eval()
         valid_losses = []
-        for data, target in val_loader:
-            target = target.type(torch.LongTensor).to(device)
-            data = data.to(device)
-            output = model.forward(data)
-            if approx:
-                target = target.type(torch.int64)
-                # there are 3 wine classes
-                valid_labels = torch.zeros(len(target), 4).to(device).scatter_(
-                    1, target.unsqueeze(1), 1.)
-                curr_val_loss = criterion(
-                    y_labels=valid_labels, y_preds=output)
-            else:
-                curr_val_loss = criterion(output, target)
+        with torch.no_grad(): 
+            val_preds, val_labels = np.array([]), np.array([])
+            for i, (inputs, labels) in enumerate(val_loader): 
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+                output = model(inputs)
+                _, predicted = torch.max(output, 1)
 
-            # valid_losses.append(curr_val_loss.detach().numpy())
-            valid_losses.append(curr_val_loss.detach().cpu().numpy())
+                # calculate metrics 
+                model.eval()
+                pred_arr = predicted.cpu().numpy()
+                label_arr = labels.cpu().numpy() 
+                val_labels = np.concatenate([val_labels, label_arr])
+                val_preds = np.concatenate([val_preds, pred_arr])
 
-        # computing validation metrics via val_data
-        val_output = model(X_valid)
-        val_pred = torch.Tensor([torch.argmax(x) for x in val_output]).to(device)
-        val_pred_np = [int(x) for x in val_pred.cpu().numpy()]
-        val_acc = accuracy_score(y_true=y_valid, y_pred=val_pred_np)
-        val_f1_micro = f1_score(
-            y_true=y_valid, y_pred=val_pred_np, average='micro')
-        val_f1_macro = f1_score(
-            y_true=y_valid, y_pred=val_pred_np, average='macro')
-        val_f1_weighted = f1_score(
-            y_true=y_valid, y_pred=val_pred_np, average='weighted')
+                if approx:
+                    labels = labels.type(torch.int64)
+                    # there are 3 wine classes
+                    valid_labels = torch.zeros(len(labels), 4).to(device).scatter_(
+                        1, labels.unsqueeze(1), 1.)
+                    curr_val_loss = criterion(
+                        y_labels=valid_labels, y_preds=output)
+                else:
+                    labels = labels.type(torch.int64)
+                    curr_val_loss = criterion(output, labels)
 
-        print("Valid - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f} | Macro F1: {:.4f}".format(
-            epoch, val_acc, val_f1_weighted, val_f1_weighted, val_f1_micro, val_f1_macro)
-        )
+                # appending loss to master list. 
+                valid_losses.append(curr_val_loss.detach().cpu().numpy())
 
-        # computing the losses
-        valid_loss = np.mean(valid_losses)
-        print("Validation Loss: {}".format(valid_loss))
-        avg_val_losses.append(valid_loss)
+            # computing validation metrics via val_data
+            val_acc = accuracy_score(y_true=val_labels, y_pred=val_preds)
+            val_f1_micro = f1_score(
+                y_true=val_labels, y_pred=val_preds, average='micro')
+            val_f1_macro = f1_score(
+                y_true=val_labels, y_pred=val_preds, average='macro')
+            val_f1_weighted = f1_score(
+                y_true=val_labels, y_pred=val_preds, average='weighted')
 
-        early_stopping(valid_loss, model)
-        if early_stopping.early_stop:
-            print("Early Stopping")
-            break
+            class_val_f1 = f1_score(
+                y_true=val_labels, y_pred=val_preds, average=None)
+            class_val_pr = precision_score(
+                y_true=val_labels, y_pred=val_preds, average=None)
+            class_val_re = recall_score(
+                y_true=val_labels, y_pred=val_preds, average=None)
+
+            valid_loss = np.mean(valid_losses)
+            # adding in per-class metrics: 
+            if run_name: 
+                writer.add_scalar("val/accuracy", val_acc, epoch)
+                writer.add_scalar("val/micro-f1", val_f1_micro, epoch)
+                writer.add_scalar("val/macro-f1", val_f1_macro, epoch)
+                writer.add_scalar("val/w-f1", val_f1_weighted, epoch)
+
+                # adding per-class f1, precision, and recall
+                for i in range(4):
+                    title = "val/class-" + str(i) + "-f1"
+                    writer.add_scalar(title, np.array(class_val_f1[i]).mean(), epoch)
+                    title = "val/class-" + str(i) + "-precision"
+                    writer.add_scalar(title, np.array(class_val_pr[i]).mean(), epoch)
+                    title = "val/class-" + str(i) + "-recall"
+                    writer.add_scalar(title, np.array(class_val_re[i]).mean(), epoch)
+
+                    # adding in per class training
+                    # get_confusion(gt, pt, class_value=None):
+                    tp, fp, fn, tn = get_confusion(
+                        gt=val_labels, pt=val_preds, class_value=i)
+                    tp_title = 'val/class-' + str(i) + "-TP"
+                    fp_title = 'val/class-' + str(i) + "-FP"
+                    fn_title = 'val/class-' + str(i) + "-FN"
+                    tn_title = 'val/class-' + str(i) + "-TN"
+                    writer.add_scalar(tp_title, tp, epoch)
+                    writer.add_scalar(fp_title, fp, epoch)
+                    writer.add_scalar(fn_title, fn, epoch)
+                    writer.add_scalar(tn_title, tn, epoch)
+
+            early_stopping(valid_loss, model)
+            if early_stopping.early_stop:
+                print("Early Stopping")
+                break
+
+            print("Val - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
+                epoch, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
+            )
+
     print(best_test)
     return
 
@@ -388,14 +527,25 @@ def train_wine(data_splits, loss_metric, epochs):
 @click.command()
 @click.option("--loss", required=True)
 @click.option("--epochs", required=True)
-def run(loss, epochs):
+@click.option("--run_name", required=False)
+def run(loss, epochs, run_name):
     data_splits = load_white_wine()
-    train_wine(data_splits, loss_metric=loss, epochs=int(epochs))
+    train_wine(data_splits, loss_metric=loss,
+               epochs=int(epochs), run_name=run_name)
 
 
 def main():
+    os.environ['LC_ALL'] = 'C.UTF-8'
+    os.environ['LANG'] = "C.UTF-8"
     run()
 
 
 if __name__ == '__main__':
     main()
+
+
+'''
+- Write loss for the weighted classes, and for the different F1's 
+
+
+'''

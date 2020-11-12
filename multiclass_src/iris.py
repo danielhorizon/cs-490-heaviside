@@ -1,3 +1,4 @@
+import os 
 import time
 import torch
 import click
@@ -329,6 +330,8 @@ def run(loss, epochs):
 
 
 def main():
+    os.environ['LC_ALL'] = 'C.UTF-8'
+    os.environ['LANG'] = "C.UTF-8"
     run()
 
 
