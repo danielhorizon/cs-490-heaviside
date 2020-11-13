@@ -1,0 +1,10 @@
+{
+    "best-epoch": 0,
+    "imbalanced": true,
+    "learning_rate": 0.001,
+    "loss": Infinity,
+    "test_accuracy": 0,
+    "test_wt_f1_score": 0,
+    "val_accuracy": 0,
+    "val_wt_f1_score": 0
+},{"best-epoch": 0, "imbalanced": true, "learning_rate": 0.001, "loss": Infinity, "test_accuracy": 0, "test_wt_f1_score": 0, "val_accuracy": 0, "val_wt_f1_score": 0},{"best-epoch": 0, "imbalanced": true, "learning_rate": 0.001, "loss": Infinity, "loss_metric": "ce", "run_name": "baseline-imb-1", "seed": 45, "test_accuracy": 0, "test_wt_f1_score": 0, "val_accuracy": 0, "val_wt_f1_score": 0},

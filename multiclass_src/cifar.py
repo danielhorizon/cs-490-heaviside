@@ -191,20 +191,31 @@ def set_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
 
-def load_imbalanced_data():
+
+def load_imbalanced_data(seed):
     data_splits = load_imb_data()
     train_set = Dataset(data_splits['train'])
     validation_set = Dataset(data_splits['val'])
     test_set = Dataset(data_splits['test'])
 
     data_params = {'batch_size': 128, 'shuffle': True, 'num_workers': 1, 'worker_init_fn':np.random.seed(0)}
-    set_seed(0)
+    set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
-    set_seed(0)
+    set_seed(seed)
     val_loader = DataLoader(validation_set, **data_params)
-    set_seed(0)
+    set_seed(seed)
     test_loader = DataLoader(test_set, **data_params)
     return train_loader, val_loader, test_loader
+
+
+def record_results(best_test):
+    import json
+    import os
+
+    with open("results.json", "a") as f:
+        json.dump(best_test, f, sort_keys=True)
+        f.write(",")
+    f.close()
 
 
 def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
@@ -217,21 +228,37 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
         print("device = cpu")
         device = "cpu"
 
-    set_seed(45)
+    seed = 45 
+    set_seed(seed)
+    best_test = {
+        "best-epoch": 0,
+        "loss": float('inf'),
+        "test_wt_f1_score": 0,
+        "val_wt_f1_score": 0,
+        "test_accuracy": 0,
+        "val_accuracy": 0,
+        "learning_rate": 0,
+        "imbalanced": False, 
+        "loss_metric": loss_metric, 
+        "run_name": run_name, 
+        "seed": seed, 
+    }
+    
 
     # loading in data
     if imbalanced:
-        train_loader, val_loader, test_loader = load_imbalanced_data()
+        train_loader, val_loader, test_loader = load_imbalanced_data(seed=seed)
+        best_test['imbalanced'] = True 
     else:
         train_loader, val_loader, test_loader = load_data_v2(shuffle=True)
 
-    # setting inits, initialize the early_stopping object
-    # classes = ('plane', 'car', 'bird', 'cat', 'deer','dog', 'frog', 'horse', 'ship', 'truck')
     approx = False
     model = Net().to(device)
     patience = 100
     early_stopping = EarlyStopping(patience=patience, verbose=True)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    learning_rate = 0.001
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    best_test['learning_rate'] = learning_rate
 
     # setting up tensorboard 
     if run_name:
@@ -245,24 +272,17 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
     elif loss_metric == "approx-f1":
         approx = True
         criterion = mean_f1_approx_loss_on(device=device)
+    elif loss_metric == "approx-f1-wt":
+        approx = True
+        criterion = wt_mean_f1_approx_loss_on(device=device)
     elif loss_metric == "approx-acc":
         approx = True
         criterion = mean_accuracy_approx_loss_on(device=device)
     elif loss_metric == "approx-auroc":
         approx = True
         criterion = mean_auroc_approx_loss_on(device=device)
-    elif loss_metric == "approx-f1-wt":
-        approx = True
-        criterion = wt_mean_f1_approx_loss_on(device=device)
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
-
-    best_test = {
-        "best-epoch": 0,
-        "loss": float('inf'),
-        "f1_score": 0,
-        "accuracy": 0
-    }
 
     # ----- TRAINING -----
     losses = []
@@ -469,17 +489,14 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
             if best_test['loss'] > m_loss:
                 best_test['loss'] = m_loss
                 best_test['best-epoch'] = epoch
-            if best_test['f1_score'] < test_f1_weighted:
-                best_test['f1_score'] = test_f1_weighted
-            if best_test['accuracy'] < test_acc:
-                best_test['accuracy'] = test_acc
+            if best_test['test_wt_f1_score'] < test_f1_weighted:
+                best_test['test_wt_f1_score'] = test_f1_weighted
+            if best_test['test_accuracy'] < test_acc:
+                best_test['test_accuracy'] = test_acc
 
         print("Test - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}".format(
             epoch, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
         )
-        print(list(set(test_preds)))
-        print("Count of 9's in Preds: {} and Labels: {}".format(
-            np.count_nonzero(test_preds == 9.0), np.count_nonzero(test_labels == 9.0)))
 
         # 0 = airplane, 1 = automobile, 2 = bird, 3 = cat, 4 = deer, 5 = dog, 6 = frog, 7 = horse, 8 = ship, 9 = truck
         print(classification_report(y_true=test_labels, y_pred=test_preds,
@@ -570,9 +587,21 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
             print("Val - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
                 epoch, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
             )
+            if epoch != 0:
+                if best_test['val_wt_f1_score'] < val_f1_weighted:
+                    best_test['val_wt_f1_score'] = val_f1_weighted
+                if best_test['val_accuracy'] < val_acc:
+                    best_test['val_accuracy'] = val_acc
+            
 
     print(best_test)
-    return
+    # writing out a CSV to record results. 
+    record_results(best_test)
+    return best_test 
+
+
+
+
 
 
 @click.command()
