@@ -57,7 +57,7 @@ def l_tp(gt, pt, thresh, classes, agg='sum'):
     condition = (gt_t == 0) & (pt_t >= thresh)
     # 1-pt_t /nclasses - any other specific class 
     # 1-pt_t -> in all other classes 
-
+    
     xs = torch.where(condition, (1-pt_t)/(classes-1), pt_t)
     # print("TP XS: {}".format(xs))
     thresholds = torch.where(condition, 1-thresh, thresh)
@@ -178,23 +178,23 @@ def wt_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=to
     Args: 
         y_labels: one-hot encoded label, i.e. 2 -> [0, 0, 1] 
         y_preds: softmaxed predictions
-    '''
-    thresholds = thresholds.to(device)
-    def loss(y_labels, y_preds):
-        classes = len(y_labels[0])
-        mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
-        # you never know what your test distribution is going to be 
+    
+    # you never know what your test distribution is going to be 
         # TODO(dlee): weighting the F1 with respect to it. 
         # how good is our network at predicting certain classes. 
 
         # depending on what type of data you have, taking an average is not the way to do it. 
         # is f1 itself a rate? if you take the harmonic mean of rates 
         # look for a defintion of f_beta -> see if this is a rate. 
-
+    '''
+    thresholds = thresholds.to(device)
+    def loss(y_labels, y_preds):
+        classes = len(y_labels[0])
+        mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
+        
         for i in range(classes):
             gt_list = torch.Tensor([x[i] for x in y_labels])
             pt_list = y_preds[:, i] # pt list for the given class 
-
             thresholds = torch.arange(0.1, 1, 0.1).to(device)
             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds, classes)
             precision = tp/(tp+fp+EPS)
@@ -208,69 +208,69 @@ def wt_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=to
     return loss
 
 
-def mean_accuracy_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
-    ''' Mean of Heaviside Approx Accuracy 
-    Accuracy across the classes is evenly weighted 
-    '''
-    thresholds = thresholds.to(device)
-    def loss(y_labels, y_preds):
-        classes = len(y_labels[0])
-        mean_accs = torch.zeros(classes, dtype=torch.float32).to(device)
-        for i in range(classes):
-            gt_list = torch.Tensor([x[i] for x in y_labels])
-            pt_list = y_preds[:, i]
+# def mean_accuracy_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
+#     ''' Mean of Heaviside Approx Accuracy 
+#     Accuracy across the classes is evenly weighted 
+#     '''
+#     thresholds = thresholds.to(device)
+#     def loss(y_labels, y_preds):
+#         classes = len(y_labels[0])
+#         mean_accs = torch.zeros(classes, dtype=torch.float32).to(device)
+#         for i in range(classes):
+#             gt_list = torch.Tensor([x[i] for x in y_labels])
+#             pt_list = y_preds[:, i]
 
-            thresholds = torch.arange(0.1, 1, 0.1)
-            tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
-            mean_accs[i] = torch.mean((tp + tn) / (tp + tn + fp + fn))
-        loss = 1 - mean_accs.mean()
-        return loss
-    return loss
-
-
-def area(x, y):
-    ''' area under curve via trapezoidal rule '''
-    direction = 1
-    # the following is equivalent to: dx = np.diff(x)
-    dx = x[1:] - x[:-1]
-    if torch.any(dx < 0):
-        if torch.all(dx <= 0):
-            direction = -1
-        else:
-            # when you compute area under the curve using trapezoidal approx, 
-            # assume that the whole area under the curve is going one direction
-            # compute one trapezoidal rule 
-
-            # INSTEAD, compute under every part of the curve. 
-            # TODO(dlee): compute from every single point, and compute 
-            # the trapezoidal rule under every single one of these points.
-            logging.warn(
-                "x is neither increasing nor decreasing\nx: {}\ndx: {}.".format(x, dx))
-            return 0
-    return direction * torch.trapz(y, x)
+#             thresholds = torch.arange(0.1, 1, 0.1)
+#             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
+#             mean_accs[i] = torch.mean((tp + tn) / (tp + tn + fp + fn))
+#         loss = 1 - mean_accs.mean()
+#         return loss
+#     return loss
 
 
-def mean_auroc_approx_loss_on(device, y_labels=None, y_preds=None, linspacing=11):
-    def loss(y_labels, y_preds):
-        """Approximate auroc:
-            - Linear interpolated Heaviside function
-            - roc (11-point approximation)
-            - integrate via trapezoidal rule under curve
-        """
-        classes = len(y_labels[0])
-        thresholds = torch.linspace(0, 1, linspacing).to(device)
-        areas = []
-        # mean over all classes
-        for i in range(classes):
-            gt_list = torch.Tensor([x[i] for x in y_labels])
-            pt_list = y_preds[:, i]
+# def area(x, y):
+#     ''' area under curve via trapezoidal rule '''
+#     direction = 1
+#     # the following is equivalent to: dx = np.diff(x)
+#     dx = x[1:] - x[:-1]
+#     if torch.any(dx < 0):
+#         if torch.all(dx <= 0):
+#             direction = -1
+#         else:
+#             # when you compute area under the curve using trapezoidal approx, 
+#             # assume that the whole area under the curve is going one direction
+#             # compute one trapezoidal rule 
 
-            tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
-            fpr = fp/(fp+tn+EPS)
-            tpr = tp/(tp+fn+EPS)
-            a = area(fpr, tpr)
-            if a > 0:
-                areas.append(a)
-        loss = 1 - torch.stack(areas).mean()
-        return loss
-    return loss
+#             # INSTEAD, compute under every part of the curve. 
+#             # TODO(dlee): compute from every single point, and compute 
+#             # the trapezoidal rule under every single one of these points.
+#             logging.warn(
+#                 "x is neither increasing nor decreasing\nx: {}\ndx: {}.".format(x, dx))
+#             return 0
+#     return direction * torch.trapz(y, x)
+
+
+# def mean_auroc_approx_loss_on(device, y_labels=None, y_preds=None, linspacing=11):
+#     def loss(y_labels, y_preds):
+#         """Approximate auroc:
+#             - Linear interpolated Heaviside function
+#             - roc (11-point approximation)
+#             - integrate via trapezoidal rule under curve
+#         """
+#         classes = len(y_labels[0])
+#         thresholds = torch.linspace(0, 1, linspacing).to(device)
+#         areas = []
+#         # mean over all classes
+#         for i in range(classes):
+#             gt_list = torch.Tensor([x[i] for x in y_labels])
+#             pt_list = y_preds[:, i]
+
+#             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
+#             fpr = fp/(fp+tn+EPS)
+#             tpr = tp/(tp+fn+EPS)
+#             a = area(fpr, tpr)
+#             if a > 0:
+#                 areas.append(a)
+#         loss = 1 - torch.stack(areas).mean()
+#         return loss
+#     return loss
