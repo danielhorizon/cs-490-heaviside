@@ -4,7 +4,7 @@ import pandas as pd
 import torch
 import logging
 from torch.autograd import Variable
-
+from torch.utils.tensorboard import SummaryWriter
 from torch.autograd import gradcheck
 
 EPS = 1e-7
@@ -37,20 +37,22 @@ def heaviside_approx(x, t, delta=0.1, debug=False):
     cm3 = x > t + tt/2
     m3 = d/(1-t-tt/2)
     if debug:
-        conditions = torch.where(cm1, torch.tensor([1.0]), torch.where(cm3, torch.tensor([3.0]), torch.tensor([2.0])))
+        conditions = torch.where(cm1, torch.tensor([1.0]), torch.where(
+            cm3, torch.tensor([3.0]), torch.tensor([2.0])))
         print('x', x)
         print('t', t)
         print('conditions', conditions)
         # print(f"m1 = {d}/{t}-{tt}/2")
         # print(f"m2 = (1-2*{d})/({tt}+EPS)")
         # print(f"m3 = {d}/(1-{t}-{tt}/2)")
-    res = torch.where(cm1,m1*x,torch.where(cm3, m3*x + (1-d-m3*(t+tt/2)), m2*(x-t)+0.5))
+    res = torch.where(cm1, m1*x, torch.where(cm3, m3*x +
+                                             (1-d-m3*(t+tt/2)), m2*(x-t)+0.5))
     if debug:
         print('res', res)
     return res
 
 
-def heaviside_agg(xs, thresholds, agg):    
+def heaviside_agg(xs, thresholds, agg):
     new_res = heaviside_approx(xs, thresholds)
 
     if agg == 'sum':
@@ -67,11 +69,13 @@ def l_tp(gt, pt, thresh, agg='sum'):
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
     thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
                          torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
-    pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
+    gt_t = torch.reshape(torch.repeat_interleave(
+        gt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
+    pt_t = torch.reshape(torch.repeat_interleave(
+        pt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
     condition = (gt_t == 0) & (pt_t >= thresh)
-    # 1-pt_t /nclasses - any other specific class 
-    # 1-pt_t -> in all other classes 
+    # 1-pt_t /nclasses - any other specific class
+    # 1-pt_t -> in all other classes
 
     xs = torch.where(condition, 1-pt_t, pt_t)
     # print("TP XS: {}".format(xs))
@@ -118,8 +122,10 @@ def l_fp(gt, pt, thresh, agg='sum'):
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
     thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
                          torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
-    pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
+    gt_t = torch.reshape(torch.repeat_interleave(
+        gt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
+    pt_t = torch.reshape(torch.repeat_interleave(
+        pt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
     condition = (gt_t == 1) & (pt_t >= thresh)
     xs = torch.where(condition, 1-pt_t, pt_t)
 
@@ -140,7 +146,7 @@ def l_tn(gt, pt, thresh, n_classes, agg='sum'):
     thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
                          torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
 
-    # GT_T: tensor([[0., 0., 0., 0., 0., 0., 0., 0., 0.]]) -or- 
+    # GT_T: tensor([[0., 0., 0., 0., 0., 0., 0., 0., 0.]]) -or-
     # GT_T: tensor([[1., 1., 1., 1., 1., 1., 1., 1., 1.]])
     gt_t = torch.reshape(torch.repeat_interleave(
         gt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
@@ -152,10 +158,8 @@ def l_tn(gt, pt, thresh, n_classes, agg='sum'):
     condition = (gt_t == 1) & (pt_t < thresh)
 
     # if it matches the threshold, keep the pt; otherwise, flip it.
-    xs = torch.where(condition, pt_t, 1-pt_t) # (1-pt_t/ (9)) -> n_classes-1 
+    xs = torch.where(condition, pt_t, 1-pt_t)  # (1-pt_t/ (9)) -> n_classes-1
 
-    # print("XS: {}".format(xs.shape))
-    # print("TRUE NEGATIVE X's: {}".format(xs)) 
     ''' 
     - You can get the prob that it doesn't belong (belongs to other class) -> 1-pt. No longer true the MC case. 
     - The softmax output sums to one. You have pt + other classes = 1 
@@ -187,6 +191,45 @@ def confusion(gt, pt, thresholds, agg='sum'):
     return tp, fn, fp, tn
 
 
+# def mean_f1_approx_loss_on(device, writer, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
+#     ''' Mean of Heaviside Approx F1
+#     F1 across the classes is evenly weighted, hence Macro F1
+
+#     Args:
+#         y_labels: one-hot encoded label, i.e. 2 -> [0, 0, 1]
+#         y_preds: softmaxed predictions
+#     '''
+#     thresholds = thresholds.to(device)
+
+#     def loss(y_labels, y_preds, epoch):
+#         print("EPOCH FROM OTHER: {}".format(epoch))
+#         classes = len(y_labels[0])
+#         mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
+#         # you never know what your test distribution is going to be
+#         # TODO(dlee): weighting the F1 with respect to it.
+#         # how good is our network at predicting certain classes.
+
+#         # depending on what type of data you have, taking an average is not the way to do it.
+#         # is f1 itself a rate? if you take the harmonic mean of rates
+#         # look for a defintion of f_beta -> see if this is a rate.
+
+#         for i in range(classes):
+#             gt_list = torch.Tensor([x[i] for x in y_labels])
+#             pt_list = y_preds[:, i] # pt list for the given class
+
+#             thresholds = torch.arange(0.1, 1, 0.1).to(device)
+#             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
+#             precision = tp/(tp+fp+EPS)
+#             recall = tp/(tp+fn+EPS)
+#             temp_f1 = torch.mean(2 * (precision * recall) /
+#                                  (precision + recall + EPS))
+
+#             mean_f1s[i] = temp_f1
+
+#         loss = 1 - mean_f1s.mean()
+#         return loss
+#     return loss
+
 def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
     ''' Mean of Heaviside Approx F1 
     F1 across the classes is evenly weighted, hence Macro F1 
@@ -196,20 +239,22 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch
         y_preds: softmaxed predictions
     '''
     thresholds = thresholds.to(device)
+
     def loss(y_labels, y_preds):
         classes = len(y_labels[0])
         mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
-        # you never know what your test distribution is going to be 
-        # TODO(dlee): weighting the F1 with respect to it. 
-        # how good is our network at predicting certain classes. 
-
-        # depending on what type of data you have, taking an average is not the way to do it. 
-        # is f1 itself a rate? if you take the harmonic mean of rates 
-        # look for a defintion of f_beta -> see if this is a rate. 
+        class_tp = [0]*classes
+        class_fn = [0]*classes
+        class_fp = [0]*classes
+        class_tn = [0]*classes
+        class_pr = [0]*classes
+        class_re = [0]*classes
+        class_f1 = [0]*classes
+        class_acc = [0]*classes
 
         for i in range(classes):
             gt_list = torch.Tensor([x[i] for x in y_labels])
-            pt_list = y_preds[:, i] # pt list for the given class 
+            pt_list = y_preds[:, i]  # pt list for the given class
 
             thresholds = torch.arange(0.1, 1, 0.1).to(device)
             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
@@ -219,8 +264,19 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch
                                  (precision + recall + EPS))
             mean_f1s[i] = temp_f1
 
+            # geting the average across all thresholds.
+            # holds array of just the raw values.
+            class_tp[i] = tp.mean().detach().item()
+            class_fn[i] = fn.mean().detach().item()
+            class_fp[i] = fp.mean().detach().item()
+            class_tn[i] = tn.mean().detach().item()
+            class_pr[i] = precision.mean().detach().item()
+            class_re[i] = recall.mean().detach().item()
+            class_f1[i] = temp_f1.detach().item()
+            class_acc[i] = torch.mean((tp + tn) / (tp + tn + fp + fn)).mean().detach().item()
+
         loss = 1 - mean_f1s.mean()
-        return loss
+        return loss, class_tp, class_fn, class_fp, class_tn, class_pr, class_re, class_f1, class_acc
     return loss
 
 
@@ -229,6 +285,7 @@ def mean_accuracy_approx_loss_on(device, y_labels=None, y_preds=None, thresholds
     Accuracy across the classes is evenly weighted 
     '''
     thresholds = thresholds.to(device)
+
     def loss(y_labels, y_preds):
         classes = len(y_labels[0])
         mean_accs = torch.zeros(classes, dtype=torch.float32).to(device)
@@ -253,12 +310,12 @@ def area(x, y):
         if torch.all(dx <= 0):
             direction = -1
         else:
-            # when you compute area under the curve using trapezoidal approx, 
+            # when you compute area under the curve using trapezoidal approx,
             # assume that the whole area under the curve is going one direction
-            # compute one trapezoidal rule 
+            # compute one trapezoidal rule
 
-            # INSTEAD, compute under every part of the curve. 
-            # TODO(dlee): compute from every single point, and compute 
+            # INSTEAD, compute under every part of the curve.
+            # TODO(dlee): compute from every single point, and compute
             # the trapezoidal rule under every single one of these points.
             logging.warn(
                 "x is neither increasing nor decreasing\nx: {}\ndx: {}.".format(x, dx))

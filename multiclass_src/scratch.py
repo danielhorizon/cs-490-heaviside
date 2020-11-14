@@ -7,8 +7,11 @@ def record_results(best_test):
     with open("results.json", "r+") as f:
         data = json.load(f)
         data.append(best_test)
-        f.seek(0)
-        json.dump(data, f)
+        f.close()
+        # f.seek(0)
+    
+    with open("results.json", "w") as outfile: 
+        json.dump(data, outfile)
     return 
 
 

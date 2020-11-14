@@ -69,7 +69,7 @@ def convert_shape(x):
     return x.reshape([1,3,32,32])
 
 
-def load_imb_data():
+def load_imb_data(seed):
     """ Loads imbalanced data (80-20 split on class 9, and sampling again from 20%). 
     """
     maybe_download_and_extract()
@@ -83,7 +83,7 @@ def load_imb_data():
 
     # creating imbalance, and oversampling. 
     X, y = create_imbalance_train(images, labels=cls)
-    X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.10, shuffle=True, random_state=42)
+    X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.10, shuffle=True, random_state=seed)
     X_test, y_test, _ = load_test_data()
 
     X_test_reshaped = [] 

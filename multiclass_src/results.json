@@ -1,16 +1,1 @@
-[
-    // Just for testing purposes 
-    {
-        "best-epoch": 0,
-        "imbalanced": true,
-        "learning_rate": 0.001,
-        "loss": false,
-        "loss_metric": "approx-f1",
-        "run_name": "testoutfile",
-        "seed": 45,
-        "test_accuracy": 0,
-        "test_wt_f1_score": 0,
-        "val_accuracy": 0,
-        "val_wt_f1_score": 0
-    },
-]
+[{"best-epoch": 0, "imbalanced": true, "learning_rate": 0.001, "loss": false, "loss_metric": "approx-f1", "run_name": "testoutfile", "seed": 45, "test_accuracy": 0, "test_wt_f1_score": 0, "val_accuracy": 0, "val_wt_f1_score": 0}, {"best-epoch": 150, "loss": 1.87089, "test_wt_f1_score": 0.43825, "val_wt_f1_score": 0.50007, "test_accuracy": 0.4445, "val_accuracy": 0.5036, "learning_rate": 0.001, "imbalanced": true, "loss_metric": "ce", "run_name": "baseline-imb-0", "seed": 1}, {"best-epoch": 152, "loss": 1.87258, "test_wt_f1_score": 0.44752, "val_wt_f1_score": 0.48865, "test_accuracy": 0.4507, "val_accuracy": 0.4942, "learning_rate": 0.001, "imbalanced": true, "loss_metric": "ce", "run_name": "baseline-imb-1", "seed": 45}, {"best-epoch": 152, "loss": 1.86256, "test_wt_f1_score": 0.4375, "val_wt_f1_score": 0.49478, "test_accuracy": 0.4421, "val_accuracy": 0.494, "learning_rate": 0.001, "imbalanced": true, "loss_metric": "ce", "run_name": "baseline-imb-2", "seed": 92}, {"best-epoch": 134, "loss": 1.86949, "test_wt_f1_score": 0.44789, "val_wt_f1_score": 0.50182, "test_accuracy": 0.4543, "val_accuracy": 0.5056, "learning_rate": 0.001, "imbalanced": true, "loss_metric": "ce", "run_name": "baseline-imb-3", "seed": 34}, {"best-epoch": 128, "loss": 1.87452, "test_wt_f1_score": 0.44326, "val_wt_f1_score": 0.49147, "test_accuracy": 0.4508, "val_accuracy": 0.494, "learning_rate": 0.001, "imbalanced": true, "loss_metric": "ce", "run_name": "baseline-imb-4", "seed": 15}, {"best-epoch": 120, "loss": 1.88478, "test_wt_f1_score": 0.43715, "val_wt_f1_score": 0.48947, "test_accuracy": 0.4433, "val_accuracy": 0.4914, "learning_rate": 0.001, "imbalanced": true, "loss_metric": "ce", "run_name": "baseline-imb-5", "seed": 20}]

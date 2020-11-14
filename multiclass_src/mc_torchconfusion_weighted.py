@@ -158,8 +158,7 @@ def l_tn(gt, pt, thresh, classes, agg='sum'):
     condition = (gt_t == 1) & (pt_t < thresh)
 
     # if it matches the threshold, keep the pt; otherwise, flip it.
-    xs = torch.where(condition, pt_t, (1-pt_t) / (classes-1)
-                     )  # (1-pt_t/ (9)) -> n_classes-1
+    xs = torch.where(condition, pt_t, (1-pt_t) / (classes-1))  # (1-pt_t/ (9)) -> n_classes-1
 
     # print("XS: {}".format(xs.shape))
     # print("TRUE NEGATIVE X's: {}".format(xs))
@@ -206,6 +205,14 @@ def wt_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=to
 
     def loss(y_labels, y_preds):
         classes = len(y_labels[0])
+        class_tp = [0]*classes
+        class_fn = [0]*classes
+        class_fp = [0]*classes
+        class_tn = [0]*classes
+        class_pr = [0]*classes
+        class_re = [0]*classes
+        class_f1 = [0]*classes
+        class_acc = [0]*classes
         mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
         # you never know what your test distribution is going to be
         # TODO(dlee): weighting the F1 with respect to it.
@@ -227,7 +234,19 @@ def wt_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=to
                                  (precision + recall + EPS))
             mean_f1s[i] = temp_f1
 
+            # geting the average across all thresholds.
+            # holds array of just the raw values.
+            class_tp[i] = tp.mean().detach().item()
+            class_fn[i] = fn.mean().detach().item()
+            class_fp[i] = fp.mean().detach().item()
+            class_tn[i] = tn.mean().detach().item()
+            class_pr[i] = precision.mean().detach().item()
+            class_re[i] = recall.mean().detach().item()
+            class_f1[i] = temp_f1.detach().item()
+            class_acc[i] = torch.mean(
+                (tp + tn) / (tp + tn + fp + fn)).mean().detach().item()
+
         loss = 1 - mean_f1s.mean()
-        return loss
+        return loss, class_tp, class_fn, class_fp, class_tn, class_pr, class_re, class_f1, class_acc
     return loss
 
