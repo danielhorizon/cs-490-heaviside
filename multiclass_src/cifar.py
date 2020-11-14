@@ -222,7 +222,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     if torch.cuda.is_available():
         print("device = cuda")
         # device = "cuda"
-        device="cuda:2"
+        device="cuda:3"
         using_gpu = True
     else:
         print("device = cpu")
@@ -359,15 +359,16 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     running_loss = 0.0
 
                 # storing soft-set-metrics 
-                for i in range(10): 
-                    ss_class_tp[i].append(hclass_tp[i])
-                    ss_class_fn[i].append(hclass_fn[i])
-                    ss_class_fp[i].append(hclass_fp[i])
-                    ss_class_tn[i].append(hclass_tn[i])
-                    ss_class_pr[i].append(hclass_pr[i])
-                    ss_class_re[i].append(hclass_re[i])
-                    ss_class_f1[i].append(hclass_f1[i])
-                    ss_class_acc[i].append(hclass_acc[i])
+                if approx: 
+                    for i in range(10): 
+                        ss_class_tp[i].append(hclass_tp[i])
+                        ss_class_fn[i].append(hclass_fn[i])
+                        ss_class_fp[i].append(hclass_fp[i])
+                        ss_class_tn[i].append(hclass_tn[i])
+                        ss_class_pr[i].append(hclass_pr[i])
+                        ss_class_re[i].append(hclass_re[i])
+                        ss_class_f1[i].append(hclass_f1[i])
+                        ss_class_acc[i].append(hclass_acc[i])
 
 
                 # check prediction
@@ -437,31 +438,32 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     title = "train/class-" + str(i) + "-recall"
                     writer.add_scalar(title, np.array(class_recall[i]).mean(), epoch)
 
+                    if approx: 
                     # adding in softset membership 
-                    title = "val/class-" + str(i) + "-softset-" + "TP"
-                    writer.add_scalar(title, np.array(
-                        ss_class_tp[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "FP"
-                    writer.add_scalar(title, np.array(
-                        ss_class_fp[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "FN"
-                    writer.add_scalar(title, np.array(
-                        ss_class_fn[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "TN"
-                    writer.add_scalar(title, np.array(
-                        ss_class_tn[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "precision"
-                    writer.add_scalar(title, np.array(
-                        ss_class_pr[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "recall"
-                    writer.add_scalar(title, np.array(
-                        ss_class_re[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "f1"
-                    writer.add_scalar(title, np.array(
-                        ss_class_f1[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "acc"
-                    writer.add_scalar(title, np.array(
-                        ss_class_acc[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "TP"
+                        writer.add_scalar(title, np.array(
+                            ss_class_tp[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "FP"
+                        writer.add_scalar(title, np.array(
+                            ss_class_fp[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "FN"
+                        writer.add_scalar(title, np.array(
+                            ss_class_fn[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "TN"
+                        writer.add_scalar(title, np.array(
+                            ss_class_tn[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "precision"
+                        writer.add_scalar(title, np.array(
+                            ss_class_pr[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "recall"
+                        writer.add_scalar(title, np.array(
+                            ss_class_re[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "f1"
+                        writer.add_scalar(title, np.array(
+                            ss_class_f1[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "acc"
+                        writer.add_scalar(title, np.array(
+                            ss_class_acc[i]).mean(), epoch)
                     
 
         else:
@@ -617,15 +619,16 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 valid_losses.append(curr_val_loss.detach().cpu().numpy())
 
                 # storing soft-set-metrics
-                for i in range(10):
-                    ss_class_tp[i].append(hclass_tp[i])
-                    ss_class_fn[i].append(hclass_fn[i])
-                    ss_class_fp[i].append(hclass_fp[i])
-                    ss_class_tn[i].append(hclass_tn[i])
-                    ss_class_pr[i].append(hclass_pr[i])
-                    ss_class_re[i].append(hclass_re[i])
-                    ss_class_f1[i].append(hclass_f1[i])
-                    ss_class_acc[i].append(hclass_acc[i])
+                if approx: 
+                    for i in range(10):
+                        ss_class_tp[i].append(hclass_tp[i])
+                        ss_class_fn[i].append(hclass_fn[i])
+                        ss_class_fp[i].append(hclass_fp[i])
+                        ss_class_tn[i].append(hclass_tn[i])
+                        ss_class_pr[i].append(hclass_pr[i])
+                        ss_class_re[i].append(hclass_re[i])
+                        ss_class_f1[i].append(hclass_f1[i])
+                        ss_class_acc[i].append(hclass_acc[i])
 
 
             val_acc = accuracy_score(y_true=val_labels, y_pred=val_preds)
@@ -676,31 +679,32 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     writer.add_scalar(fn_title, fn, epoch)
                     writer.add_scalar(tn_title, tn, epoch)
 
-                    # adding in softset membership
-                    title = "val/class-" + str(i) + "-softset-" + "TP"
-                    writer.add_scalar(title, np.array(
-                        ss_class_tp[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "FP"
-                    writer.add_scalar(title, np.array(
-                        ss_class_fp[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "FN"
-                    writer.add_scalar(title, np.array(
-                        ss_class_fn[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "TN"
-                    writer.add_scalar(title, np.array(
-                        ss_class_tn[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "precision"
-                    writer.add_scalar(title, np.array(
-                        ss_class_pr[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "recall"
-                    writer.add_scalar(title, np.array(
-                        ss_class_re[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "f1"
-                    writer.add_scalar(title, np.array(
-                        ss_class_f1[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-softset-" + "acc"
-                    writer.add_scalar(title, np.array(
-                        ss_class_acc[i]).mean(), epoch)
+                    if approx: 
+                        # adding in softset membership
+                        title = "val/class-" + str(i) + "-softset-" + "TP"
+                        writer.add_scalar(title, np.array(
+                            ss_class_tp[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "FP"
+                        writer.add_scalar(title, np.array(
+                            ss_class_fp[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "FN"
+                        writer.add_scalar(title, np.array(
+                            ss_class_fn[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "TN"
+                        writer.add_scalar(title, np.array(
+                            ss_class_tn[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "precision"
+                        writer.add_scalar(title, np.array(
+                            ss_class_pr[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "recall"
+                        writer.add_scalar(title, np.array(
+                            ss_class_re[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "f1"
+                        writer.add_scalar(title, np.array(
+                            ss_class_f1[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "acc"
+                        writer.add_scalar(title, np.array(
+                            ss_class_acc[i]).mean(), epoch)
 
             # early stopping
             early_stopping(valid_loss, model)
