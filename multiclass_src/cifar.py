@@ -254,7 +254,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
 
     approx = False
     model = Net().to(device)
-    patience = 100
+    patience = 50
     early_stopping = EarlyStopping(patience=patience, verbose=True)
     learning_rate = 0.001
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -597,10 +597,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
     print(best_test)
     # writing out a CSV to record results. 
     record_results(best_test)
-    return best_test 
-
-
-
+    # TODO(dlee) 
+    return 
 
 
 
