@@ -1,6 +1,7 @@
 import os 
 import click
 import torch
+import json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -209,13 +210,12 @@ def load_imbalanced_data(seed):
 
 
 def record_results(best_test):
-    import json
-    import os
-
-    with open("results.json", "a") as f:
-        json.dump(best_test, f, sort_keys=True)
-        f.write(",")
-    f.close()
+    with open("results.json", "r+") as f:
+        data = json.load(f)
+        data.append(best_test)
+        f.seek(0)
+        json.dump(data, f)
+    return
 
 
 def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
@@ -286,7 +286,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
 
     # ----- TRAINING -----
     losses = []
-    for epoch in range(epochs):  # loop over the dataset multiple times
+    for epoch in range(epochs): 
         running_loss = 0.0
         accs, microf1s, macrof1s, wf1s = [], [], [], []
         micro_prs, macro_prs, weighted_prs = [], [], []
@@ -295,19 +295,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
         class_precision = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[], 8:[], 9:[]} 
         class_recall = {0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[], 8:[], 9:[]} 
 
-        if epoch == 0: 
-            print("--- MODEL PARAMS ---")
-            # print(model.parameters()[0].data)
-            for param in model.parameters():
-                print(param.data[1])
-                print(param.data[1].shape)
-                break
-
         if epoch != 0: 
-        # going over in batches of 128
+            # going over in batches of 128
             for i, (inputs, labels) in enumerate(train_loader):
-
-                # get the inputs; data is a list of [inputs, labels]
                 inputs = inputs.to(device)
                 labels = labels.to(device)
                 # zero the parameter gradients
@@ -472,7 +462,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
                 writer.add_scalar(title, np.array(test_class_prs[i]).mean(), epoch)
                 title = "test/class-" + str(i) + "-recall"
                 writer.add_scalar(title, np.array(test_class_rec[i]).mean(), epoch)
-
+ 
                 # adding in per class training 
                 # get_confusion(gt, pt, class_value=None):
                 tp, fp, fn, tn = get_confusion(gt=test_labels, pt=test_preds, class_value=i)
@@ -593,11 +583,19 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None):
                 if best_test['val_accuracy'] < val_acc:
                     best_test['val_accuracy'] = val_acc
             
-
+    # writing out a CSV to record results.
     print(best_test)
-    # writing out a CSV to record results. 
+    if torch.is_tensor(best_test['loss']): 
+        best_test['loss'] = best_test['loss'].item() 
+    if torch.is_tensor(best_test['test_wt_f1_score']): 
+        best_test['test_wt_f1_score'] = best_test['test_wt_f1_score'].item() 
+    if torch.is_tensor(best_test['val_wt_f1_score']): 
+        best_test['val_wt_f1_score'] = best_test['val_wt_f1_score'].item()
+
+    best_test['loss'] = round(best_test['loss'], 5)
+    best_test['test_wt_f1_score'] = round(best_test['test_wt_f1_score'] , 5)
+    best_test['val_wt_f1_score'] = round(best_test['val_wt_f1_score'], 5)
     record_results(best_test)
-    # TODO(dlee) 
     return 
 
 
