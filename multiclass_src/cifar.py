@@ -440,28 +440,28 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
                     if approx: 
                     # adding in softset membership 
-                        title = "val/class-" + str(i) + "-softset-" + "TP"
+                        title = "train/class-" + str(i) + "-softset-" + "TP"
                         writer.add_scalar(title, np.array(
                             ss_class_tp[i]).mean(), epoch)
-                        title = "val/class-" + str(i) + "-softset-" + "FP"
+                        title = "train/class-" + str(i) + "-softset-" + "FP"
                         writer.add_scalar(title, np.array(
                             ss_class_fp[i]).mean(), epoch)
-                        title = "val/class-" + str(i) + "-softset-" + "FN"
+                        title = "train/class-" + str(i) + "-softset-" + "FN"
                         writer.add_scalar(title, np.array(
                             ss_class_fn[i]).mean(), epoch)
-                        title = "val/class-" + str(i) + "-softset-" + "TN"
+                        title = "train/class-" + str(i) + "-softset-" + "TN"
                         writer.add_scalar(title, np.array(
                             ss_class_tn[i]).mean(), epoch)
-                        title = "val/class-" + str(i) + "-softset-" + "precision"
+                        title = "train/class-" + str(i) + "-softset-" + "precision"
                         writer.add_scalar(title, np.array(
                             ss_class_pr[i]).mean(), epoch)
-                        title = "val/class-" + str(i) + "-softset-" + "recall"
+                        title = "train/class-" + str(i) + "-softset-" + "recall"
                         writer.add_scalar(title, np.array(
                             ss_class_re[i]).mean(), epoch)
-                        title = "val/class-" + str(i) + "-softset-" + "f1"
+                        title = "train/class-" + str(i) + "-softset-" + "f1"
                         writer.add_scalar(title, np.array(
                             ss_class_f1[i]).mean(), epoch)
-                        title = "val/class-" + str(i) + "-softset-" + "acc"
+                        title = "train/class-" + str(i) + "-softset-" + "acc"
                         writer.add_scalar(title, np.array(
                             ss_class_acc[i]).mean(), epoch)
                     
