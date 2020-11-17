@@ -228,6 +228,7 @@ def wt_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=to
 
             thresholds = torch.arange(0.1, 1, 0.1).to(device)
             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds, classes)
+            # print("tp: {}".format(tp))
             precision = tp/(tp+fp+EPS)
             recall = tp/(tp+fn+EPS)
             temp_f1 = torch.mean(2 * (precision * recall) /

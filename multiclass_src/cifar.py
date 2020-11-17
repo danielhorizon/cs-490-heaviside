@@ -163,7 +163,7 @@ def load_data_v2(shuffle=True):
     train_sampler = SubsetRandomSampler(train_idx)
     valid_sampler = SubsetRandomSampler(valid_idx)
 
-    batch_size = 128
+    batch_size = 1024
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, sampler=train_sampler,
         num_workers=4, pin_memory=True,
@@ -194,7 +194,7 @@ def load_imbalanced_data(seed):
     validation_set = Dataset(data_splits['val'])
     test_set = Dataset(data_splits['test'])
 
-    data_params = {'batch_size': 128, 'shuffle': True,
+    data_params = {'batch_size': 1024, 'shuffle': True,
                    'num_workers': 1, 'worker_init_fn': np.random.seed(seed)}
     set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
@@ -207,12 +207,12 @@ def load_imbalanced_data(seed):
 
 def record_results(best_test):
     # reading in the data from the existing file.
-    with open("results.json", "r+") as f:
+    with open("results2.json", "r+") as f:
         data = json.load(f)
         data.append(best_test)
         f.close()
 
-    with open("results.json", "w") as outfile:
+    with open("results2.json", "w") as outfile:
         json.dump(data, outfile)
     return
 
@@ -221,14 +221,17 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     using_gpu = False
     if torch.cuda.is_available():
         print("device = cuda")
-        # device = "cuda"
-        device="cuda:3"
+        device = "cuda:2"
+        # device="cuda:3"
         using_gpu = True
     else:
         print("device = cpu")
         device = "cpu"
 
     set_seed(seed)
+    train_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    valid_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     best_test = {
         "best-epoch": 0,
         "loss": float('inf'),
@@ -240,6 +243,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         "imbalanced": False,
         "loss_metric": loss_metric,
         "run_name": run_name,
+        "train_dxn": None, 
+        "test_dxn": None, 
+        "valid_dxn": None,
         "seed": seed,
     }
 
@@ -266,7 +272,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # setting up tensorboard
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard", experiment_name])
+        tensorboard_path = "/".join(["tensorboard", "cifar_runs", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -290,6 +296,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
     # ----- TRAINING -----
     losses = []
+    
+
     for epoch in range(epochs):
         running_loss = 0.0
         accs, microf1s, macrof1s, wf1s = [], [], [], []
@@ -327,10 +335,15 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 break
 
         if epoch != 0:
-            # going over in batches of 128
+            # going over in batches of 1024
             for i, (inputs, labels) in enumerate(train_loader):
+                # for class distribution - loop through and add 
+                labels_list = labels.numpy()
+                for label in labels_list:
+                    test_dxn[label] += 1
                 inputs = inputs.to(device)
                 labels = labels.to(device)
+                
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
@@ -494,9 +507,13 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         model.eval()
         test_preds, test_labels = np.array([]), np.array([])
         for i, (inputs, labels) in enumerate(test_loader):
+            labels_list = labels.numpy() 
+            for label in labels_list:
+                test_dxn[label] += 1
+
             inputs = inputs.to(device)
             labels = labels.to(device)
-
+            
             output = model(inputs)
             _, predicted = torch.max(output, 1)
 
@@ -593,9 +610,13 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                            4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
 
             for i, (inputs, labels) in enumerate(val_loader):
+                labels_list = labels.numpy() 
+                for label in labels_list:
+                    valid_dxn[label] += 1
+
                 inputs = inputs.to(device)
                 labels = labels.to(device)
-
+                
                 output = model(inputs)
                 _, predicted = torch.max(output, 1)
 
@@ -733,6 +754,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['loss'] = round(best_test['loss'], 5)
     best_test['test_wt_f1_score'] = round(best_test['test_wt_f1_score'], 5)
     best_test['val_wt_f1_score'] = round(best_test['val_wt_f1_score'], 5)
+    best_test['train_dxn'] = train_dxn
+    best_test['test_dxn'] = test_dxn
+    best_test['valid_dxn'] = valid_dxn
     record_results(best_test)
     return
 
