@@ -340,7 +340,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 # for class distribution - loop through and add 
                 labels_list = labels.numpy()
                 for label in labels_list:
-                    test_dxn[label] += 1
+                    train_dxn[label] += 1
                 inputs = inputs.to(device)
                 labels = labels.to(device)
                 
