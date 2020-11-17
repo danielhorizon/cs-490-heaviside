@@ -42,9 +42,9 @@ def heaviside_approx(x, t, delta=0.1, debug=False):
         print('x', x)
         print('t', t)
         print('conditions', conditions)
-        # print(f"m1 = {d}/{t}-{tt}/2")
-        # print(f"m2 = (1-2*{d})/({tt}+EPS)")
-        # print(f"m3 = {d}/(1-{t}-{tt}/2)")
+        print(f"m1 = {d}/{t}-{tt}/2")
+        print(f"m2 = (1-2*{d})/({tt}+EPS)")
+        print(f"m3 = {d}/(1-{t}-{tt}/2)")
     res = torch.where(cm1, m1*x, torch.where(cm3, m3*x +
                                              (1-d-m3*(t+tt/2)), m2*(x-t)+0.5))
     if debug:
@@ -53,12 +53,13 @@ def heaviside_approx(x, t, delta=0.1, debug=False):
 
 
 def heaviside_agg(xs, thresholds, agg):
-    new_res = heaviside_approx(xs, thresholds)
+    # new_res = heaviside_approx(xs, thresholds)
 
-    if agg == 'sum':
-        return torch.sum(new_res, axis=0)
+    # if agg == 'sum':
+    #     return torch.sum(new_res, axis=0)
 
-    return new_res
+    # return new_res
+    return torch.sum(approx(xs, thresholds).cuda())
 
 
 def l_tp(gt, pt, thresh, agg='sum'):
@@ -135,7 +136,7 @@ def l_fp(gt, pt, thresh, agg='sum'):
     return value
 
 
-def l_tn(gt, pt, thresh, n_classes, agg='sum'):
+def l_tn(gt, pt, thresh, agg='sum'):
     # output closer to 1 if a true negative, else closer to 0
     #  tp: (gt == 1 and pt == 1) -> closer to 0 -> (invert = true)
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (invert = false)
@@ -190,45 +191,6 @@ def confusion(gt, pt, thresholds, agg='sum'):
     tn = l_tn(gt, pt, thresholds, agg)
     return tp, fn, fp, tn
 
-
-# def mean_f1_approx_loss_on(device, writer, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
-#     ''' Mean of Heaviside Approx F1
-#     F1 across the classes is evenly weighted, hence Macro F1
-
-#     Args:
-#         y_labels: one-hot encoded label, i.e. 2 -> [0, 0, 1]
-#         y_preds: softmaxed predictions
-#     '''
-#     thresholds = thresholds.to(device)
-
-#     def loss(y_labels, y_preds, epoch):
-#         print("EPOCH FROM OTHER: {}".format(epoch))
-#         classes = len(y_labels[0])
-#         mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
-#         # you never know what your test distribution is going to be
-#         # TODO(dlee): weighting the F1 with respect to it.
-#         # how good is our network at predicting certain classes.
-
-#         # depending on what type of data you have, taking an average is not the way to do it.
-#         # is f1 itself a rate? if you take the harmonic mean of rates
-#         # look for a defintion of f_beta -> see if this is a rate.
-
-#         for i in range(classes):
-#             gt_list = torch.Tensor([x[i] for x in y_labels])
-#             pt_list = y_preds[:, i] # pt list for the given class
-
-#             thresholds = torch.arange(0.1, 1, 0.1).to(device)
-#             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
-#             precision = tp/(tp+fp+EPS)
-#             recall = tp/(tp+fn+EPS)
-#             temp_f1 = torch.mean(2 * (precision * recall) /
-#                                  (precision + recall + EPS))
-
-#             mean_f1s[i] = temp_f1
-
-#         loss = 1 - mean_f1s.mean()
-#         return loss
-#     return loss
 
 def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
     ''' Mean of Heaviside Approx F1 

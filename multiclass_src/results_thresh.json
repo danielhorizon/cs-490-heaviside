@@ -1,0 +1,15 @@
+[
+    {
+        "best-epoch": 0,
+        "imbalanced": true,
+        "learning_rate": 0.001,
+        "loss": false,
+        "loss_metric": "approx-f1",
+        "run_name": "testoutfile",
+        "seed": 45,
+        "test_accuracy": 0,
+        "test_wt_f1_score": 0,
+        "val_accuracy": 0,
+        "val_wt_f1_score": 0
+    }
+]
