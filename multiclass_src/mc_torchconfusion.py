@@ -53,13 +53,13 @@ def heaviside_approx(x, t, delta=0.1, debug=False):
 
 
 def heaviside_agg(xs, thresholds, agg):
-    # new_res = heaviside_approx(xs, thresholds)
+    new_res = heaviside_approx(xs, thresholds)
 
-    # if agg == 'sum':
-    #     return torch.sum(new_res, axis=0)
+    if agg == 'sum':
+        return torch.sum(new_res.cuda(), axis=0)
 
-    # return new_res
-    return torch.sum(approx(xs, thresholds).cuda())
+    return new_res
+    # return torch.sum(approx(xs, thresholds).cuda())
 
 
 def l_tp(gt, pt, thresh, agg='sum'):
@@ -70,10 +70,9 @@ def l_tp(gt, pt, thresh, agg='sum'):
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
     thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
                          torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    gt_t = torch.reshape(torch.repeat_interleave(
-        gt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
-    pt_t = torch.reshape(torch.repeat_interleave(
-        pt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
+    gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
+    pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
+
     condition = (gt_t == 0) & (pt_t >= thresh)
     # 1-pt_t /nclasses - any other specific class
     # 1-pt_t -> in all other classes
@@ -92,12 +91,8 @@ def l_fn(gt, pt, thresh, agg='sum'):
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
 
     # filling in the places where it's 0 or 1.
-    thresh = torch.where(
-        thresh == 0.0,
-        torch.tensor([0.01], device=thresh.device),
-        torch.where(
-            thresh == 1.0,
-            torch.tensor([0.99], device=thresh.device), thresh)
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
+        torch.where(thresh == 1.0,torch.tensor([0.99], device=thresh.device), thresh)
     )
 
     gt_t = torch.reshape(torch.repeat_interleave(
@@ -123,13 +118,11 @@ def l_fp(gt, pt, thresh, agg='sum'):
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
     thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
                          torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    gt_t = torch.reshape(torch.repeat_interleave(
-        gt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
-    pt_t = torch.reshape(torch.repeat_interleave(
-        pt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
+    gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
+    pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
+
     condition = (gt_t == 1) & (pt_t >= thresh)
     xs = torch.where(condition, 1-pt_t, pt_t)
-
     thresholds = torch.where(condition, 1-thresh, thresh)
     value = heaviside_agg(xs, thresholds, agg)
 
@@ -239,6 +232,37 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch
 
         loss = 1 - mean_f1s.mean()
         return loss, class_tp, class_fn, class_fp, class_tn, class_pr, class_re, class_f1, class_acc
+    return loss
+
+
+def other_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
+    ''' Mean of Heaviside Approx F1 
+    F1 across the classes is evenly weighted, hence Macro F1 
+
+    Args: 
+        y_labels: one-hot encoded label, i.e. 2 -> [0, 0, 1] 
+        y_preds: softmaxed predictions
+    '''
+    thresholds = thresholds.to(device)
+
+    def loss(y_labels, y_preds):
+        classes = len(y_labels[0])
+        mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
+
+        for i in range(classes):
+            gt_list = torch.Tensor([x[i] for x in y_labels])
+            pt_list = y_preds[:, i]  # pt list for the given class
+
+            thresholds = torch.arange(0.1, 1, 0.1).to(device)
+            tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
+            precision = tp/(tp+fp+EPS)
+            recall = tp/(tp+fn+EPS)
+            temp_f1 = torch.mean(2 * (precision * recall) /
+                                 (precision + recall + EPS))
+            mean_f1s[i] = temp_f1
+
+        loss = 1 - mean_f1s.mean()
+        return loss
     return loss
 
 

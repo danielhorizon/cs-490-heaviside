@@ -27,6 +27,7 @@ from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, classification_report
+from sklearn.metrics import confusion_matrix
 from sklearn import metrics
 
 # for early stopping.
@@ -217,7 +218,45 @@ def record_results(best_test):
     return
 
 
-def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None, threshold=None):
+def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
+    classes = len(y_labels[0])
+    mean_f1s = torch.zeros(classes, dtype=torch.float32)
+
+    '''
+    y_labels = tensor([[0., 0., 0., 0., 0., 1., 0., 0., 0., 0.]])
+    y_preds = tensor([[0.0981, 0.0968, 0.0977, 0.0869, 0.1180, 0.1081, 0.0972, 0.0919, 0.1003, 0.1050]])
+    '''
+    
+    print("LABELS:{}".format(y_labels))
+    print("PREDS: {}".format(y_preds))
+
+
+    for i in range(classes):
+        gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
+        pt_list = y_preds[:, i]
+
+        # GT LIST:tensor([0., 0., 1.,  ..., 0., 1., 0.], device='cuda:0')
+        # PT LIST: tensor([0.1047, 0.1021, 0.1016,  ..., 0.1004, 0.1035, 0.1009], device='cuda:0', grad_fn= < SelectBackward > )
+
+        # print("GT LIST:{}".format(gt_list))
+        # print("PT LIST:{}".format(pt_list))
+        # tensor([1., 1., 1.,  ..., 1., 1., 1.])
+        pt_list = torch.Tensor([1 if x >= threshold else 0 for x in pt_list])
+
+        tn, fp, fn, tp = confusion_matrix(y_true=gt_list.cpu().numpy(), y_pred=pt_list.cpu().numpy(), labels=[0,1]).ravel() 
+
+        # converting to tensors 
+        tp, fn, fp, tn = torch.tensor([tp]).to(device), torch.tensor([fn]).to(device), torch.tensor([fp]).to(device), torch.tensor([tn]).to(device)
+        precision = tp/(tp+fp+EPS)
+        recall = tp/(tp+fn+EPS)
+        temp_f1 = torch.mean(2 * (precision * recall) / (precision + recall + EPS))
+        mean_f1s[i] = temp_f1
+
+    # return class wise f1, and the mean of the f1s.
+    return mean_f1s, mean_f1s.mean()
+
+
+def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None):
     using_gpu = False
     if torch.cuda.is_available():
         print("device = cuda")
@@ -230,6 +269,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             device = "cuda:2"
         elif cuda == "3": 
             device = "cuda:3"
+        else: 
+            device = "cuda:0"
         using_gpu = True
     else:
         print("device = cpu")
@@ -253,6 +294,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         "train_dxn": None, 
         "test_dxn": None, 
         "valid_dxn": None,
+        "final_test_dxn": None, 
         "seed": seed,
     }
 
@@ -279,7 +321,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # setting up tensorboard
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard", "thresh_runs", experiment_name])
+        tensorboard_path = "/".join(["tensorboard", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -288,21 +330,22 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         criterion = nn.CrossEntropyLoss()
     elif loss_metric == "approx-f1":
         approx = True
-        threshold_tensor = torch.Tensor([float(threshold)]).to(device)
+        # training it on 0.5. 
+        threshold_tensor = torch.Tensor([0.5]).to(device)
         criterion = mean_f1_approx_loss_on(device=device, threshold=threshold_tensor)
     # elif loss_metric == "approx-f1-wt":
     #     approx = True
     #     criterion = wt_mean_f1_approx_loss_on(device=device)
-    elif loss_metric == "approx-acc":
-        approx = True
-        criterion = mean_accuracy_approx_loss_on(device=device)
-    elif loss_metric == "approx-auroc":
-        approx = True
-        criterion = mean_auroc_approx_loss_on(device=device)
+    # elif loss_metric == "approx-acc":
+    #     approx = True
+    #     criterion = mean_accuracy_approx_loss_on(device=device)
+    # elif loss_metric == "approx-auroc":
+    #     approx = True
+    #     criterion = mean_auroc_approx_loss_on(device=device)
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
-    # ----- TRAINING -----
+    # ----- TRAINING, TESTING, VALIDATION -----
     losses = []
     
     for epoch in range(epochs):
@@ -523,6 +566,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             labels = labels.to(device)
             
             output = model(inputs)
+            # print("output: {}".format(output))
             _, predicted = torch.max(output, 1)
 
             pred_arr = predicted.cpu().numpy()
@@ -748,7 +792,58 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 if best_test['val_accuracy'] < val_acc:
                     best_test['val_accuracy'] = val_acc
 
-    # writing out a CSV to record results.
+    
+    # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
+    print("--- Finished Training - Entering Final Evaluation Step\n")
+    # saving the model.
+    # /app/timeseries/multiclass_src
+    # model_file_path = "/".join(["/home/tdl29/cs-490-heaviside/multiclass_src/models", 
+    #         '{}_best_model_{}_{}_{}.pth'.format(
+    #             20201118, loss_metric, epoch, 0.5
+    #         )])
+    # torch.save(model, model_file_path)
+    # print("Saving best model to {}".format(model_file_path))
+
+    # inits. 
+    model.eval()
+    test_thresholds = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    final_test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    test_preds, test_labels = [], []
+    for i, (inputs, labels) in enumerate(test_loader):
+        # updating distribution of labels.  
+        labels_list = labels.numpy()
+        for label in labels_list:
+            final_test_dxn[label] += 1
+
+        # stacking onto tensors. 
+        inputs = inputs.to(device)
+        labels = labels.to(device)
+
+        # passing it through our finalized model. 
+        # tensor([[0.1011, 0.1012, 0.0960, 0.0892, 0.1059, 0.1078, 0.0975, 0.0932, 0.1025, 0.1055]])
+        # torch.return_types.max(values=tensor([0.1078]), indices=tensor([5]))
+        output = model(inputs)
+
+        # converting labels to correct format 
+        labels = torch.zeros(len(labels), 10).to(device).scatter_(1, labels.unsqueeze(1), 1.).to(device)
+        # test_labels.append(labels)
+        # test_labels = np.concatenate([test_labels, labels])
+        # test_preds.append(output)
+        # test_preds = np.concatenate([test_preds, output])
+        class_f1s, mean_f1 = evaluation_f1(
+            device=device, y_labels=labels, y_preds=output, threshold=0.1)
+        print(class_f1s)
+        print(mean_f1)
+    
+    # print(test_labels)
+    # y_labels = torch.tensor(test_labels)
+    # print(y_labels)
+    # y_preds = torch.tensor(test_preds)
+
+    
+
+    # ----- recording results in a json. 
     print(best_test)
     if torch.is_tensor(best_test['loss']):
         best_test['loss'] = best_test['loss'].item()
@@ -773,8 +868,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 @click.option("--imb", required=False, is_flag=True, default=False)
 @click.option("--run_name", required=False)
 @click.option("--cuda", required=False)
-@click.option("--thresh", required=True)
-def run(loss, epochs, imb, run_name, cuda, thresh):
+def run(loss, epochs, imb, run_name, cuda):
     # check if forcing imbalance
     print(run_name)
     print("Running on cuda: {}".format(cuda))
@@ -783,10 +877,7 @@ def run(loss, epochs, imb, run_name, cuda, thresh):
         imbalanced = True
 
     # train
-    temp_name = run_name + "-" + str(thresh)
-    train_cifar(loss_metric=loss, epochs=int(epochs),
-                    imbalanced=imbalanced, run_name=temp_name, seed=150, cuda=cuda, threshold=thresh)
-
+    train_cifar(loss_metric=loss, epochs=int(epochs),imbalanced=imbalanced, run_name=run_name, seed=150, cuda=cuda)
 
 def main():
     os.environ['LC_ALL'] = 'C.UTF-8'
@@ -797,17 +888,3 @@ def main():
 if __name__ == '__main__':
     main(),
 
-'''
-python3 cifar-thresh.py --loss="approx-f1" --epochs=1000 --imb --run_name="approx-f1-imb" --thresh=0.1 --cuda=3
-python3 cifar-thresh.py --loss="approx-f1" --epochs=1000 --imb --run_name="approx-f1-imb" --thresh=0.2 --cuda=3
-python3 cifar-thresh.py --loss="approx-f1" --epochs=1000 --imb --run_name="approx-f1-imb" --thresh=0.3 --cuda=3
-python3 cifar-thresh.py --loss="approx-f1" --epochs=1000 --imb --run_name="approx-f1-imb" --thresh=0.4 --cuda=3
-python3 cifar-thresh.py --loss="approx-f1" --epochs=1000 --imb --run_name="approx-f1-imb" --thresh=0.45 --cuda=3
-python3 cifar-thresh.py --loss="approx-f1" --epochs=1000 --imb --run_name="approx-f1-imb" --thresh=0.5 --cuda=0
-python3 cifar-thresh.py --loss="approx-f1" --epochs=1000 --imb --run_name="approx-f1-imb" --thresh=0.55 --cuda=0
-python3 cifar-thresh.py --loss="approx-f1" --epochs=1000 --imb --run_name="approx-f1-imb" --thresh=0.6 --cuda=0
-python3 cifar-thresh.py --loss="approx-f1" --epochs=1000 --imb --run_name="approx-f1-imb" --thresh=0.7 --cuda=1
-python3 cifar-thresh.py --loss="approx-f1" --epochs=1000 --imb --run_name="approx-f1-imb" --thresh=0.8 --cuda=1
-python3 cifar-thresh.py --loss="approx-f1" --epochs=1000 --imb --run_name="approx-f1-imb" --thresh=0.9 --cuda=1
-
-'''
