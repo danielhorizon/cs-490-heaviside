@@ -177,7 +177,7 @@ def load_data_v2(shuffle=True, seed=None):
     )
     test_loader = DataLoader(
         # THIS WAS JUST FIXED?!?!?!?
-        test_dataset, batch_size=1024, shuffle=True,
+        test_dataset, batch_size=batch_size, shuffle=True,
         num_workers=4, pin_memory=True,
     )
     return train_loader, valid_loader, test_loader
@@ -334,8 +334,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # setting up tensorboard
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard",
-                                     "threshold_runs", experiment_name])
+        tensorboard_path = "/".join(["tensorboard", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -926,11 +925,15 @@ def run(loss, epochs, imb, run_name, cuda):
     if imb:
         imbalanced = True
 
-    # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
+    seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [1, 45, 92, 34, 15]
-    seeds = [20, 150, 792, 3, 81]
+    # seeds = [20, 150, 792, 3, 81]
+    # for i in range(len(seeds)):
+    #     temp_name = str(run_name) + "-" + str(i + 5)
+    #     train_cifar(loss_metric=loss, epochs=int(
+    #         epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda)
     for i in range(len(seeds)):
-        temp_name = str(run_name) + "-" + str(i + 5)
+        temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(
             epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda)
 
@@ -946,4 +949,13 @@ if __name__ == '__main__':
 
 '''
 python3 cifar.py --epochs=1000 --loss="approx-f1" --imb --run_name="approx-f1-eval" --cuda=1
+
+python3 cifar.py --epochs=1000 --loss="ce" --imb --run_name="baseline-f1-imb-eval" --cuda=2
+
+
+Re-run all baselines that were balanced 
+python3 cifar.py --epochs=1000 --loss="ce" --run_name="baseline-ce-" --cuda=2
+
+python3 cifar.py --epochs=1000 --loss="approx-f1" --run_name="approx-f1-reg" --cuda=3
+
 '''
