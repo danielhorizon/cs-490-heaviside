@@ -805,8 +805,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # saving the model.
     # /app/timeseries/multiclass_src
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
-            '{}_best_model_{}_{}_{}.pth'.format(
-                20201118, loss_metric, epoch, 0.5
+            '{}_best_model_{}_{}_{}_{}.pth'.format(
+                20201118, loss_metric, epoch, 0.5, run_name
             )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
@@ -887,7 +887,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "results3.json")
+    record_results(best_test, "20_11_18_results.json")
     return
 
 
@@ -905,8 +905,9 @@ def run(loss, epochs, imb, run_name, cuda):
     if imb:
         imbalanced = True
 
-    # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
-    seeds = [1, 45, 92, 34, 15]
+    seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
+    # seeds = [1, 45, 92, 34, 15]
+    # seeds2 = [20, 150, 792, 3, 81]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(epochs),imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda)

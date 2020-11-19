@@ -824,8 +824,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # saving the model.
     # /app/timeseries/multiclass_src
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
-                                '{}_best_model_{}_{}_{}.pth'.format(
-                                    20201118, loss_metric, epoch, 0.5
+                                '{}_best_model_{}_{}_{}_{}.pth'.format(
+                                    20201118, loss_metric, epoch, 0.5, run_name
                                 )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
@@ -907,7 +907,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "results3.json")
+    record_results(best_test, "201118_rerun.json")
     return
 
 
