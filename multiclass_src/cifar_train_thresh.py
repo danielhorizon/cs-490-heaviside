@@ -173,7 +173,7 @@ def load_data_v2(shuffle=True, seed=None):
     )
     test_loader = DataLoader(
         # THIS WAS JUST FIXED?!?!?!?
-        test_dataset, batch_size=1024, shuffle=True,
+        test_dataset, batch_size=batch_size, shuffle=True,
         num_workers=4, pin_memory=True,
     )
     return train_loader, valid_loader, test_loader
@@ -263,7 +263,7 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
     return mean_f1s, mean_f1s.mean()
 
 
-def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None):
+def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None, train_threshold=None):
     using_gpu = False
     if torch.cuda.is_available():
         print("device = cuda")
@@ -328,7 +328,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # setting up tensorboard
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard", "threshold_runs", experiment_name])
+        tensorboard_path = "/".join(["tensorboard", "train_thresholds", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -338,7 +338,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     elif loss_metric == "approx-f1":
         approx = True
         # training it on 0.5. 
-        threshold_tensor = torch.Tensor([0.5]).to(device)
+        train_threshold = float(train_threshold)
+        threshold_tensor = torch.Tensor([train_threshold]).to(device)
         criterion = mean_f1_approx_loss_on(device=device, threshold=threshold_tensor)
     # elif loss_metric == "approx-f1-wt":
     #     approx = True
@@ -802,8 +803,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # saving the model.
     # /app/timeseries/multiclass_src
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
-            '{}_best_model_{}_{}_{}_{}.pth'.format(
-                20201118, loss_metric, epoch, 0.5, run_name
+            '{}_best_model_{}_{}_trained_on_{}_{}.pth'.format(
+                20201118, loss_metric, epoch, train_threshold, run_name
             )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
@@ -867,7 +868,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
     eval_json['run'] = run_name
     eval_json['seed'] = seed
-    record_results(eval_json, "results_thresh.json")
+    record_results(eval_json, "trained_thresh_evaluations.json")
 
     # ----- recording results in a json. 
     print(best_test)
@@ -884,7 +885,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "20_11_18_results.json")
+    record_results(best_test, "20_11_19_results.json")
     return
 
 
@@ -894,7 +895,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 @click.option("--imb", required=False, is_flag=True, default=False)
 @click.option("--run_name", required=False)
 @click.option("--cuda", required=False)
-def run(loss, epochs, imb, run_name, cuda):
+@click.option("--train_tau", required=False)
+def run(loss, epochs, imb, run_name, cuda, train_tau):
     # check if forcing imbalance
     print(run_name)
     print("Running on cuda: {}".format(cuda))
@@ -902,12 +904,12 @@ def run(loss, epochs, imb, run_name, cuda):
     if imb:
         imbalanced = True
 
-    seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
+    # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [1, 45, 92, 34, 15]
-    # seeds2 = [20, 150, 792, 3, 81]
-    for i in range(len(seeds)):
+    seeds2 = [20, 150, 792, 3, 81]
+    for i in range(len(seeds2)):
         temp_name = str(run_name) + "-" + str(i)
-        train_cifar(loss_metric=loss, epochs=int(epochs),imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda)
+        train_cifar(loss_metric=loss, epochs=int(epochs),imbalanced=imbalanced, run_name=temp_name, seed=seeds2[i], cuda=cuda, train_threshold=train_tau)
     
 
 def main():
@@ -920,5 +922,18 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 cifar.py --epochs=1000 --loss="approx-f1" --imb --run_name="approx-f1-eval" --cuda=0 
+python3 cifar_train_thresh.py --epochs=1000 --loss="approx-f1" --imb --run_name="approx-f1-train_0.1" --cuda=0 --train_tau=0.1
+python3 cifar_train_thresh.py --epochs=1000 --loss="approx-f1" --imb --run_name="approx-f1-train_0.2" --cuda=0 --train_tau=0.2
+python3 cifar_train_thresh.py --epochs=1000 --loss="approx-f1" --imb --run_name="approx-f1-train_0.3" --cuda=0 --train_tau=0.3
+
+python3 cifar_train_thresh.py --epochs=1000 --loss="approx-f1" --imb --run_name="approx-f1-train_0.4" --cuda=1 --train_tau=0.4
+python3 cifar_train_thresh.py --epochs=1000 --loss="approx-f1" --imb --run_name="approx-f1-train_0.5" --cuda=1 --train_tau=0.5
+python3 cifar_train_thresh.py --epochs=1000 --loss="approx-f1" --imb --run_name="approx-f1-train_0.6" --cuda=1 --train_tau=0.6
+
+python3 cifar_train_thresh.py --epochs=1000 --loss="approx-f1" --imb --run_name="approx-f1-train_0.7" --cuda=2 --train_tau=0.7
+python3 cifar_train_thresh.py --epochs=1000 --loss="approx-f1" --imb --run_name="approx-f1-train_0.8" --cuda=2 --train_tau=0.8
+python3 cifar_train_thresh.py --epochs=1000 --loss="approx-f1" --imb --run_name="approx-f1-train_0.9" --cuda=2 --train_tau=0.9
+
+python3 cifar_train_thresh.py --epochs=1000 --loss="approx-f1" --imb --run_name="approx-f1-train_0.45" --cuda=3 --train_tau=0.45
+python3 cifar_train_thresh.py --epochs=1000 --loss="approx-f1" --imb --run_name="approx-f1-train_0.55" --cuda=3 --train_tau=0.55
 '''

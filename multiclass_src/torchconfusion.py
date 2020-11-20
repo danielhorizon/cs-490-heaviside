@@ -78,10 +78,8 @@ def l_tp(gt, pt, thresh, agg='sum'):
 
     # thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
     #                      torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    gt_t = torch.reshape(torch.repeat_interleave(
-        gt, thresh.shape[0]), (-1, thresh.shape[0]))
-    pt_t = torch.reshape(torch.repeat_interleave(
-        pt, thresh.shape[0]), (-1, thresh.shape[0]))
+    gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
+    pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
     
     condition = (gt_t == 0) & (pt_t >= thresh)
     xs = torch.where(condition, 1-pt_t, pt_t)
@@ -98,10 +96,9 @@ def l_fn(gt, pt, thresh, agg='sum'):
     # thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
     #                      torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
 
-    gt_t = torch.reshape(torch.repeat_interleave(
-        gt, thresh.shape[0]), (-1, thresh.shape[0]))
-    pt_t = torch.reshape(torch.repeat_interleave(
-        pt, thresh.shape[0]), (-1, thresh.shape[0]))
+    gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
+    pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
+
     condition = (gt_t == 0) & (pt_t < thresh)
     xs = torch.where(condition, pt_t, 1-pt_t)
     thresholds = torch.where(condition, thresh, 1-thresh)
@@ -116,10 +113,9 @@ def l_fp(gt, pt, thresh, agg='sum'):
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
     # thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
     #                      torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    gt_t = torch.reshape(torch.repeat_interleave(
-        gt, thresh.shape[0]), (-1, thresh.shape[0]))
-    pt_t = torch.reshape(torch.repeat_interleave(
-        pt, thresh.shape[0]), (-1, thresh.shape[0]))
+    gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
+    pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
+
     condition = (gt_t == 1) & (pt_t >= thresh)
     xs = torch.where(condition, 1-pt_t, pt_t)
     thresholds = torch.where(condition, 1-thresh, thresh)

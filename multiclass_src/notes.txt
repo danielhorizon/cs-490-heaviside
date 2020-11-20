@@ -20,3 +20,7 @@ The goal is to train at all thresholds, and compare them in this confusion matri
 Rows are the training thresholds, and columns are the evaluation thresholds. 
     Every row is a network, trained from 0.1 to 0.9     
     Each column corresponds to a threshold that you're predicting at. 
+
+
+We can incorporate, in the validation step, moving the threshold in the right direction. 
+If that works, it'd be really interesting. 
