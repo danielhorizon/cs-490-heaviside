@@ -1,0 +1,22 @@
+TODO's 
+- Analyze results from evaluating on different thresholds, when trained on 0.5. 
+- Analyze results from the baseline, because used test vs. validation. 
+- 
+
+
+To train: 
+- Per class, 
+
+
+
+
+11/19 
+- Because we're training at 0.5; the sigmoid for high k works well. As we change the evaluation threshold, 
+the precision and recall values pretty much flip; best precision happens at the highest threshold. Recall is better 
+when we have more output. 
+
+
+The goal is to train at all thresholds, and compare them in this confusion matrix style. 
+Rows are the training thresholds, and columns are the evaluation thresholds. 
+    Every row is a network, trained from 0.1 to 0.9     
+    Each column corresponds to a threshold that you're predicting at. 
