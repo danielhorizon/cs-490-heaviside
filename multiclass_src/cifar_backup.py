@@ -34,7 +34,6 @@ from sklearn import metrics
 from pytorchtools import EarlyStopping
 from mc_torchconfusion import *
 from mc_torchconfusion_weighted import wt_mean_f1_approx_loss_on
-# from torchconfusion import *
 
 from download_cifar import *
 

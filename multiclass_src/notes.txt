@@ -2,11 +2,11 @@ TODO's
 - Analyze results that used a larger batch size, and see if there was a change in results. 
 - Analyze results from the baseline, because used test vs. validation. 
 - Analyze results from evaluating on different thresholds, when trained on 0.5. 
-- Analyze results that came from 
+
 
 
 To train: 
-- Per class, 
+
 
 
 
