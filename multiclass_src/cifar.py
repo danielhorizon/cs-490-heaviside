@@ -761,77 +761,77 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     best_test['val_accuracy'] = val_acc
 
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
-    # print("--- Finished Training - Entering Final Evaluation Step\n")
-    # # saving the model.
-    # # /app/timeseries/multiclass_src
-    # model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
-    #                             '{}_best_model_{}_{}_{}_{}.pth'.format(
-    #                                 20201118, loss_metric, epoch, 0.5, run_name
-    #                             )])
-    # torch.save(model, model_file_path)
-    # print("Saving best model to {}".format(model_file_path))
+    print("--- Finished Training - Entering Final Evaluation Step\n")
+    # saving the model.
+    # /app/timeseries/multiclass_src
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
+                                '{}_best_model_{}_{}_{}_{}.pth'.format(
+                                    20201118, loss_metric, epoch, 0.5, run_name
+                                )])
+    torch.save(model, model_file_path)
+    print("Saving best model to {}".format(model_file_path))
 
-    # # inits.
-    # model.eval()
-    # test_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
+    # inits.
+    model.eval()
+    test_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
 
-    # eval_json = {
-    #     "run_name": None,
-    #     "seed": seed,
-    #     "0.1": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-    #     "0.2": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-    #     "0.3": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-    #     "0.4": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-    #     "0.45": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-    #     "0.5": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-    #     "0.55": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-    #     "0.6": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-    #     "0.7": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-    #     "0.8": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-    #     "0.9": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-    # }
+    eval_json = {
+        "run_name": None,
+        "seed": seed,
+        "0.1": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
+        "0.2": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
+        "0.3": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
+        "0.4": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
+        "0.45": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
+        "0.5": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
+        "0.55": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
+        "0.6": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
+        "0.7": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
+        "0.8": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
+        "0.9": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
+    }
 
-    # with torch.no_grad():
-    #     for tau in test_thresholds:
-    #         # go through all the thresholds, and test them out again.
-    #         final_test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    #         test_preds, test_labels = [], []
-    #         for i, (inputs, labels) in enumerate(test_loader):
-    #             # updating distribution of labels.
-    #             labels_list = labels.numpy()
-    #             for label in labels_list:
-    #                 final_test_dxn[label] += 1
+    with torch.no_grad():
+        for tau in test_thresholds:
+            # go through all the thresholds, and test them out again.
+            final_test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            test_preds, test_labels = [], []
+            for i, (inputs, labels) in enumerate(test_loader):
+                # updating distribution of labels.
+                labels_list = labels.numpy()
+                for label in labels_list:
+                    final_test_dxn[label] += 1
 
-    #             # stacking onto tensors.
-    #             inputs = inputs.to(device)
-    #             labels = labels.to(device)
+                # stacking onto tensors.
+                inputs = inputs.to(device)
+                labels = labels.to(device)
 
-    #             # passing it through our finalized model.
-    #             output = model(inputs)
-    #             labels = torch.zeros(len(labels), 10).to(device).scatter_(
-    #                 1, labels.unsqueeze(1), 1.).to(device)
+                # passing it through our finalized model.
+                output = model(inputs)
+                labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                    1, labels.unsqueeze(1), 1.).to(device)
 
-    #             pred_arr = output.detach().cpu().numpy()
-    #             label_arr = labels.detach().cpu().numpy()
+                pred_arr = output.detach().cpu().numpy()
+                label_arr = labels.detach().cpu().numpy()
 
-    #             # appending results.
-    #             test_preds.append(pred_arr)
-    #             test_labels.append(label_arr)
+                # appending results.
+                test_preds.append(pred_arr)
+                test_labels.append(label_arr)
 
-    #         test_preds = torch.tensor(test_preds[0])
-    #         test_labels = torch.tensor(test_labels[0])
+            test_preds = torch.tensor(test_preds[0])
+            test_labels = torch.tensor(test_labels[0])
 
-    #         class_f1s, mean_f1 = evaluation_f1(
-    #             device=device, y_labels=test_labels, y_preds=test_preds, threshold=tau)
+            class_f1s, mean_f1 = evaluation_f1(
+                device=device, y_labels=test_labels, y_preds=test_preds, threshold=tau)
 
-    #         tau = str(tau)
-    #         eval_json[tau]['class_f1s'] = class_f1s.numpy().tolist()
-    #         eval_json[tau]['mean_f1'] = mean_f1.item()
-    #         eval_json[tau]['eval_dxn'] = final_test_dxn
+            tau = str(tau)
+            eval_json[tau]['class_f1s'] = class_f1s.numpy().tolist()
+            eval_json[tau]['mean_f1'] = mean_f1.item()
+            eval_json[tau]['eval_dxn'] = final_test_dxn
 
-    # eval_json['run'] = run_name
-    # eval_json['seed'] = seed
-    # record_results(eval_json, "results_thresh.json")
+    eval_json['run'] = run_name
+    eval_json['seed'] = seed
+    record_results(eval_json, "results_thresh.json")
 
     # ----- recording results in a json.
     print(best_test)
