@@ -757,7 +757,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # /app/timeseries/multiclass_src
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
                                 '{}_best_model_{}_{}_{}.pth'.format(
-                                    20201122, loss_metric, epoch, run_name
+                                    20201123, loss_metric, epoch, run_name
                                 )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
