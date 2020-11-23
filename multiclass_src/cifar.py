@@ -166,7 +166,7 @@ def load_data_v2(shuffle=True, seed=None):
     train_sampler = SubsetRandomSampler(train_idx)
     valid_sampler = SubsetRandomSampler(valid_idx)
 
-    batch_size = 1024
+    batch_size = 2048
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, sampler=train_sampler,
         num_workers=4, pin_memory=True,
@@ -198,7 +198,7 @@ def load_imbalanced_data(seed):
     validation_set = Dataset(data_splits['val'])
     test_set = Dataset(data_splits['test'])
 
-    data_params = {'batch_size': 1024, 'shuffle': True,
+    data_params = {'batch_size': 2048, 'shuffle': True,
                    'num_workers': 1, 'worker_init_fn': np.random.seed(seed)}
     set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
@@ -720,30 +720,21 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     if approx:
                         # adding in softset membership
                         title = "val/class-" + str(i) + "-softset-" + "TP"
-                        writer.add_scalar(title, np.array(
-                            ss_class_tp[i]).mean(), epoch)
+                        writer.add_scalar(title, np.array(ss_class_tp[i]).mean(), epoch)
                         title = "val/class-" + str(i) + "-softset-" + "FP"
-                        writer.add_scalar(title, np.array(
-                            ss_class_fp[i]).mean(), epoch)
+                        writer.add_scalar(title, np.array(ss_class_fp[i]).mean(), epoch)
                         title = "val/class-" + str(i) + "-softset-" + "FN"
-                        writer.add_scalar(title, np.array(
-                            ss_class_fn[i]).mean(), epoch)
+                        writer.add_scalar(title, np.array(ss_class_fn[i]).mean(), epoch)
                         title = "val/class-" + str(i) + "-softset-" + "TN"
-                        writer.add_scalar(title, np.array(
-                            ss_class_tn[i]).mean(), epoch)
-                        title = "val/class-" + \
-                            str(i) + "-softset-" + "precision"
-                        writer.add_scalar(title, np.array(
-                            ss_class_pr[i]).mean(), epoch)
+                        writer.add_scalar(title, np.array(ss_class_tn[i]).mean(), epoch)
+                        title = "val/class-" + str(i) + "-softset-" + "precision"
+                        writer.add_scalar(title, np.array(ss_class_pr[i]).mean(), epoch)
                         title = "val/class-" + str(i) + "-softset-" + "recall"
-                        writer.add_scalar(title, np.array(
-                            ss_class_re[i]).mean(), epoch)
+                        writer.add_scalar(title, np.array(ss_class_re[i]).mean(), epoch)
                         title = "val/class-" + str(i) + "-softset-" + "f1"
-                        writer.add_scalar(title, np.array(
-                            ss_class_f1[i]).mean(), epoch)
+                        writer.add_scalar(title, np.array(ss_class_f1[i]).mean(), epoch)
                         title = "val/class-" + str(i) + "-softset-" + "acc"
-                        writer.add_scalar(title, np.array(
-                            ss_class_acc[i]).mean(), epoch)
+                        writer.add_scalar(title, np.array(ss_class_acc[i]).mean(), epoch)
 
             # early stopping
             early_stopping(valid_loss, model)
@@ -766,7 +757,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # /app/timeseries/multiclass_src
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
                                 '{}_best_model_{}_{}_{}_{}.pth'.format(
-                                    20201118, loss_metric, epoch, 0.5, run_name
+                                    20201122, loss_metric, epoch, 0.5, run_name
                                 )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
@@ -831,7 +822,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
     eval_json['run'] = run_name
     eval_json['seed'] = seed
-    record_results(eval_json, "results_thresh.json")
+    record_results(eval_json, "20201122_eval.json")
 
     # ----- recording results in a json.
     print(best_test)
@@ -848,7 +839,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "results_1024.json")
+    record_results(best_test, "20201122_results.json")
     return
 
 
@@ -867,14 +858,10 @@ def run(loss, epochs, imb, run_name, cuda):
         imbalanced = True
 
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
-    seeds = [1, 45, 92, 34, 15]
+    seeds = [2, 46, 93, 35, 16]
     # seeds = [20, 150, 792, 3, 81]
-    # for i in range(len(seeds)):
-    #     temp_name = str(run_name) + "-" + str(i + 5)
-    #     train_cifar(loss_metric=loss, epochs=int(
-    #         epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda)
     for i in range(len(seeds)):
-        temp_name = str(run_name) + "-" + str(i)
+        temp_name = str(run_name) + "-" + str(i + 5)
         train_cifar(loss_metric=loss, epochs=int(
             epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda)
 
@@ -889,9 +876,6 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 cifar.py --epochs=1000 --loss="approx-f1" --run_name="approx-f1-eval" --cuda=1
-
-python3 cifar.py --epochs=1000 --loss="ce" --run_name="baseline-f1-imb-eval" --cuda=2
-
-
+python3 cifar.py --epochs=1000 --imb --loss="approx-f1" --run_name="2048-approx-f1-imb" --cuda=3
+python3 cifar.py --epochs=1000 --imb --loss="ce" --run_name="2048-baseline-imb" --cuda=2
 '''
