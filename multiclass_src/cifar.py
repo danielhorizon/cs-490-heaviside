@@ -166,7 +166,7 @@ def load_data_v2(shuffle=True, seed=None):
     train_sampler = SubsetRandomSampler(train_idx)
     valid_sampler = SubsetRandomSampler(valid_idx)
 
-    batch_size = 2048
+    batch_size = 1024
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, sampler=train_sampler,
         num_workers=4, pin_memory=True,
@@ -198,7 +198,7 @@ def load_imbalanced_data(seed):
     validation_set = Dataset(data_splits['val'])
     test_set = Dataset(data_splits['test'])
 
-    data_params = {'batch_size': 2048, 'shuffle': True,
+    data_params = {'batch_size': 1024, 'shuffle': True,
                    'num_workers': 1, 'worker_init_fn': np.random.seed(seed)}
     set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
@@ -840,6 +840,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
     record_results(best_test, "20201122_results.json")
+    # /home/tdl29/cs-490-heaviside/multiclass_src/results/20201122_results.json
     return
 
 
