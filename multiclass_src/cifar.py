@@ -334,7 +334,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # setting up tensorboard
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard", "cifar_runs", experiment_name])
+        tensorboard_path = "/".join(["tensorboard", "balanced", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -756,8 +756,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # saving the model.
     # /app/timeseries/multiclass_src
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
-                                '{}_best_model_{}_{}_{}.pth'.format(
-                                    20201123, loss_metric, epoch, run_name
+                                '{}_best_model_{}_{}_{}_{}.pth'.format(
+                                    20201123, 1024, loss_metric, epoch, run_name
                                 )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
@@ -822,7 +822,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
     eval_json['run'] = run_name
     eval_json['seed'] = seed
-    record_results(eval_json, "20201122_eval.json")
+    record_results(eval_json, "20201123_eval.json")
 
     # ----- recording results in a json.
     print(best_test)
@@ -839,7 +839,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "20201122_results.json")
+    record_results(best_test, "20201123_results.json")
     # /home/tdl29/cs-490-heaviside/multiclass_src/results/20201122_results.json
     return
 
@@ -877,6 +877,9 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 cifar.py --epochs=1000 --imb --loss="approx-f1" --run_name="2048-approx-f1-imb" --cuda=3
-python3 cifar.py --epochs=1000 --imb --loss="ce" --run_name="2048-baseline-imb" --cuda=2
+
+python3 cifar.py --epochs=1000 --loss="ce" --run_name="run2-1024-baseline-ce-reg" --cuda=0
+python3 cifar.py --epochs=1000 --loss="approx-f1" --run_name="run2-1024-approx-f1-reg" --cuda=1
+
+
 '''

@@ -5,6 +5,16 @@ TODO's
 
 
 
+Results so far: 
+- 128 batch size - trained on the range of thresholds. 
+- 512 batch size - trained on the range of thresholds. 
+- 1024 batch size - trained on the range of thresholds. 
+- 2048 batch size - trained on the range of thresholds. 
+- Runs with the wt-approx (dividing by negative classes) 
+- 1024 runs, trained on 0.5, evaluated on other thresholds. 
+
+
+
 To train: 
 
 
