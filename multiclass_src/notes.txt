@@ -5,6 +5,10 @@ TODO's
 
 
 
+
+
+
+
 Results so far: 
 - 128 batch size - trained on the range of thresholds. 
 - 512 batch size - trained on the range of thresholds. 
@@ -13,12 +17,16 @@ Results so far:
 - Runs with the wt-approx (dividing by negative classes) 
 - 1024 runs, trained on 0.5, evaluated on other thresholds. 
 
+__________________________
 
+LOG 
 
-To train: 
+11/24 
+- Running 2048 balanced experiments for CIFAR.
+- Running 2048 adjusted approx for CIFAR.  
 
-
-
+11/23 
+- Running 512 balanced, imbalanced for CIFAR. 
 
 
 11/19 
