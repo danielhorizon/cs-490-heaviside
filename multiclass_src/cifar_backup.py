@@ -166,7 +166,7 @@ def load_data_v2(shuffle=True, seed=None):
     train_sampler = SubsetRandomSampler(train_idx)
     valid_sampler = SubsetRandomSampler(valid_idx)
 
-    batch_size = 1024
+    batch_size = 2048
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, sampler=train_sampler,
         num_workers=4, pin_memory=True,
@@ -198,7 +198,7 @@ def load_imbalanced_data(seed):
     validation_set = Dataset(data_splits['val'])
     test_set = Dataset(data_splits['test'])
 
-    data_params = {'batch_size': 1024, 'shuffle': True,
+    data_params = {'batch_size': 2048, 'shuffle': True,
                    'num_workers': 1, 'worker_init_fn': np.random.seed(seed)}
     set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
@@ -823,7 +823,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # /app/timeseries/multiclass_src
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
                                 '{}_best_model_{}_{}_{}_{}.pth'.format(
-                                    20201123, 1024, loss_metric, epoch, run_name
+                                    20201124, 2048, loss_metric, epoch, run_name
                                 )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
@@ -888,7 +888,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
     eval_json['run'] = run_name
     eval_json['seed'] = seed
-    record_results(eval_json, "20201123_eval.json")
+    record_results(eval_json, "20201124_eval.json")
 
     # ----- recording results in a json.
     print(best_test)
@@ -905,7 +905,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "20201123_results.json")
+    record_results(best_test, "20201124_results.json")
     # /home/tdl29/cs-490-heaviside/multiclass_src/results/20201122_results.json
     return
 
@@ -944,8 +944,15 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 cifar_backup.py --epochs=1000 --loss="ce" --run_name="run2-1024-baseline-ce-reg" --cuda=0
-python3 cifar_backup.py --epochs=1000 --loss="approx-f1" --run_name="run2-1024-approx-f1-reg" --cuda=0
+python3 cifar_backup.py --epochs=1000 --loss="ce" --run_name="2048-baseline-ce-reg" --cuda=1
+python3 cifar_backup.py --epochs=1000 --loss="approx-f1" --run_name="2048-approx-f1-reg" --cuda=1
+python3 cifar_backup.py --epochs=1000 --loss="approx-f1-wt" --imb --run_name="2048-approx-f1-imb-wt" --cuda=2
+
+python3 cifar.py --epochs=1000 --loss="ce" --run_name="2048-baseline-ce-reg" --cuda=1
+python3 cifar.py --epochs=1000 --loss="approx-f1" --run_name="2048-approx-f1-reg" --cuda=2
+
+python3 cifar.py --epochs=1000 --loss="approx-f1-wt" --imb --run_name="2048-approx-f1-imb-wt" --cuda=1
+
 
 '''
 
