@@ -396,7 +396,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 break
 
         if epoch != 0:
-            # going over in batches of 1024
+            # going over in batches
             for i, (inputs, labels) in enumerate(train_loader):
                 # for class distribution - loop through and add
                 labels_list = labels.numpy()
@@ -927,9 +927,9 @@ def run(loss, epochs, batch_size, imb, run_name, cuda):
     seeds = [2, 46, 93, 35, 16]
     # seeds = [20, 150, 792, 3, 81]
     for i in range(len(seeds)):
-        temp_name = str(run_name) + "-" + str(i + 5)
+        temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(
-            epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda, batch_size=batch_size)
+            epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda, batch_size=int(batch_size))
 
 
 def main():
@@ -942,15 +942,15 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 cifar_backup.py --epochs=1000 --loss="ce" --run_name="2048-baseline-ce-reg" --cuda=1
-python3 cifar_backup.py --epochs=1000 --loss="approx-f1" --run_name="2048-approx-f1-reg" --cuda=1
-python3 cifar_backup.py --epochs=1000 --loss="approx-f1-wt" --imb --run_name="2048-approx-f1-imb-wt" --cuda=2
+python3 cifar_backup.py --loss="approx-f1-wt" --epochs=1000 --imb --batch_size=512 --run_name=512-approx-f1-wt-imb --cuda=2
+python3 cifar.py --loss="approx-f1-wt" --epochs=1000 --imb --batch_size=512 --run_name=512-approx-f1-wt-imb --cuda=2
 
-python3 cifar.py --epochs=1000 --loss="ce" --run_name="2048-baseline-ce-reg" --cuda=1
-python3 cifar.py --epochs=1000 --loss="approx-f1" --run_name="2048-approx-f1-reg" --cuda=2
+python3 cifar.py --loss="approx-f1-wt" --epochs=1000 --batch_size=2048 --run_name=2048-approx-f1-wt --cuda=2
+python3 cifar_backup.py --loss="approx-f1-wt" --epochs=1000 --batch_size=2048 --run_name=2048-approx-f1-wt --cuda=2
 
-python3 cifar.py --epochs=1000 --loss="approx-f1-wt" --imb --run_name="2048-approx-f1-imb-wt" --cuda=1
+python3 cifar.py --loss="approx-f1-wt" --epochs=1000 --batch_size=512 --run_name=512-approx-f1-wt --cuda=3
+python3 cifar_backup.py --loss="approx-f1-wt" --epochs=1000 --batch_size=512 --run_name=512-approx-f1-wt --cuda=3
 
-
+python3 cifar.py --loss="approx-f1-wt" --epochs=1000 --batch_size=128 --run_name=128-approx-f1-wt --cuda=3
+python3 cifar_backup.py --loss="approx-f1-wt" --epochs=1000 --batch_size=128 --run_name=128-approx-f1-wt --cuda=3
 '''
-

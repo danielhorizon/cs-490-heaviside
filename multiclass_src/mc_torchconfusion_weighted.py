@@ -109,7 +109,6 @@ def l_fn(gt, pt, thresh, classes, agg='sum'):
     # want to make sure that in the first case, we should have pos
     # need to make sure that the graident is pushing it towards the right direction
     xs = torch.where(condition, pt_t, (1-pt_t) / (classes-1))
-
     thresholds = torch.where(condition, thresh, 1-thresh)
     return heaviside_agg(xs, thresholds, agg)
 
@@ -127,8 +126,8 @@ def l_fp(gt, pt, thresh, classes, agg='sum'):
     pt_t = torch.reshape(torch.repeat_interleave(
         pt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
     condition = (gt_t == 1) & (pt_t >= thresh)
-    xs = torch.where(condition, (1-pt_t) / (classes-1), pt_t)
 
+    xs = torch.where(condition, (1-pt_t) / (classes-1), pt_t)
     thresholds = torch.where(condition, 1-thresh, thresh)
     value = heaviside_agg(xs, thresholds, agg)
 

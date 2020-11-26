@@ -923,12 +923,12 @@ def run(loss, epochs, batch_size, imb, run_name, cuda):
         imbalanced = True
 
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
-    seeds = [2, 46, 93, 35, 16]
-    # seeds = [20, 150, 792, 3, 81]
+    # seeds = [2, 46, 93, 35, 16]
+    seeds = [21, 151, 793, 4, 82]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i + 5)
         train_cifar(loss_metric=loss, epochs=int(
-            epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda, batch_size=batch_size)
+            epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda, batch_size=int(batch_size))
 
 
 def main():
