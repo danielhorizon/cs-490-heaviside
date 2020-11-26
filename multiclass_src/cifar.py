@@ -123,7 +123,7 @@ def _show_image(img):
 
 
 # https://gist.github.com/kevinzakka/d33bf8d6c7f06a9d8c76d97a7879f5cb
-def load_data_v2(shuffle=True, seed=None):
+def load_data_v2(shuffle=True, batch_size=None, seed=None):
     torch.manual_seed(seed)
 
     normalize = transforms.Normalize(
@@ -166,7 +166,6 @@ def load_data_v2(shuffle=True, seed=None):
     train_sampler = SubsetRandomSampler(train_idx)
     valid_sampler = SubsetRandomSampler(valid_idx)
 
-    batch_size = 2048
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, sampler=train_sampler,
         num_workers=4, pin_memory=True,
@@ -192,13 +191,13 @@ def set_seed(seed):
     random.seed(seed)
 
 
-def load_imbalanced_data(seed):
+def load_imbalanced_data(batch_size, seed):
     data_splits = load_imb_data(seed)
     train_set = Dataset(data_splits['train'])
     validation_set = Dataset(data_splits['val'])
     test_set = Dataset(data_splits['test'])
 
-    data_params = {'batch_size': 2048, 'shuffle': True,
+    data_params = {'batch_size': batch_size, 'shuffle': True,
                    'num_workers': 1, 'worker_init_fn': np.random.seed(seed)}
     set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
@@ -269,7 +268,7 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
     return mean_f1s, mean_f1s.mean()
 
 
-def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None):
+def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None, batch_size=None):
     using_gpu = False
     if torch.cuda.is_available():
         print("device = cuda")
@@ -307,8 +306,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         "train_dxn": None,
         "test_dxn": None,
         "valid_dxn": None,
-        "final_test_dxn": None,
-        "seed": seed
+        "seed": seed, 
+        "batch_size": batch_size, 
+        "evaluation": None
     }
 
     # setting seeds
@@ -318,11 +318,11 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
     # loading in data
     if imbalanced:
-        train_loader, val_loader, test_loader = load_imbalanced_data(seed=seed)
+        train_loader, val_loader, test_loader = load_imbalanced_data(batch_size=batch_size,seed=seed)
         best_test['imbalanced'] = True
     else:
         train_loader, val_loader, test_loader = load_data_v2(
-            shuffle=True, seed=seed)
+            batch_size=batch_size, shuffle=True, seed=seed)
 
     model = Net().to(device)
     patience = 50
@@ -334,8 +334,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # setting up tensorboard
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard",
-                                     "balanced", experiment_name])
+        tensorboard_path = "/".join(["tensorboard", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -396,7 +395,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 break
 
         if epoch != 0:
-            # going over in batches of 1024
+            # going over in batches 
             for i, (inputs, labels) in enumerate(train_loader):
                 # for class distribution - loop through and add
                 labels_list = labels.numpy()
@@ -823,7 +822,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # /app/timeseries/multiclass_src
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
                                 '{}_best_model_{}_{}_{}_{}.pth'.format(
-                                    20201124, 2048, loss_metric, epoch, run_name
+                                    20201126, batch_size, loss_metric, epoch, run_name
                                 )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
@@ -888,10 +887,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
     eval_json['run'] = run_name
     eval_json['seed'] = seed
-    record_results(eval_json, "20201124_eval.json")
+    best_test['evaluation'] = eval_json
 
     # ----- recording results in a json.
-    print(best_test)
     if torch.is_tensor(best_test['loss']):
         best_test['loss'] = best_test['loss'].item()
     if torch.is_tensor(best_test['test_wt_f1_score']):
@@ -906,17 +904,17 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
     record_results(best_test, "20201124_results.json")
-    # /home/tdl29/cs-490-heaviside/multiclass_src/results/20201122_results.json
     return
 
 
 @click.command()
 @click.option("--loss", required=True)
 @click.option("--epochs", required=True)
+@click.option("--batch_size", required=True)
 @click.option("--imb", required=False, is_flag=True, default=False)
 @click.option("--run_name", required=False)
 @click.option("--cuda", required=False)
-def run(loss, epochs, imb, run_name, cuda):
+def run(loss, epochs, batch_size, imb, run_name, cuda):
     # check if forcing imbalance
     print(run_name)
     print("Running on cuda: {}".format(cuda))
@@ -930,7 +928,7 @@ def run(loss, epochs, imb, run_name, cuda):
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i + 5)
         train_cifar(loss_metric=loss, epochs=int(
-            epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda)
+            epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda, batch_size=batch_size)
 
 
 def main():
