@@ -168,16 +168,15 @@ def load_data_v2(shuffle=True, batch_size=None, seed=None):
 
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, sampler=train_sampler,
-        num_workers=4, pin_memory=True,
+        num_workers=0, pin_memory=True,
     )
     valid_loader = DataLoader(
         valid_dataset, batch_size=batch_size, sampler=valid_sampler,
-        num_workers=4, pin_memory=True,
+        num_workers=0, pin_memory=True,
     )
     test_loader = DataLoader(
-        # THIS WAS JUST FIXED?!?!?!?
         test_dataset, batch_size=batch_size, shuffle=True,
-        num_workers=4, pin_memory=True,
+        num_workers=0, pin_memory=True,
     )
     return train_loader, valid_loader, test_loader
 
@@ -198,7 +197,7 @@ def load_imbalanced_data(batch_size, seed):
     test_set = Dataset(data_splits['test'])
 
     data_params = {'batch_size': batch_size, 'shuffle': True,
-                   'num_workers': 1, 'worker_init_fn': np.random.seed(seed)}
+                   'num_workers': 0, 'worker_init_fn': np.random.seed(seed)}
     set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
     set_seed(seed)
@@ -877,8 +876,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             eval_json[tau]['class_f1s'] = class_f1s.numpy().tolist()
             eval_json[tau]['mean_f1'] = mean_f1.item()
             eval_json[tau]['eval_dxn'] = final_test_dxn
-            eval_json[tau]['class_precisions'] = precisions
-            eval_json[tau]['class_recalls'] = recalls
+            eval_json[tau]['class_precisions'] = precisions.numpy().tolist()
+            eval_json[tau]['class_recalls'] = recalls.numpy().tolist()
 
     eval_json['run'] = run_name
     eval_json['seed'] = seed
