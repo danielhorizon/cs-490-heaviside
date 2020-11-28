@@ -646,10 +646,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         valid_losses = []
         with torch.no_grad():
             val_preds, val_labels = np.array([]), np.array([])
-            ss_class_tp = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_fn = {0: [], 1: [], 2: [], 3: [],
-                        4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+            ss_class_tp = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+            ss_class_fn = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
             ss_class_fp = {0: [], 1: [], 2: [], 3: [],
                         4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
             ss_class_tn = {0: [], 1: [], 2: [], 3: [],

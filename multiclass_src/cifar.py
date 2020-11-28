@@ -221,13 +221,6 @@ def record_results(best_test, output_file):
         json.dump(data, outfile)
 
 
-def get_proportions(arr):
-    total = sum(arr)
-    for i in range(len(arr)):
-        arr[i] = arr[i]/total
-    return arr
-
-
 def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
     classes = len(y_labels[0])
     mean_f1s = torch.zeros(classes, dtype=torch.float32)
@@ -822,7 +815,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # /app/timeseries/multiclass_src
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
                                 '{}_best_model_{}_{}_{}_{}.pth'.format(
-                                    20201126, batch_size, loss_metric, epoch, run_name
+                                    20201128, batch_size, loss_metric, epoch, run_name
                                 )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
@@ -834,17 +827,17 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     eval_json = {
         "run_name": None,
         "seed": seed,
-        "0.1": {"class_f1s": None, 'class_precisions' = None, 'class_recalls'= None, "mean_f1": None, "eval_dxn": None},
-        "0.2": {"class_f1s": None, 'class_precisions' = None, 'class_recalls'= None, "mean_f1": None, "eval_dxn": None},
-        "0.3": {"class_f1s": None, 'class_precisions' = None, 'class_recalls'= None, "mean_f1": None, "eval_dxn": None},
-        "0.4": {"class_f1s": None, 'class_precisions' = None, 'class_recalls'= None, "mean_f1": None, "eval_dxn": None},
-        "0.45": {"class_f1s": None, 'class_precisions' = None, 'class_recalls'= None, "mean_f1": None, "eval_dxn": None},
-        "0.5": {"class_f1s": None, 'class_precisions' = None, 'class_recalls'= None, "mean_f1": None, "eval_dxn": None},
-        "0.55": {"class_f1s": None, 'class_precisions' = None, 'class_recalls'= None, "mean_f1": None, "eval_dxn": None},,
-        "0.6": {"class_f1s": None, 'class_precisions' = None, 'class_recalls'= None, "mean_f1": None, "eval_dxn": None},
-        "0.7": {"class_f1s": None, 'class_precisions' = None, 'class_recalls'= None, "mean_f1": None, "eval_dxn": None},
-        "0.8": {"class_f1s": None, 'class_precisions' = None, 'class_recalls'= None, "mean_f1": None, "eval_dxn": None},
-        "0.9": {"class_f1s": None, 'class_precisions' = None, 'class_recalls'= None, "mean_f1": None, "eval_dxn": None},
+        "0.1": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.2": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.3": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.4": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.45": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.5": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.55": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.6": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.7": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.8": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.9": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
     }
 
     with torch.no_grad():
@@ -905,7 +898,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "20201124_results.json")
+    record_results(best_test, "20201128_results.json")
     return
 
 
@@ -926,9 +919,10 @@ def run(loss, epochs, batch_size, imb, run_name, cuda):
 
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [2, 46, 93, 35, 16]
-    seeds = [21, 151, 793, 4, 82]
+    # seeds = [21, 151, 793, 4, 82]
+    seeds = [14, 57, 23, 944, 529]
     for i in range(len(seeds)):
-        temp_name = str(run_name) + "-" + str(i + 5)
+        temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(
             epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda, batch_size=int(batch_size))
 
@@ -943,6 +937,17 @@ if __name__ == '__main__':
     main()
 
 '''
+seeds = [14, 57, 23, 944, 529]
+python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=1024 --imb --run_name="run3-1024-approx-f1-imb" --cuda=0
+python3 cifar.py --loss="ce" --epochs=1000 --batch_size=1024 --imb --run_name="run3-1024-baseline-ce-imb" --cuda=1
 
+python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=1024 --run_name="run3-1024-approx-f1-reg" --cuda=1
+python3 cifar.py --loss="ce" --epochs=1000 --batch_size=1024 --run_name="run3-1024-baseline-ce-reg" --cuda=0 
+
+python3 cifar.py --loss="ce" --epochs=1000 --batch_size=256 --run_name="256-baseline-ce-reg" --cuda=1
+python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=256 --run_name="256-approx-f1-reg" --cuda=2
+
+python3 cifar.py --loss="ce" --epochs=1000 --batch_size=256 --run_name="256-baseline-ce-imb" --cuda=1 --imb 
+python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=256 --run_name="256-approx-f1-imb" --cuda=2 --imb 
 
 '''
