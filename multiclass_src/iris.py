@@ -122,7 +122,6 @@ def load_iris(shuffle=True):
 
 
 def train_iris(data_splits, loss_metric, epochs):
-
     if torch.cuda.is_available():
         print("device = cuda")
         device = "cuda"
