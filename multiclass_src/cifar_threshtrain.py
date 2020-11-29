@@ -915,9 +915,9 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau):
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [2, 46, 93, 35, 16]
     # seeds = [21, 151, 793, 4, 82]
-    seeds = [23, 944, 529]
+    seeds = [11, 23, 944, 529]
     for i in range(len(seeds)):
-        temp_name = str(run_name) + "-" + str(i+2)
+        temp_name = str(run_name) + "-" + str(i+1)
         train_cifar(loss_metric=loss, epochs=int(
             epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda, batch_size=int(batch_size), train_tau=train_tau)
 
