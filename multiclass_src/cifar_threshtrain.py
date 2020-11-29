@@ -915,7 +915,7 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau):
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [2, 46, 93, 35, 16]
     # seeds = [21, 151, 793, 4, 82]
-    seeds = [11, 23, 944, 529]
+    seeds = [46, 23, 945]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i+1)
         train_cifar(loss_metric=loss, epochs=int(
@@ -933,7 +933,7 @@ if __name__ == '__main__':
 
 '''
 seeds = [14, 57, 23, 944, 529]
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="1024-approx-f1-imb-tau_0.1" --cuda=1 --train_tau=0.1 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run2_1024-approx-f1-imb-tau_0.1" --cuda=1 --train_tau=0.1 --batch_size=1024
 python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="1024-approx-f1-imb-tau_0.2" --cuda=1 --train_tau=0.2 --batch_size=1024
 python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="1024-approx-f1-imb-tau_0.3" --cuda=1 --train_tau=0.3 --batch_size=1024
 python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="1024-approx-f1-imb-tau_0.5" --cuda=3 --train_tau=0.5 --batch_size=1024
