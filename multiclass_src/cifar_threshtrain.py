@@ -915,9 +915,9 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau):
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [2, 46, 93, 35, 16]
     # seeds = [21, 151, 793, 4, 82]
-    seeds = [14, 57, 23, 944, 529]
+    seeds = [23, 944, 529]
     for i in range(len(seeds)):
-        temp_name = str(run_name) + "-" + str(i)
+        temp_name = str(run_name) + "-" + str(i+2)
         train_cifar(loss_metric=loss, epochs=int(
             epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda, batch_size=int(batch_size), train_tau=train_tau)
 
@@ -947,4 +947,6 @@ python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-a
 python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.7" --cuda=2 --train_tau=0.7 --batch_size=1024
 python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.9" --cuda=2 --train_tau=0.9 --batch_size=1024
 
+
+need to run immb- train 0.7 and 0.9 
 '''
