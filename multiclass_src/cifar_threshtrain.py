@@ -941,7 +941,7 @@ python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="
 python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="1024-approx-f1-imb-tau_0.9" --cuda=3 --train_tau=0.9 --batch_size=1024
 
 python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.1" --cuda=1 --train_tau=0.1 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.2" --cuda=1 --train_tau=0.2 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.2" --cuda=2 --train_tau=0.2 --batch_size=1024
 python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.3" --cuda=1 --train_tau=0.3 --batch_size=1024
 python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.5" --cuda=2 --train_tau=0.5 --batch_size=1024
 python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.7" --cuda=2 --train_tau=0.7 --batch_size=1024
