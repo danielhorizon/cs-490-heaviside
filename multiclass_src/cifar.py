@@ -168,16 +168,15 @@ def load_data_v2(shuffle=True, batch_size=None, seed=None):
 
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, sampler=train_sampler,
-        num_workers=4, pin_memory=True,
+        num_workers=0, pin_memory=True,
     )
     valid_loader = DataLoader(
         valid_dataset, batch_size=batch_size, sampler=valid_sampler,
-        num_workers=4, pin_memory=True,
+        num_workers=0, pin_memory=True,
     )
     test_loader = DataLoader(
-        # THIS WAS JUST FIXED?!?!?!?
         test_dataset, batch_size=batch_size, shuffle=True,
-        num_workers=4, pin_memory=True,
+        num_workers=0, pin_memory=True,
     )
     return train_loader, valid_loader, test_loader
 
@@ -198,7 +197,7 @@ def load_imbalanced_data(batch_size, seed):
     test_set = Dataset(data_splits['test'])
 
     data_params = {'batch_size': batch_size, 'shuffle': True,
-                   'num_workers': 1, 'worker_init_fn': np.random.seed(seed)}
+                   'num_workers': 0, 'worker_init_fn': np.random.seed(seed)}
     set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
     set_seed(seed)
@@ -221,25 +220,16 @@ def record_results(best_test, output_file):
         json.dump(data, outfile)
 
 
-def get_proportions(arr):
-    total = sum(arr)
-    for i in range(len(arr)):
-        arr[i] = arr[i]/total
-    return arr
-
-
 def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
     classes = len(y_labels[0])
     mean_f1s = torch.zeros(classes, dtype=torch.float32)
+    precisions = torch.zeros(classes, dtype=torch.float32)
+    recalls = torch.zeros(classes, dtype=torch.float32)
 
     '''
     y_labels = tensor([[0., 0., 0., 0., 0., 1., 0., 0., 0., 0.]])
     y_preds = tensor([[0.0981, 0.0968, 0.0977, 0.0869, 0.1180, 0.1081, 0.0972, 0.0919, 0.1003, 0.1050]])
     '''
-
-    # print("LABELS:{}".format(y_labels))
-    # print("PREDS: {}".format(y_preds))
-
     for i in range(classes):
         gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
         pt_list = y_preds[:, i]
@@ -263,9 +253,11 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
         temp_f1 = torch.mean(2 * (precision * recall) /
                              (precision + recall + EPS))
         mean_f1s[i] = temp_f1
+        precisions[i] = precision
+        recalls[i] = recall 
 
     # return class wise f1, and the mean of the f1s.
-    return mean_f1s, mean_f1s.mean()
+    return mean_f1s, mean_f1s.mean(), precisions, recalls
 
 
 def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None, batch_size=None):
@@ -822,7 +814,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # /app/timeseries/multiclass_src
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
                                 '{}_best_model_{}_{}_{}_{}.pth'.format(
-                                    20201126, batch_size, loss_metric, epoch, run_name
+                                    20201128, batch_size, loss_metric, epoch, run_name
                                 )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
@@ -834,17 +826,17 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     eval_json = {
         "run_name": None,
         "seed": seed,
-        "0.1": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-        "0.2": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-        "0.3": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-        "0.4": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-        "0.45": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-        "0.5": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-        "0.55": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-        "0.6": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-        "0.7": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-        "0.8": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
-        "0.9": {"class_f1s": None, "mean_f1": None, "eval_dxn": None},
+        "0.1": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.2": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.3": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.4": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.45": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.5": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.55": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.6": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.7": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.8": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.9": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
     }
 
     with torch.no_grad():
@@ -877,13 +869,15 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             test_preds = torch.tensor(test_preds[0])
             test_labels = torch.tensor(test_labels[0])
 
-            class_f1s, mean_f1 = evaluation_f1(
+            class_f1s, mean_f1, precisions, recalls = evaluation_f1(
                 device=device, y_labels=test_labels, y_preds=test_preds, threshold=tau)
 
             tau = str(tau)
             eval_json[tau]['class_f1s'] = class_f1s.numpy().tolist()
             eval_json[tau]['mean_f1'] = mean_f1.item()
             eval_json[tau]['eval_dxn'] = final_test_dxn
+            eval_json[tau]['class_precisions'] = precisions.numpy().tolist()
+            eval_json[tau]['class_recalls'] = recalls.numpy().tolist()
 
     eval_json['run'] = run_name
     eval_json['seed'] = seed
@@ -903,7 +897,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "20201124_results.json")
+    record_results(best_test, "20201128_results.json")
     return
 
 
@@ -924,9 +918,10 @@ def run(loss, epochs, batch_size, imb, run_name, cuda):
 
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [2, 46, 93, 35, 16]
-    seeds = [21, 151, 793, 4, 82]
+    # seeds = [21, 151, 793, 4, 82]
+    seeds = [14, 57, 23, 944, 529]
     for i in range(len(seeds)):
-        temp_name = str(run_name) + "-" + str(i + 5)
+        temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(
             epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda, batch_size=int(batch_size))
 
@@ -941,6 +936,17 @@ if __name__ == '__main__':
     main()
 
 '''
+seeds = [14, 57, 23, 944, 529]
+python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=1024 --imb --run_name="run3-1024-approx-f1-imb" --cuda=0
+python3 cifar.py --loss="ce" --epochs=1000 --batch_size=1024 --imb --run_name="run3-1024-baseline-ce-imb" --cuda=1
 
+python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=1024 --run_name="run3-1024-approx-f1-reg" --cuda=1
+python3 cifar.py --loss="ce" --epochs=1000 --batch_size=1024 --run_name="run3-1024-baseline-ce-reg" --cuda=0 
+
+python3 cifar.py --loss="ce" --epochs=1000 --batch_size=256 --run_name="256-baseline-ce-reg" --cuda=1
+python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=256 --run_name="256-approx-f1-reg" --cuda=2
+
+python3 cifar.py --loss="ce" --epochs=1000 --batch_size=256 --run_name="256-baseline-ce-imb" --cuda=1 --imb 
+python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=256 --run_name="256-approx-f1-imb" --cuda=2 --imb 
 
 '''
