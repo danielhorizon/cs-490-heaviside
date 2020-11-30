@@ -56,7 +56,8 @@ def heaviside_agg(xs, thresholds, agg):
     new_res = heaviside_approx(xs, thresholds)
 
     if agg == 'sum':
-        return torch.sum(new_res.cuda(), axis=0)
+        # return torch.sum(new_res.cuda(), axis=0)
+        return torch.sum(new_res, axis=0)
 
     return new_res
     # return torch.sum(approx(xs, thresholds).cuda())
