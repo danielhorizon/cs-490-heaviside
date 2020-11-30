@@ -243,7 +243,7 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
         pt_list = torch.Tensor([1 if x >= threshold else 0 for x in pt_list])
 
         tn, fp, fn, tp = confusion_matrix(y_true=gt_list.cpu().numpy(), 
-                                          y_pred=pt_list.cpu().numpy(), labels=[0, 1]).ravel()
+                    y_pred=pt_list.cpu().numpy(), labels=[0, 1]).ravel()
 
         # converting to tensors
         tp, fn, fp, tn = torch.tensor([tp]).to(device), torch.tensor([fn]).to(

@@ -215,7 +215,6 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None):
 
             # forward + backward + optimize
             output = model(inputs)  # batchsize * 10
-            # print(output[0]) # this looks fine, we have 10 values in here.
 
             if not approx:
                 loss = criterion(output, labels)
