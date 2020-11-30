@@ -247,13 +247,12 @@ def train_iris(data_splits, loss_metric, epochs, seed, run_name, batch_size):
         "evaluation": None
     }
 
-
     # initialization
     approx = False
     model = Model().to(device)
     patience = 10
     early_stopping = EarlyStopping(patience=patience, verbose=True)
-    learning_rate = 0.005
+    learning_rate = 0.003
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     best_test['learning_rate'] = learning_rate
 
