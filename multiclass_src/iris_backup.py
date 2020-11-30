@@ -1,0 +1,407 @@
+import os 
+import time
+import torch
+import click
+import logging
+import random 
+import math
+
+import pandas as pd
+import numpy as np
+import torch.nn as nn
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from sklearn import metrics
+
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import DataLoader
+from torch.autograd import Variable
+
+from mc_torchconfusion import *
+from gradient_flow import *
+
+# for early stopping.
+from pytorchtools import EarlyStopping
+
+EPS = 1e-7
+_IRIS_DATA_PATH = "../data/iris.csv"
+
+
+class Dataset(torch.utils.data.Dataset):
+    def __init__(self, ds_split):
+        self.X = torch.from_numpy(ds_split['X']).float()
+        self.y = torch.from_numpy(ds_split['y']).float()
+
+    def __len__(self):
+        return len(self.y)
+
+    def __getitem__(self, index):
+        return self.X[index, :], self.y[index]
+
+
+class Model(nn.Module):
+    # http://airccse.org/journal/ijsc/papers/2112ijsc07.pdf
+    # https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8620866&tag=1
+    def __init__(self, input_features=4, hidden_layer1=50, hidden_layer2=20,
+                 output_features=3):
+        super().__init__()
+        self.fc1 = nn.Linear(input_features, hidden_layer1)
+        self.fc2 = nn.Linear(hidden_layer1, hidden_layer2)
+        self.fc3 = nn.Linear(hidden_layer2, output_features)
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.fc2(x)
+        x = F.relu(x)
+        x = self.fc3(x)
+        x = self.softmax(x)
+        return x
+
+
+def set_seed(seed):
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+
+
+def record_results(best_test, output_file):
+    # reading in the data from the existing file.
+    results_path = "/app/timeseries/multiclass_src/results"
+    file_path = "/".join([results_path, output_file])
+    with open(file_path, "r+") as f:
+        data = json.load(f)
+        data.append(best_test)
+        f.close()
+
+    with open(file_path, "w") as outfile:
+        json.dump(data, outfile)
+
+
+def load_iris(shuffle=True):
+    # https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8620866&tag=1
+    raw_df = pd.read_csv(_IRIS_DATA_PATH)
+    mappings = {
+        "Iris-setosa": 0,
+        "Iris-versicolor": 1,
+        "Iris-virginica": 2
+    }
+    raw_df["species"] = raw_df["species"].apply(lambda x: mappings[x])
+
+    # split and shuffle; shuffle=true will shuffle the elements before the split.
+    train_df, test_df = train_test_split(raw_df, test_size=0.20, shuffle=shuffle)
+    train_df, val_df = train_test_split(train_df, test_size=0.20, shuffle=shuffle)
+
+    train_labels = np.array(train_df.pop("species"))
+    val_labels = np.array(val_df.pop("species"))
+    test_labels = np.array(test_df.pop("species"))
+
+    train_features = np.array(train_df)
+    val_features = np.array(val_df)
+    test_features = np.array(test_df)
+
+    # scaling data.
+    scaler = StandardScaler()
+    train_features = scaler.fit_transform(train_features)
+    val_features = scaler.transform(val_features)
+    test_features = scaler.transform(test_features)
+
+    print('iris training labels shape: {}'.format(train_labels.shape))
+    print("iris training features.shape: {}".format(train_features.shape))
+
+    print('iris validation labels shape: {}'.format(val_labels.shape))
+    print("iris validation features.shape: {}".format(val_features.shape))
+
+    print('iris test labels shape: {}'.format(test_labels.shape))
+    print("iris test features.shape: {}".format(test_features.shape))
+
+    return {
+        'train': {
+            'X': train_features,
+            'y': train_labels
+        },
+        'val': {
+            'X': val_features,
+            'y': val_labels
+        },
+        'test': {
+            'X': test_features,
+            'y': test_labels
+        },
+    }
+
+
+def create_loaders(data_splits, batch_size, seed): 
+    dataparams = {'batch_size': batch_size, 'shuffle': True, 'num_workers': 1}
+    trainset = Dataset(data_splits['train'])
+    validationset = Dataset(data_splits['val'])
+    testset = Dataset(data_splits['test'])
+    set_seed(seed)
+    train_loader = DataLoader(trainset, **dataparams)
+    set_seed(seed)
+    val_loader = DataLoader(validationset, **dataparams)
+    set_seed(seed)
+    test_loader = DataLoader(testset, **dataparams)
+    return train_loader, val_loader, test_loader
+
+
+def train_iris(data_splits, loss_metric, epochs, seed, run_name, batch_size):
+    if torch.cuda.is_available():
+        print("device = cuda")
+        device = "cuda"
+        using_gpu = True
+    else: 
+        print("device = cpu")
+        device = "cpu"
+
+    # setting train, validation, and test sets
+    X_train, y_train = data_splits['train']['X'], data_splits['train']['y']
+    X_valid, y_valid = data_splits['val']['X'], data_splits['val']['y']
+    X_test, y_test = data_splits['test']['X'], data_splits['test']['y']
+
+    X_train = Variable(torch.Tensor(X_train).float(), requires_grad=True)
+    y_train = Variable(torch.Tensor(y_train).long())
+    X_test = Variable(torch.Tensor(X_test).float())
+    X_valid = Variable(torch.Tensor(X_valid).float())
+    y_test = Variable(torch.Tensor(y_test).long())
+    y_valid = Variable(torch.Tensor(y_valid).long())
+
+    # using DataSet and DataLoader
+    train_loader, val_loader, test_loader = create_loaders(data_splits, batch_size, seed)
+
+    # setting seeds 
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    np.random.seed(seed)
+
+    # storing metrics
+    train_dxn, test_dxn, valid_dxn = [0, 0, 0], [0, 0, 0], [0, 0, 0]
+    best_test = {
+        "best-epoch": 0,
+        "loss": float('inf'),
+        "test_wt_f1_score": 0,
+        "val_wt_f1_score": 0,
+        "test_accuracy": 0,
+        "val_accuracy": 0,
+        "learning_rate": 0,
+        "imbalanced": False,
+        "loss_metric": loss_metric,
+        "run_name": run_name,
+        "train_dxn": None,
+        "test_dxn": None,
+        "valid_dxn": None,
+        "seed": seed,
+        "batch_size": batch_size,
+        "evaluation": None
+    }
+
+
+    # initialization
+    approx = False
+    model = Model().to(device)
+    patience = 20
+    early_stopping = EarlyStopping(patience=patience, verbose=True)
+    learning_rate = 0.01
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    best_test['learning_rate'] = learning_rate
+
+    # criterion
+    if loss_metric == "ce":
+        criterion = nn.CrossEntropyLoss()
+    elif loss_metric == "approx-f1":
+        approx = True
+        criterion = mean_f1_approx_loss_on(device=device)
+    elif loss_metric == "approx-acc":
+        approx = True
+        criterion = mean_accuracy_approx_loss_on(device=device)
+    elif loss_metric == "approx-auroc":
+        approx = True
+        criterion = mean_auroc_approx_loss_on(device=device)
+    else:
+        raise RuntimeError("Unknown loss {}".format(loss_metric))
+
+
+    avg_val_losses = []
+
+    # ----- TRAINING -----
+    losses = []
+    for epoch in range(epochs):
+        running_loss = 0.0 
+        accs, microf1s, macrof1s, wf1s = [], [], [], []
+        micro_prs, macro_prs, weighted_prs = [], [], []
+        micro_recalls, macro_recalls, weighted_recalls = [], [], []
+        class_f1_scores = {0: [], 1: [], 2: []}
+        class_precision = {0: [], 1: [], 2: []}
+        class_recall = {0: [], 1: [], 2: []} 
+
+        if epoch == 0:
+            print("--- MODEL PARAMS ---")
+            for param in model.parameters():
+                print(param.data[1])
+                print(param.data[1].shape)
+                break
+
+        for batch, (inputs, labels) in enumerate(train_loader):
+            # setting into train mode.
+            model.train()
+
+            # for class distribution 
+            labels_list = labels.numpy() 
+            for label in labels_list: 
+                train_dxn[label] += 1 
+            
+            labels = labels.type(torch.LongTensor)
+            inputs = inputs.to(device)
+            labels = labels.to(device) 
+
+            # zero grad
+            optimizer.zero_grad()
+            y_pred = model(inputs)
+
+            if not approx:
+                loss = criterion(y_pred, labels)
+            else:
+                # TODO(dlee): this is hard coded in (the 3 part)
+                train_labels = torch.zeros(len(labels), 3).scatter_(
+                    1, labels.unsqueeze(1), 1.)
+                loss = criterion(y_labels=train_labels, y_preds=y_pred)
+
+            losses.append(loss)
+            loss.backward()
+            optimizer.step()
+
+
+            # checking prediction via evaluation 
+
+        # ----- EVALUATE -----
+        model.eval()
+        if using_gpu:
+            mloss = torch.mean(torch.stack(losses))
+        else: 
+            mloss = np.array([x.item for x in losses]).mean()
+        # https://github.com/rizalzaf/ap_perf/blob/master/examples/tabular.py
+
+        # TRAIN Metrics: Accuracy, F1
+        tr_output = model(X_train)
+        # for each array, get the array of max index
+        tr_pred = torch.Tensor([torch.argmax(x) for x in tr_output])
+        tr_pred_np = [int(x) for x in tr_pred.cpu().numpy()]
+
+        tr_acc = accuracy_score(y_true=y_train, y_pred=tr_pred_np)
+        tr_f1_micro = f1_score(
+            y_true=y_train, y_pred=tr_pred_np, average='micro')
+        tr_f1_macro = f1_score(
+            y_true=y_train, y_pred=tr_pred_np, average='macro')
+        tr_f1_weighted = f1_score(
+            y_true=y_train, y_pred=tr_pred_np, average='weighted')
+
+        # TEST Metrics: Accuracy, F1
+        test_data = torch.Tensor(X_test)
+        ts_output = model(test_data)
+        ts_pred = torch.Tensor([torch.argmax(x) for x in ts_output])
+        ts_pred_np = [int(x) for x in ts_pred.cpu().numpy()]
+
+        # Calculate Test Metrics
+        ts_acc = accuracy_score(y_true=y_test, y_pred=ts_pred_np)
+        ts_f1_micro = f1_score(
+            y_true=y_test, y_pred=ts_pred_np, average='micro')
+        ts_f1_macro = f1_score(
+            y_true=y_test, y_pred=ts_pred_np, average='macro')
+        ts_f1_weighted = f1_score(
+            y_true=y_test, y_pred=ts_pred_np, average='weighted')
+
+        # storing test metrics in dict based on loss
+        if best_test['loss'] > mloss:
+            best_test['loss'] = mloss
+            best_test['best-epoch'] = epoch
+        if best_test['f1_score'] < ts_f1_weighted:
+            best_test['f1_score'] = ts_f1_weighted
+        if best_test['accuracy'] < ts_acc:
+            best_test['accuracy'] = ts_acc
+
+        print("-- Mean Loss: {:.3f}".format(mloss))
+        print("Train - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f} | Macro F1: {:.4f}".format(
+            epoch, tr_acc, tr_f1_weighted, ts_f1_micro, tr_f1_macro)
+        )
+        print("Test - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f} | Macro F1: {:.4f}".format(
+            epoch, ts_acc, ts_f1_weighted, ts_f1_micro, ts_f1_macro)
+        )
+
+        # ---------- VALIDATION ----------
+        model.eval()
+        valid_losses = []
+
+        for data, target in val_loader:
+            y_valpred = model.forward(data)
+            # valid loss if APPROX
+            if approx:
+                # print(target)
+                target = target.type(torch.int64)
+                valid_labels = torch.zeros(len(target), 3).scatter_(
+                    1, target.unsqueeze(1), 1.)
+                # print(valid_labels)
+                curr_val_loss = criterion(
+                    y_labels=valid_labels, y_preds=y_valpred)
+            # using regular CE
+            else:
+                target = target.type(torch.int64)
+                curr_val_loss = criterion(y_valpred, target)
+            # print("valid loss: {}".format(curr_val_loss))
+            valid_losses.append(curr_val_loss.detach().cpu().numpy())
+            # print("valid_losses: {}".format(valid_losses))
+
+        # computing validation metrics via val_data
+        val_output = model(X_valid)
+        val_pred = torch.Tensor([torch.argmax(x) for x in val_output])
+        val_pred_np = [int(x) for x in val_pred.cpu().numpy()]
+        val_acc = accuracy_score(y_true=y_valid, y_pred=val_pred_np)
+        val_f1_micro = f1_score(
+            y_true=y_valid, y_pred=val_pred_np, average='micro')
+        val_f1_macro = f1_score(
+            y_true=y_valid, y_pred=val_pred_np, average='macro')
+        val_f1_weighted = f1_score(
+            y_true=y_valid, y_pred=val_pred_np, average='weighted')
+        
+        print("Valid - Epoch ({}): | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f} | Macro F1: {:.4f}".format(
+            epoch, val_acc, val_f1_weighted, val_f1_weighted, val_f1_micro, val_f1_macro)
+        )
+
+        # computing the losses
+        valid_loss = np.mean(valid_losses)
+        print("Validation Loss: {}".format(valid_loss))
+        avg_val_losses.append(valid_loss)
+
+        early_stopping(valid_loss, model)
+        if early_stopping.early_stop:
+            print("Early Stopping")
+            break
+
+    print(best_test)
+    return
+
+
+@click.command()
+@click.option("--loss", required=True)
+@click.option("--epochs", required=True)
+def run(loss, epochs):
+    data_splits = load_iris()
+    train_iris(data_splits, loss_metric=loss, epochs=int(epochs))
+
+
+def main():
+    os.environ['LC_ALL'] = 'C.UTF-8'
+    os.environ['LANG'] = "C.UTF-8"
+    run()
+
+
+if __name__ == '__main__':
+    main()
