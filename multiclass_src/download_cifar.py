@@ -132,5 +132,3 @@ def load_imb_data(seed):
     }
     
 
-if __name__=="__main__":
-    load_imb_data()   
