@@ -221,6 +221,7 @@ def record_results(best_test, output_file):
 
 
 def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
+    EPS = 1e-7
     classes = len(y_labels[0])
     mean_f1s = torch.zeros(classes, dtype=torch.float32)
     precisions = torch.zeros(classes, dtype=torch.float32)
