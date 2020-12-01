@@ -21,9 +21,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 # CUSTOM IMPORT
 from download_cifar import *
 
-
 _MODELS_PATH = "/app/timeseries/multiclass_src/models"
-
 EPS = 1e-7
 
 
@@ -38,6 +36,7 @@ def record_results(best_test, output_file):
 
     with open(file_path, "w") as outfile:
         json.dump(data, outfile)
+
 
 class Net(nn.Module):
     def __init__(self):
@@ -59,6 +58,7 @@ class Net(nn.Module):
         x = self.fc3(x)
         x = self.softmax(x)
         return x
+
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, ds_split):
@@ -160,6 +160,13 @@ def get_metrics(device, model_name, batch_size, seed, train_tau):
         "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
         "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
     }
+
+    '''
+    Say you have all your models: 
+    For each class, you need to pick a model. Try all the model at each threshold, and pick the one that does the best. 
+    
+    '''
+
     with torch.no_grad():
         for tau in test_thresholds:
             # go through all the thresholds, and test them out again.

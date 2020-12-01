@@ -31,11 +31,9 @@ from sklearn.metrics import confusion_matrix
 from sklearn import metrics
 
 # for early stopping.
+# for early stopping.
 from pytorchtools import EarlyStopping
-from mc_torchconfusion import *
-from mc_torchconfusion_weighted import wt_mean_f1_approx_loss_on
-# from torchconfusion import *
-
+from st_torchconfusion import *
 from download_cifar import *
 
 
@@ -109,17 +107,6 @@ class Dataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         return self.X[index, :], self.y[index]
-
-
-def _check_freq(x):
-    return np.array(np.unique(x, return_counts=True)).T
-
-
-def _show_image(img):
-    img = img / 2 + 0.5     # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
 
 
 # https://gist.github.com/kevinzakka/d33bf8d6c7f06a9d8c76d97a7879f5cb
@@ -244,7 +231,7 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
         pt_list = torch.Tensor([1 if x >= threshold else 0 for x in pt_list])
 
         tn, fp, fn, tp = confusion_matrix(y_true=gt_list.cpu().numpy(), 
-                    y_pred=pt_list.cpu().numpy(), labels=[0, 1]).ravel()
+                                          y_pred=pt_list.cpu().numpy(), labels=[0, 1]).ravel()
 
         # converting to tensors
         tp, fn, fp, tn = torch.tensor([tp]).to(device), torch.tensor([fn]).to(
@@ -261,11 +248,9 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
     return mean_f1s, mean_f1s.mean(), precisions, recalls
 
 
-def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None, batch_size=None):
+def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None, batch_size=None,):
     using_gpu = False
     if torch.cuda.is_available():
-        print("device = cuda")
-        print(type(cuda))
         if cuda == "0":
             device = "cuda:0"
         elif cuda == "1":
@@ -278,8 +263,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             device = "cuda:0"
         using_gpu = True
     else:
-        print("device = cpu")
         device = "cpu"
+    print("Device: {}".format(device))
 
     set_seed(seed)
     train_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -314,8 +299,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         train_loader, val_loader, test_loader = load_imbalanced_data(batch_size=batch_size,seed=seed)
         best_test['imbalanced'] = True
     else:
-        train_loader, val_loader, test_loader = load_data_v2(
-            batch_size=batch_size, shuffle=True, seed=seed)
+        train_loader, val_loader, test_loader = load_data_v2(batch_size=batch_size, shuffle=True, seed=seed)
 
     model = Net().to(device)
     patience = 50
@@ -327,7 +311,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # setting up tensorboard
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard", experiment_name])
+        tensorboard_path = "/".join(["tensorboard", "cifar-10", "search_tau", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -336,49 +320,27 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         criterion = nn.CrossEntropyLoss()
     elif loss_metric == "approx-f1":
         approx = True
-        criterion = mean_f1_approx_loss_on(device=device)
-    elif loss_metric == "approx-f1-wt":
-        approx = True
-        criterion = wt_mean_f1_approx_loss_on(device=device)
-    # elif loss_metric == "approx-acc":
-    #     approx = True
-    #     criterion = mean_accuracy_approx_loss_on(device=device)
-    # elif loss_metric == "approx-auroc":
-    #     approx = True
-    #     criterion = mean_auroc_approx_loss_on(device=device)
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
     # ----- TRAINING, TESTING, VALIDATION -----
     losses = []
+    train_class_thresholds = {
+        1: {"0.1": 0, "0.125": 0, "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
+        2: {"0.1": 0, "0.125": 0, "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
+        3: {"0.1": 0, "0.125": 0, "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
+        4: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
+        5: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
+        6: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
+        7: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
+        8: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
+        9: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
+        10: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
+    }
+
     for epoch in range(epochs):
         running_loss = 0.0
         accs, microf1s, macrof1s, wf1s = [], [], [], []
-        micro_prs, macro_prs, weighted_prs = [], [], []
-        micro_recalls, macro_recalls, weighted_recalls = [], [], []
-        class_f1_scores = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        class_precision = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        class_recall = {0: [], 1: [], 2: [], 3: [],
-                        4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-
-        ss_class_tp = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_fn = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_fp = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_tn = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_pr = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_re = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_f1 = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_acc = {0: [], 1: [], 2: [], 3: [],
-                        4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
 
         if epoch == 0:
             print("--- MODEL PARAMS ---")
@@ -410,8 +372,10 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
 
-                    loss, hclass_tp, hclass_fn, hclass_fp, hclass_tn, hclass_pr, hclass_re, hclass_f1, hclass_acc = criterion(
-                        y_labels=train_labels, y_preds=output)
+
+                    criterion = st_mean_f1_approx_loss_on(device=device)
+                    loss, train_class_thresholds = criterion(
+                        y_labels=train_labels, y_preds=output, class_thresholds=train_class_thresholds)
 
                 losses.append(loss)
                 loss.backward()
@@ -423,18 +387,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     print('[%d, %5d] loss: %.3f' %
                           (epoch + 1, i + 1, running_loss / 2000))
                     running_loss = 0.0
-
-                # storing soft-set-metrics
-                if approx:
-                    for i in range(10):
-                        ss_class_tp[i].append(hclass_tp[i])
-                        ss_class_fn[i].append(hclass_fn[i])
-                        ss_class_fp[i].append(hclass_fp[i])
-                        ss_class_tn[i].append(hclass_tn[i])
-                        ss_class_pr[i].append(hclass_pr[i])
-                        ss_class_re[i].append(hclass_re[i])
-                        ss_class_f1[i].append(hclass_f1[i])
-                        ss_class_acc[i].append(hclass_acc[i])
 
                 # check prediction
                 model.eval()
@@ -451,127 +403,18 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                                          y_pred=train_preds.cpu(), average="macro"))
                 wf1s.append(f1_score(y_true=labels.cpu(),
                                      y_pred=train_preds.cpu(), average="weighted"))
-                # precision
-                micro_prs.append(precision_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
-                macro_prs.append(precision_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
-                weighted_prs.append(precision_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
-
-                # recall
-                micro_recalls.append(recall_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
-                macro_recalls.append(recall_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
-                weighted_recalls.append(recall_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
-
-                class_f1s = f1_score(y_true=labels.cpu(),
-                                     y_pred=train_preds.cpu(), average=None)
-                class_re = recall_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
-                class_pr = precision_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
-
-                for i in range(len(class_f1s)):
-                    class_f1_scores[i].append(class_f1s[i])
-                    class_precision[i].append(class_pr[i])
-                    class_recall[i].append(class_re[i])
 
             m_loss = torch.mean(torch.stack(losses)) if using_gpu else np.array(
                 [x.item for x in losses]).mean()
-            m_accs = np.array(accs).mean()
+
             m_weightedf1s = np.array(microf1s).mean()
             m_microf1s = np.array(microf1s).mean()
             m_macrof1s = np.array(macrof1s).mean()
-            print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
-                epoch, m_accs, m_weightedf1s, m_microf1s, m_macrof1s)
+            print("Train - Epoch ({}): Loss: {} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
+                epoch, m_loss, m_weightedf1s, m_microf1s, m_macrof1s)
             )
-            if run_name:
-                writer.add_scalar("loss", m_loss, epoch)
-                writer.add_scalar("train/accuracy", m_accs, epoch)
-                writer.add_scalar("train/w-f1", m_weightedf1s, epoch)
-                writer.add_scalar("train/micro-f1", m_microf1s, epoch)
-                writer.add_scalar("train/macro-f1", m_macrof1s, epoch)
-                writer.add_scalar("train/w-recall",
-                                  np.array(weighted_recalls).mean(), epoch)
-                writer.add_scalar("train/micro-recall",
-                                  np.array(micro_recalls).mean(), epoch)
-                writer.add_scalar("train/macro-recall",
-                                  np.array(macro_recalls).mean(), epoch)
-                writer.add_scalar("train/w-precision",
-                                  np.array(weighted_prs).mean(), epoch)
-                writer.add_scalar("train/micro-precision",
-                                  np.array(micro_prs).mean(), epoch)
-                writer.add_scalar("train/macro-precision",
-                                  np.array(macro_prs).mean(), epoch)
-
-                # adding per-class f1, precision, and recall
-                for i in range(10):
-                    title = "train/class-" + str(i) + "-f1"
-                    writer.add_scalar(title, np.array(
-                        class_f1_scores[i]).mean(), epoch)
-                    title = "train/class-" + str(i) + "-precision"
-                    writer.add_scalar(title, np.array(
-                        class_precision[i]).mean(), epoch)
-                    title = "train/class-" + str(i) + "-recall"
-                    writer.add_scalar(title, np.array(
-                        class_recall[i]).mean(), epoch)
-
-                    if approx:
-                        # adding in softset membership
-                        title = "train/class-" + str(i) + "-softset-" + "TP"
-                        writer.add_scalar(title, np.array(
-                            ss_class_tp[i]).mean(), epoch)
-                        title = "train/class-" + str(i) + "-softset-" + "FP"
-                        writer.add_scalar(title, np.array(
-                            ss_class_fp[i]).mean(), epoch)
-                        title = "train/class-" + str(i) + "-softset-" + "FN"
-                        writer.add_scalar(title, np.array(
-                            ss_class_fn[i]).mean(), epoch)
-                        title = "train/class-" + str(i) + "-softset-" + "TN"
-                        writer.add_scalar(title, np.array(
-                            ss_class_tn[i]).mean(), epoch)
-                        title = "train/class-" + \
-                            str(i) + "-softset-" + "precision"
-                        writer.add_scalar(title, np.array(
-                            ss_class_pr[i]).mean(), epoch)
-                        title = "train/class-" + \
-                            str(i) + "-softset-" + "recall"
-                        writer.add_scalar(title, np.array(
-                            ss_class_re[i]).mean(), epoch)
-                        title = "train/class-" + str(i) + "-softset-" + "f1"
-                        writer.add_scalar(title, np.array(
-                            ss_class_f1[i]).mean(), epoch)
-                        title = "train/class-" + str(i) + "-softset-" + "acc"
-                        writer.add_scalar(title, np.array(
-                            ss_class_acc[i]).mean(), epoch)
-
-        else:
-            if run_name:
-                writer.add_scalar("loss", 0, epoch)
-                writer.add_scalar("train/accuracy", 0, epoch)
-                writer.add_scalar("train/w-f1", 0, epoch)
-                writer.add_scalar("train/micro-f1", 0, epoch)
-                writer.add_scalar("train/macro-f1", 0, epoch)
-                writer.add_scalar("train/w-recall", 0, epoch)
-                writer.add_scalar("train/micro-recall", 0, epoch)
-                writer.add_scalar("train/macro-recall", 0, epoch)
-                writer.add_scalar("train/w-precision", 0, epoch)
-                writer.add_scalar("train/micro-precision", 0, epoch)
-                writer.add_scalar("train/macro-precision", 0, epoch)
-
-                # adding per-class f1, precision, and recall
-                for i in range(10):
-                    title = "train/class-" + str(i) + "-f1"
-                    writer.add_scalar(title, 0, epoch)
-                    title = "train/class-" + str(i) + "-precision"
-                    writer.add_scalar(title, 0, epoch)
-                    title = "train/class-" + str(i) + "-recall"
-                    writer.add_scalar(title, 0, epoch)
-
-        # ----- TEST SET -----
+    
+    # ----- TEST SET -----
         # Calculate metrics after going through all the batches
         model.eval()
         test_preds, test_labels = np.array([]), np.array([])
@@ -607,7 +450,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             y_true=test_labels, y_pred=test_preds, average=None)
         test_class_rec = recall_score(
             y_true=test_labels, y_pred=test_preds, average=None)
-
+        
         # add in per-class metrics
         if run_name:
             writer.add_scalar("test/accuracy", test_acc, epoch)
@@ -639,15 +482,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 writer.add_scalar(fn_title, fn, epoch)
                 writer.add_scalar(tn_title, tn, epoch)
 
-        if epoch != 0:
-            if best_test['loss'] > m_loss:
-                best_test['loss'] = m_loss
-                best_test['best-epoch'] = epoch
-            if best_test['test_wt_f1_score'] < test_f1_weighted:
-                best_test['test_wt_f1_score'] = test_f1_weighted
-            if best_test['test_accuracy'] < test_acc:
-                best_test['test_accuracy'] = test_acc
-
         print("Test - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}".format(
             epoch, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
         )
@@ -658,23 +492,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         valid_losses = []
         with torch.no_grad():
             val_preds, val_labels = np.array([]), np.array([])
-            ss_class_tp = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_fn = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_fp = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_tn = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_pr = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_re = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_f1 = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_acc = {0: [], 1: [], 2: [], 3: [],
-                            4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-
             for i, (inputs, labels) in enumerate(val_loader):
                 labels_list = labels.numpy()
                 for label in labels_list:
@@ -699,24 +516,16 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     valid_labels = torch.zeros(len(labels), 10).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
-                    curr_val_loss, hclass_tp, hclass_fn, hclass_fp, hclass_tn, hclass_pr, hclass_re, hclass_f1, hclass_acc = criterion(
+
+                    # setting to appropriate criterion 
+                    criterion = mean_f1_approx_loss_on(
+                        threshold=torch.arange(0.1, 1, 0.1), device=device)
+                    curr_val_loss, _, _, _, _, _, _, _, _ = criterion(
                         y_labels=valid_labels, y_preds=output)
                 else:
                     curr_val_loss = criterion(output, labels)
 
                 valid_losses.append(curr_val_loss.detach().cpu().numpy())
-
-                # storing soft-set-metrics
-                if approx:
-                    for i in range(10):
-                        ss_class_tp[i].append(hclass_tp[i])
-                        ss_class_fn[i].append(hclass_fn[i])
-                        ss_class_fp[i].append(hclass_fp[i])
-                        ss_class_tn[i].append(hclass_tn[i])
-                        ss_class_pr[i].append(hclass_pr[i])
-                        ss_class_re[i].append(hclass_re[i])
-                        ss_class_f1[i].append(hclass_f1[i])
-                        ss_class_acc[i].append(hclass_acc[i])
 
             val_acc = accuracy_score(y_true=val_labels, y_pred=val_preds)
             val_f1_micro = f1_score(
@@ -766,49 +575,16 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     writer.add_scalar(fn_title, fn, epoch)
                     writer.add_scalar(tn_title, tn, epoch)
 
-                    if approx:
-                        # adding in softset membership
-                        title = "val/class-" + str(i) + "-softset-" + "TP"
-                        writer.add_scalar(title, np.array(
-                            ss_class_tp[i]).mean(), epoch)
-                        title = "val/class-" + str(i) + "-softset-" + "FP"
-                        writer.add_scalar(title, np.array(
-                            ss_class_fp[i]).mean(), epoch)
-                        title = "val/class-" + str(i) + "-softset-" + "FN"
-                        writer.add_scalar(title, np.array(
-                            ss_class_fn[i]).mean(), epoch)
-                        title = "val/class-" + str(i) + "-softset-" + "TN"
-                        writer.add_scalar(title, np.array(
-                            ss_class_tn[i]).mean(), epoch)
-                        title = "val/class-" + \
-                            str(i) + "-softset-" + "precision"
-                        writer.add_scalar(title, np.array(
-                            ss_class_pr[i]).mean(), epoch)
-                        title = "val/class-" + str(i) + "-softset-" + "recall"
-                        writer.add_scalar(title, np.array(
-                            ss_class_re[i]).mean(), epoch)
-                        title = "val/class-" + str(i) + "-softset-" + "f1"
-                        writer.add_scalar(title, np.array(
-                            ss_class_f1[i]).mean(), epoch)
-                        title = "val/class-" + str(i) + "-softset-" + "acc"
-                        writer.add_scalar(title, np.array(
-                            ss_class_acc[i]).mean(), epoch)
-
             # early stopping
             early_stopping(valid_loss, model)
             if early_stopping.early_stop:
                 print("Early Stopping")
                 break
-
+            
             print("Val - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
                 epoch, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
             )
-            if epoch != 0:
-                if best_test['val_wt_f1_score'] < val_f1_weighted:
-                    best_test['val_wt_f1_score'] = val_f1_weighted
-                if best_test['val_accuracy'] < val_acc:
-                    best_test['val_accuracy'] = val_acc
-
+    
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
@@ -827,17 +603,17 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     eval_json = {
         "run_name": None,
         "seed": seed,
-        "0.1": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.2": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.3": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.4": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.45": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.5": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.55": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.6": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.7": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.8": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.9": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
+        "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
     }
 
     with torch.no_grad():
@@ -898,7 +674,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "20201128_results.json")
+    record_results(best_test, "search_testing.json")
+
+    print(class_thresholds)
     return
 
 
@@ -917,10 +695,7 @@ def run(loss, epochs, batch_size, imb, run_name, cuda):
     if imb:
         imbalanced = True
 
-    # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
-    # seeds = [2, 46, 93, 35, 16]
-    # seeds = [21, 151, 793, 4, 82]
-    seeds = [14, 57, 23]
+    seeds = [46, 23, 945]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(
@@ -937,17 +712,14 @@ if __name__ == '__main__':
     main()
 
 '''
-seeds = [14, 57, 23, 944, 529]
-python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=1024 --imb --run_name="run3-1024-approx-f1-imb" --cuda=0
-python3 cifar.py --loss="ce" --epochs=1000 --batch_size=1024 --imb --run_name="run3-1024-baseline-ce-imb" --cuda=1
-
-python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=1024 --run_name="run3-1024-approx-f1-reg" --cuda=1
-python3 cifar.py --loss="ce" --epochs=1000 --batch_size=1024 --run_name="run3-1024-baseline-ce-reg" --cuda=0 
-
-python3 cifar.py --loss="ce" --epochs=1000 --batch_size=256 --run_name="256-baseline-ce-reg" --cuda=1
-python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=256 --run_name="256-approx-f1-reg" --cuda=2
-
-python3 cifar.py --loss="ce" --epochs=1000 --batch_size=256 --run_name="256-baseline-ce-imb" --cuda=1 --imb 
-python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=256 --run_name="256-approx-f1-imb" --cuda=2 --imb 
-
+{1: {'0.1': 364, '0.125': 428, '0.2': 396, '0.3': 396, '0.4': 396, '0.5': 396, '0.7': 396}, 
+2: {'0.1': 443, '0.125': 414, '0.2': 501, '0.3': 478, '0.4': 338, '0.5': 484, '0.7': 114}, 
+3: {'0.1': 580, '0.125': 226, '0.2': 279, '0.3': 491, '0.4': 192, '0.5': 813, '0.7': 191}, 
+4: {'0.1': 68, '0.125': 262, '0.2': 374, '0.3': 594, '0.4': 520, '0.5': 934, '0.7': 20}, 
+5: {'0.1': 444, '0.125': 55, '0.2': 162, '0.3': 265, '0.4': 231, '0.5': 1583, '0.7': 32}, 
+6: {'0.1': 245, '0.125': 353, '0.2': 248, '0.3': 400, '0.4': 329, '0.5': 1175, '0.7': 22}, 
+7: {'0.1': 492, '0.125': 117, '0.2': 145, '0.3': 200, '0.4': 258, '0.5': 1452, '0.7': 108}, 
+8: {'0.1': 172, '0.125': 232, '0.2': 244, '0.3': 339, '0.4': 224, '0.5': 1388, '0.7': 173}, 
+9: {'0.1': 125, '0.125': 455, '0.2': 367, '0.3': 535, '0.4': 436, '0.5': 844, '0.7': 10}, 
+10: {'0.1': 234, '0.125': 263, '0.2': 397, '0.3': 790, '0.4': 446, '0.5': 641, '0.7': 1}}
 '''

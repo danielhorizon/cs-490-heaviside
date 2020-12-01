@@ -213,103 +213,63 @@ def st_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
         y_preds: softmaxed predictions
     '''
 
-    def loss(y_labels, y_preds):
+    def loss(y_labels, y_preds, class_thresholds):
         y_labels = y_labels.to(device)
         y_preds = y_preds.to(device)
-
         classes = len(y_labels[0])
 
-        train_thresholds = [0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.7]
-        # train_threshold = float(train_tau)
-        # threshold_tensor = torch.Tensor([train_threshold]).to(device)
-
+        train_thresholds = [0.1, 0.125, 0.2, 0.3, 0.4, 0.5, 0.7]
+        loss_holder = {"0.1": 0, "0.125": 0, "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0}
+        # print("Class 1: {}".format(class_thresholds[1]))
+        # print("Class 2: {}".format(class_thresholds[2]))
+        # print("Class 3: {}".format(class_thresholds[3]))
+        # print("Class 4: {}".format(class_thresholds[4]))
+        # print("Class 5: {}".format(class_thresholds[5]))
+        # print("Class 6: {}".format(class_thresholds[6]))
+        # print("Class 7: {}".format(class_thresholds[7]))
+        # print("Class 8: {}".format(class_thresholds[8]))
+        # print("Class 9: {}".format(class_thresholds[9]))
+        # print("Class 10: {}".format(class_thresholds[10]))
+        # print("\n")
+        
+        train_thresholds = [float(x) for x in train_thresholds]
         mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
+
         for i in range(classes):
             gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
             pt_list = y_preds[:, i].to(device)
-            thresholds = threshold.to(device)
 
+            for tau in train_thresholds:
+                threshold = torch.Tensor([tau]).to(device)
+                # getting confusion metrics. 
+                tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds=threshold)
+                precision = tp/(tp+fp+EPS)
+                recall = tp/(tp+fn+EPS)
+                temp_f1 = torch.mean(2 * (precision * recall) /
+                                    (precision + recall + EPS))
+
+                loss_holder[str(tau)] = 1 - temp_f1.mean() 
+                min_idx_tau = min(loss_holder, key=loss_holder.get)
+                # holding the best performing class 
+                class_thresholds[i+1][str(min_idx_tau)] += 1
+            
+            # ACTUALLY GETTING THE LOSS FOR THAT CLASS ITSELF! 
+            class_tau = max(class_thresholds[i+1], key=class_thresholds[i+1].get)
+            # print("class {}, tau {}".format(i+1, class_tau))
+
+            thresholds = torch.Tensor([float(class_tau)]).to(device)
             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
 
-            # print("TP:{}".format(tp))
             precision = tp/(tp+fp+EPS)
             recall = tp/(tp+fn+EPS)
             temp_f1 = torch.mean(2 * (precision * recall) /
-                                 (precision + recall + EPS))
+                                (precision + recall + EPS))
             mean_f1s[i] = temp_f1
-
-
         loss = 1 - mean_f1s.mean()
-        return loss
+
+
+        return loss, class_thresholds
     return loss
 
 
-#########
 
-# def mean_accuracy_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
-#     ''' Mean of Heaviside Approx Accuracy 
-#     Accuracy across the classes is evenly weighted 
-#     '''
-#     thresholds = thresholds.to(device)
-
-#     def loss(y_labels, y_preds):
-#         classes = len(y_labels[0])
-#         mean_accs = torch.zeros(classes, dtype=torch.float32).to(device)
-#         for i in range(classes):
-#             gt_list = torch.Tensor([x[i] for x in y_labels])
-#             pt_list = y_preds[:, i]
-
-#             thresholds = torch.arange(0.1, 1, 0.1)
-#             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
-#             mean_accs[i] = torch.mean((tp + tn) / (tp + tn + fp + fn))
-#         loss = 1 - mean_accs.mean()
-#         return loss
-#     return loss
-
-
-# def area(x, y):
-#     ''' area under curve via trapezoidal rule '''
-#     direction = 1
-#     # the following is equivalent to: dx = np.diff(x)
-#     dx = x[1:] - x[:-1]
-#     if torch.any(dx < 0):
-#         if torch.all(dx <= 0):
-#             direction = -1
-#         else:
-#             # when you compute area under the curve using trapezoidal approx,
-#             # assume that the whole area under the curve is going one direction
-#             # compute one trapezoidal rule
-
-#             # INSTEAD, compute under every part of the curve.
-#             # TODO(dlee): compute from every single point, and compute
-#             # the trapezoidal rule under every single one of these points.
-#             logging.warn(
-#                 "x is neither increasing nor decreasing\nx: {}\ndx: {}.".format(x, dx))
-#             return 0
-#     return direction * torch.trapz(y, x)
-
-
-# def mean_auroc_approx_loss_on(device, y_labels=None, y_preds=None, linspacing=11):
-#     def loss(y_labels, y_preds):
-#         """Approximate auroc:
-#             - Linear interpolated Heaviside function
-#             - roc (11-point approximation)
-#             - integrate via trapezoidal rule under curve
-#         """
-#         classes = len(y_labels[0])
-#         thresholds = torch.linspace(0, 1, linspacing).to(device)
-#         areas = []
-#         # mean over all classes
-#         for i in range(classes):
-#             gt_list = torch.Tensor([x[i] for x in y_labels])
-#             pt_list = y_preds[:, i]
-
-#             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
-#             fpr = fp/(fp+tn+EPS)
-#             tpr = tp/(tp+fn+EPS)
-#             a = area(fpr, tpr)
-#             if a > 0:
-#                 areas.append(a)
-#         loss = 1 - torch.stack(areas).mean()
-#         return loss
-#     return loss

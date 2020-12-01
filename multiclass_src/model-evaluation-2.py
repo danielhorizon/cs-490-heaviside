@@ -148,6 +148,7 @@ def get_metrics(device, model_name, batch_size, seed, train_tau):
     eval_json = {
         "run_name": None,
         "train_tau": train_tau, 
+        "seed": seed,
         "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
         "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
         "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
@@ -200,7 +201,7 @@ def get_metrics(device, model_name, batch_size, seed, train_tau):
             eval_json[tau]['class_precisions'] = precisions.numpy().tolist()
             eval_json[tau]['class_recalls'] = recalls.numpy().tolist()
     eval_json['run_name'] = model_name
-    record_results(eval_json, "threshold_training_1129_1.json")
+    record_results(eval_json, "threshold_training_1129_2.json")
     return eval_json
 
 
@@ -208,54 +209,54 @@ if __name__ == '__main__':
     # TRAINED ON 0.1 
     print("-- RUNNING FOR 0.1 --")
     model_name = "20201128_best_model_1024_approx-f1_0.1_1024-approx-f1-imb-tau_0.1-0.pth"
-    get_metrics(device="cuda:3", model_name=model_name,batch_size=1024, seed=1, train_tau=0.1)
+    get_metrics(device="cuda:3", model_name=model_name,batch_size=1024, seed=11, train_tau=0.1)
     model_name = "20201128_best_model_1024_approx-f1_0.1_run2_1024-approx-f1-imb-tau_0.1-1.pth"
-    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=2, train_tau=0.1)
+    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=22, train_tau=0.1)
     model_name = "20201128_best_model_1024_approx-f1_0.1_run2_1024-approx-f1-imb-tau_0.1-2.pth"
-    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=3, train_tau=0.1)
+    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=33, train_tau=0.1)
     model_name = "20201128_best_model_1024_approx-f1_0.1_run2_1024-approx-f1-imb-tau_0.1-3.pth"
-    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=4, train_tau=0.1)
+    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=44, train_tau=0.1)
 
     # TRAINED ON 0.2 
     print("-- RUNNING FOR 0.2 --")
     model_name = "20201128_best_model_1024_approx-f1_0.2_1024-approx-f1-imb-tau_0.2-0.pth"
-    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=1, train_tau=0.2)
+    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=11, train_tau=0.2)
     model_name = "20201128_best_model_1024_approx-f1_0.2_1024-approx-f1-imb-tau_0.2-1.pth" 
-    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=2, train_tau=0.2)
+    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=22, train_tau=0.2)
     model_name = "20201128_best_model_1024_approx-f1_0.2_1024-approx-f1-imb-tau_0.2-2.pth" 
-    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=3, train_tau=0.2)
+    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=33, train_tau=0.2)
     model_name = "20201128_best_model_1024_approx-f1_0.2_1024-approx-f1-imb-tau_0.2-3.pth" 
-    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=4, train_tau=0.2)
+    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=44, train_tau=0.2)
 
     # TRAINED ON 0.3 
     print("-- RUNNING FOR 0.3 --")
     model_name = "20201128_best_model_1024_approx-f1_0.3_1024-approx-f1-imb-tau_0.3-0.pth"
-    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=3, train_tau=0.3)
+    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=11, train_tau=0.3)
     model_name = "20201128_best_model_1024_approx-f1_0.3_1024-approx-f1-imb-tau_0.3-0.pth"
-    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=3, train_tau=0.3)
+    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=22, train_tau=0.3)
     model_name = "20201128_best_model_1024_approx-f1_0.3_1024-approx-f1-imb-tau_0.3-0.pth"
-    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=3, train_tau=0.3)
+    get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=33, train_tau=0.3)
     model_name = "20201128_best_model_1024_approx-f1_0.3_1024-approx-f1-imb-tau_0.3-0.pth"
     get_metrics(device="cuda:3", model_name=model_name,
-                batch_size=1024, seed=3, train_tau=0.3)
+                batch_size=1024, seed=44, train_tau=0.3)
     
 
     # TRAINED ON 0.5 
     print("-- RUNNING FOR 0.5 --")
     model_name = "20201128_best_model_1024_approx-f1_0.5_1024-approx-f1-imb-tau_0.5-0.pth"
-    get_metrics(device="cuda:3", model_name=model_name,batch_size=1024, seed=1, train_tau=0.5)
+    get_metrics(device="cuda:3", model_name=model_name,batch_size=1024, seed=11, train_tau=0.5)
     model_name = "20201128_best_model_1024_approx-f1_0.5_1024-approx-f1-imb-tau_0.5-1.pth"
-    get_metrics(device="cuda:3", model_name=model_name,batch_size=1024, seed=2, train_tau=0.5)
+    get_metrics(device="cuda:3", model_name=model_name,batch_size=1024, seed=22, train_tau=0.5)
     model_name = "20201128_best_model_1024_approx-f1_0.5_1024-approx-f1-imb-tau_0.5-2.pth"
     get_metrics(device="cuda:3", model_name=model_name,
-                batch_size=1024, seed=3, train_tau=0.5)
+                batch_size=1024, seed=33, train_tau=0.5)
     model_name = "20201128_best_model_1024_approx-f1_0.5_1024-approx-f1-imb-tau_0.5-3.pth"
     get_metrics(device="cuda:3", model_name=model_name,
-                batch_size=1024, seed=4, train_tau=0.5)
+                batch_size=1024, seed=44, train_tau=0.5)
 
     # TRAINED ON 0.7 
     print("-- RUNNING FOR 0.7 --")
     model_name = "20201128_best_model_1024_approx-f1_0.7_1024-approx-f1-imb-tau_0.7-0.pth"
     get_metrics(device="cuda:3", model_name=model_name,
-                batch_size=1024, seed=1, train_tau=0.7)
+                batch_size=1024, seed=11, train_tau=0.7)
 
