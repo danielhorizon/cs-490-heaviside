@@ -254,6 +254,11 @@ def st_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
                 class_thresholds[i+1][str(min_idx_tau)] += 1
             
             # ACTUALLY GETTING THE LOSS FOR THAT CLASS ITSELF! 
+            '''
+            1. Can take the top 2 thresholds and average them and use that as the training parameter for the loss 
+            2. Only run it for a short number of epochs (fastest movement then) 
+            3. For 20 epochs, train each threshold for each class, and then after those epochs, take the one that performs the best? 
+            '''
             class_tau = max(class_thresholds[i+1], key=class_thresholds[i+1].get)
             # print("class {}, tau {}".format(i+1, class_tau))
 
