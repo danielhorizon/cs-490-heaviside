@@ -200,7 +200,7 @@ def get_metrics(device, model_name, batch_size, seed, train_tau):
             eval_json[tau]['class_precisions'] = precisions.numpy().tolist()
             eval_json[tau]['class_recalls'] = recalls.numpy().tolist()
     eval_json['run_name'] = model_name
-    record_results(eval_json, "eval_results.json")
+    record_results(eval_json, "threshold_training_1129_1.json")
     return eval_json
 
 
@@ -243,15 +243,15 @@ if __name__ == '__main__':
     # TRAINED ON 0.5 
     print("-- RUNNING FOR 0.5 --")
     model_name = "20201128_best_model_1024_approx-f1_0.5_1024-approx-f1-imb-tau_0.5-0.pth"
-    get_metrics(device="cuda:3", model_name=model_name,batch_size=1024, seed=3, train_tau=0.5)
+    get_metrics(device="cuda:3", model_name=model_name,batch_size=1024, seed=1, train_tau=0.5)
     model_name = "20201128_best_model_1024_approx-f1_0.5_1024-approx-f1-imb-tau_0.5-1.pth"
-    get_metrics(device="cuda:3", model_name=model_name,batch_size=1024, seed=3, train_tau=0.5)
+    get_metrics(device="cuda:3", model_name=model_name,batch_size=1024, seed=2, train_tau=0.5)
     model_name = "20201128_best_model_1024_approx-f1_0.5_1024-approx-f1-imb-tau_0.5-2.pth"
     get_metrics(device="cuda:3", model_name=model_name,
                 batch_size=1024, seed=3, train_tau=0.5)
     model_name = "20201128_best_model_1024_approx-f1_0.5_1024-approx-f1-imb-tau_0.5-3.pth"
     get_metrics(device="cuda:3", model_name=model_name,
-                batch_size=1024, seed=3, train_tau=0.5)
+                batch_size=1024, seed=4, train_tau=0.5)
 
     # TRAINED ON 0.7 
     print("-- RUNNING FOR 0.7 --")

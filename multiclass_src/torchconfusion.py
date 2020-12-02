@@ -203,6 +203,47 @@ def mean_f1_approx_loss_on(device, threshold, y_labels=None, y_preds=None):
         return loss, class_tp, class_fn, class_fp, class_tn, class_pr, class_re, class_f1, class_acc
     return loss
 
+
+def st_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
+    ''' Mean of Heaviside Approx F1 
+    F1 across the classes is evenly weighted, hence Macro F1 
+
+    Args: 
+        y_labels: one-hot encoded label, i.e. 2 -> [0, 0, 1] 
+        y_preds: softmaxed predictions
+    '''
+
+    def loss(y_labels, y_preds):
+        y_labels = y_labels.to(device)
+        y_preds = y_preds.to(device)
+
+        classes = len(y_labels[0])
+
+        train_thresholds = [0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.7]
+        # train_threshold = float(train_tau)
+        # threshold_tensor = torch.Tensor([train_threshold]).to(device)
+
+        mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
+        for i in range(classes):
+            gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
+            pt_list = y_preds[:, i].to(device)
+            thresholds = threshold.to(device)
+
+            tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
+
+            # print("TP:{}".format(tp))
+            precision = tp/(tp+fp+EPS)
+            recall = tp/(tp+fn+EPS)
+            temp_f1 = torch.mean(2 * (precision * recall) /
+                                 (precision + recall + EPS))
+            mean_f1s[i] = temp_f1
+
+
+        loss = 1 - mean_f1s.mean()
+        return loss
+    return loss
+
+
 #########
 
 # def mean_accuracy_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):

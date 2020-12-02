@@ -920,7 +920,7 @@ def run(loss, epochs, batch_size, imb, run_name, cuda):
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [2, 46, 93, 35, 16]
     # seeds = [21, 151, 793, 4, 82]
-    seeds = [14, 57, 23, 944, 529]
+    seeds = [14, 57, 23]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(

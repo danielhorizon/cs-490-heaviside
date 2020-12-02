@@ -809,7 +809,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # /app/timeseries/multiclass_src
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
                                 '{}_best_model_{}_{}_{}_{}.pth'.format(
-                                    20201128, batch_size, loss_metric, str(train_tau), run_name
+                                    20201201, batch_size, loss_metric, str(train_tau), run_name
                                 )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
@@ -892,7 +892,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "threshold_training_1128.json")
+    record_results(best_test, "threshold_training_1201.json")
     return
 
 
@@ -947,6 +947,8 @@ python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-a
 python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.7" --cuda=2 --train_tau=0.7 --batch_size=1024
 python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.9" --cuda=2 --train_tau=0.9 --batch_size=1024
 
+
+python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-imb-tau_0.125" --cuda=3 --train_tau=0.125 --batch_size=1024
 
 need to run immb- train 0.7 and 0.9 
 '''
