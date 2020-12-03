@@ -1,5 +1,4 @@
 [
-    {},
     {
         "run_name": "20201128_best_model_1024_approx-f1_0.1_1024-approx-f1-imb-tau_0.1-0.pth",
         "train_tau": 0.1,
