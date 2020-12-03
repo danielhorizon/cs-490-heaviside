@@ -29,13 +29,13 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 # CUSTOM IMPORT
 from download_cifar import *
 
-_MODELS_PATH = "/app/timeseries/multiclass_src/models"
+_MODELS_PATH = "/app/timeseries/multiclass_src/models/tau_trained"
 EPS = 1e-7
 
 
 def record_results(best_test, output_file):
     # reading in the data from the existing file.
-    results_path = "/app/timeseries/multiclass_src/results"
+    results_path = "/app/timeseries/multiclass_src/results/train_tau"
     file_path = "/".join([results_path, output_file])
     with open(file_path, "r+") as f:
         data = json.load(f)
@@ -104,7 +104,7 @@ def get_test_loader(batch_size, seed):
     test_set = Dataset(data_splits['test'])
 
     data_params = {'batch_size': batch_size, 'shuffle': True,
-                   'num_workers': 0, 'worker_init_fn': np.random.seed(seed)}
+                   'num_workers': 1, 'worker_init_fn': np.random.seed(seed)}
     set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
     set_seed(seed)
@@ -148,26 +148,23 @@ def get_metrics(device, batch_size, seed):
     test_loader, _, _ = get_test_loader(batch_size=batch_size, seed=seed)
 
     # EVALUATION
-    
     test_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
-    # test_thresholds = [0.1, 0.2, 0.3]
-    inner_eval_json = {
-        "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-    }
-    # training level
     results_json = {   
         "0.1": {
             "0.1": {"mean_f1": None, "eval_dxn": None},
+            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
+        },
+        "0.125":  {
+            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
             "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
             "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
             "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
@@ -205,7 +202,33 @@ def get_metrics(device, batch_size, seed):
             "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
             "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
         },
+        "0.4":  {
+            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
+        },
         "0.5": {
+            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
+        },
+        "0.6":  {
             "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
             "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
             "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
@@ -230,28 +253,59 @@ def get_metrics(device, batch_size, seed):
             "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
             "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
             "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-        }
+        }, 
+        "0.8":  {
+            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
+        },
+        "0.9":  {
+            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
+        },
     }
     
-
-    model_list = [
-        # "20201128_best_model_1024_approx-f1_0.1_1024-approx-f1-imb-tau_0.1-0.pth",      # 0.1 train tau
-        "20201128_best_model_1024_approx-f1_0.2_1024-approx-f1-imb-tau_0.2-0.pth",      # 0.2 train tau 
-        # "20201128_best_model_1024_approx-f1_0.3_1024-approx-f1-imb-tau_0.3-0.pth",      # 0.3 train tau 
-        # "20201128_best_model_1024_approx-f1_0.5_1024-approx-f1-imb-tau_0.5-0.pth",      # 0.5 train tau 
-        # "20201128_best_model_1024_approx-f1_0.7_1024-approx-f1-imb-tau_0.7-0.pth"       # 0.7 train tau 
+    # Need to pull in results across all runs and average them. 
+    model_list_0 = [
+        "20201202_best_model_1024_100_0.1_train_tau-approx-f1-imb-0.1-0.pth",
+        "20201202_best_model_1024_100_0.125_train_tau-approx-f1-imb-0.125-0.pth", 
+        "20201202_best_model_1024_100_0.2_train_tau-approx-f1-imb-0.2-0.pth", 
+        "20201202_best_model_1024_100_0.3_train_tau-approx-f1-imb-0.3-0.pth", 
+        "20201202_best_model_1024_100_0.4_train_tau-approx-f1-imb-0.4-0.pth", 
+        "20201202_best_model_1024_100_0.5_train_tau-approx-f1-imb-0.5-0.pth", 
+        "20201202_best_model_1024_100_0.6_train_tau-approx-f1-imb-0.6-0.pth", 
+        "20201202_best_model_1024_100_0.7_train_tau-approx-f1-imb-0.7-0.pth", 
+        "20201202_best_model_1024_100_0.8_train_tau-approx-f1-imb-0.8-0.pth", 
+        "20201202_best_model_1024_100_0.9_train_tau-approx-f1-imb-0.9-0.pth"
     ]
-    # trained_taus = ["0.1", "0.2", "0.3", "0.5", "0.7"]
-    trained_taus = ['0.2']
+    trained_taus = ["0.1", "0.125", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
     with torch.no_grad():    
         # 0.1, 0.2, 0.3, 0.5, 0.7 
-        for x  in range(len(model_list)):
+        # for each trained model, go through all the thresholds and evaluate the performance again. 
+        for x in range(len(model_list_0)):
             # loading in model 
-            print("loading in model: {}".format(model_list[x]))
-            model = load_model(model_list[x])
+            print("loading in model: {}".format(model_list_0[x]))
+            model = load_model(model_list_0[x])
             model.eval()
+
             for tau in test_thresholds:
-                # go through all the thresholds, and test them out again.
                 final_test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
                 test_preds, test_labels = [], []
 
@@ -279,7 +333,7 @@ def get_metrics(device, batch_size, seed):
                 test_preds = torch.tensor(test_preds[0])
                 test_labels = torch.tensor(test_labels[0])
 
-                class_f1s, mean_f1, _, _= evaluation_f1(device=device, y_labels=test_labels, y_preds=test_preds, threshold=tau)
+                class_f1s, mean_f1, precisions, recalls = evaluation_f1(device=device, y_labels=test_labels, y_preds=test_preds, threshold=tau)
 
                 tau = str(tau)
                 print("For Model {}, Eval Tau: {}, Mean F1: {}".format(trained_taus[x], tau, mean_f1.item()))
@@ -288,70 +342,13 @@ def get_metrics(device, batch_size, seed):
 
                 results_json[trained_taus[x]][tau]['class_f1s'] = class_f1s.numpy().tolist() 
                 results_json[trained_taus[x]][tau]['mean_f1'] = mean_f1.item()
-                # results[trained_taus[x]][tau]['eval_dxn'] = final_test_dxn
-                # results[trained_taus[x]][tau]['class_precisions'] = precisions.numpy().tolist()
-                # results[trained_taus[x]][tau]['class_recalls'] = recalls.numpy().tolist()
+                results_json[trained_taus[x]][tau]['eval_dxn'] = final_test_dxn
+                results_json[trained_taus[x]][tau]['class_precisions'] = precisions.numpy().tolist()
+                results_json[trained_taus[x]][tau]['class_recalls'] = recalls.numpy().tolist()
 
-    record_results(results_json, "search_testing_0_2.json")
+    record_results(results_json, "20201203_train_tau_eval_run3.json")
     return results_json
 
 
 if __name__ == '__main__':
-    get_metrics(device="cuda:3", batch_size=1024, seed=1)
-
-
-
-    # # TRAINED ON 0.1 
-    # print("-- RUNNING FOR 0.1 --")
-    # model_name = "20201128_best_model_1024_approx-f1_0.1_1024-approx-f1-imb-tau_0.1-0.pth"
-    # get_metrics(device="cuda:3", model_name=model_name,batch_size=1024, seed=1, train_tau=0.1)
-    # model_name = "20201128_best_model_1024_approx-f1_0.1_run2_1024-approx-f1-imb-tau_0.1-1.pth"
-    # get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=2, train_tau=0.1)
-    # model_name = "20201128_best_model_1024_approx-f1_0.1_run2_1024-approx-f1-imb-tau_0.1-2.pth"
-    # get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=3, train_tau=0.1)
-    # model_name = "20201128_best_model_1024_approx-f1_0.1_run2_1024-approx-f1-imb-tau_0.1-3.pth"
-    # get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=4, train_tau=0.1)
-
-    # # TRAINED ON 0.2 
-    # print("-- RUNNING FOR 0.2 --")
-    # model_name = "20201128_best_model_1024_approx-f1_0.2_1024-approx-f1-imb-tau_0.2-0.pth"
-    # get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=1, train_tau=0.2)
-    # model_name = "20201128_best_model_1024_approx-f1_0.2_1024-approx-f1-imb-tau_0.2-1.pth" 
-    # get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=2, train_tau=0.2)
-    # model_name = "20201128_best_model_1024_approx-f1_0.2_1024-approx-f1-imb-tau_0.2-2.pth" 
-    # get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=3, train_tau=0.2)
-    # model_name = "20201128_best_model_1024_approx-f1_0.2_1024-approx-f1-imb-tau_0.2-3.pth" 
-    # get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=4, train_tau=0.2)
-
-    # # TRAINED ON 0.3 
-    # print("-- RUNNING FOR 0.3 --")
-    # model_name = "20201128_best_model_1024_approx-f1_0.3_1024-approx-f1-imb-tau_0.3-0.pth"
-    # get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=3, train_tau=0.3)
-    # model_name = "20201128_best_model_1024_approx-f1_0.3_1024-approx-f1-imb-tau_0.3-0.pth"
-    # get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=3, train_tau=0.3)
-    # model_name = "20201128_best_model_1024_approx-f1_0.3_1024-approx-f1-imb-tau_0.3-0.pth"
-    # get_metrics(device="cuda:3", model_name=model_name, batch_size=1024, seed=3, train_tau=0.3)
-    # model_name = "20201128_best_model_1024_approx-f1_0.3_1024-approx-f1-imb-tau_0.3-0.pth"
-    # get_metrics(device="cuda:3", model_name=model_name,
-    #             batch_size=1024, seed=3, train_tau=0.3)
-    
-
-    # # TRAINED ON 0.5 
-    # print("-- RUNNING FOR 0.5 --")
-    # model_name = "20201128_best_model_1024_approx-f1_0.5_1024-approx-f1-imb-tau_0.5-0.pth"
-    # get_metrics(device="cuda:3", model_name=model_name,batch_size=1024, seed=1, train_tau=0.5)
-    # model_name = "20201128_best_model_1024_approx-f1_0.5_1024-approx-f1-imb-tau_0.5-1.pth"
-    # get_metrics(device="cuda:3", model_name=model_name,batch_size=1024, seed=2, train_tau=0.5)
-    # model_name = "20201128_best_model_1024_approx-f1_0.5_1024-approx-f1-imb-tau_0.5-2.pth"
-    # get_metrics(device="cuda:3", model_name=model_name,
-    #             batch_size=1024, seed=3, train_tau=0.5)
-    # model_name = "20201128_best_model_1024_approx-f1_0.5_1024-approx-f1-imb-tau_0.5-3.pth"
-    # get_metrics(device="cuda:3", model_name=model_name,
-    #             batch_size=1024, seed=4, train_tau=0.5)
-
-    # # TRAINED ON 0.7 
-    # print("-- RUNNING FOR 0.7 --")
-    # model_name = "20201128_best_model_1024_approx-f1_0.7_1024-approx-f1-imb-tau_0.7-0.pth"
-    # get_metrics(device="cuda:3", model_name=model_name,
-    #             batch_size=1024, seed=1, train_tau=0.7)
-
+    get_metrics(device="cuda:3", batch_size=1024, seed=11)
