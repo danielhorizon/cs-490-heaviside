@@ -1,3 +1,11 @@
+'''
+This file is for loading in the models themselves, and then running through the test loader and 
+picking the appropriate model for each class. 
+
+Models were trained on taus [0.1, 0.125, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+Models are evaluated on [0.1, 0.2, ... , 0.9]
+
+'''
 import os
 import torch
 import json

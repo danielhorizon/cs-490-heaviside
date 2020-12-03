@@ -1,3 +1,7 @@
+'''
+This file is for analyzing the evaluation performance (that's already stored) in the json runs. 
+'''
+
 import os
 import torch
 import json
@@ -140,7 +144,6 @@ def get_metrics(device, batch_size, seed):
     test_loader, _, _ = get_test_loader(batch_size=batch_size, seed=seed)
 
     # EVALUATION
-    
     test_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
     # test_thresholds = [0.1, 0.2, 0.3]
     inner_eval_json = {
