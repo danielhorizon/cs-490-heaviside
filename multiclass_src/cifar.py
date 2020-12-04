@@ -321,7 +321,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     patience = 100
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
                                 '{}_best_model_{}_{}_{}.pth'.format(
-                                    20201203, batch_size, loss_metric, run_name
+                                    20201204, batch_size, loss_metric, run_name
                                 )])
     best_test['model_file_path'] = model_file_path
     early_stopping = EarlyStopping(patience=patience, verbose=True, path=model_file_path)
@@ -897,7 +897,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "20201203_results.json")
+    record_results(best_test, "20201204_results.json")
     return
 
 
@@ -918,8 +918,7 @@ def run(loss, epochs, batch_size, imb, run_name, cuda):
 
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [2, 46, 93, 35, 16]
-    # seeds = [21, 151, 793, 4, 82]
-    seeds = [14, 57, 23]
+    seeds = [21, 151, 793, 4, 82]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(
@@ -938,7 +937,6 @@ if __name__ == '__main__':
 '''
 seeds = [14, 57, 23, 944, 529]
 python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=1024 --imb --run_name="run4-1024-approx-f1-imb" --cuda=2
-
 python3 cifar.py --loss="ce" --epochs=1000 --batch_size=1024 --imb --run_name="run4-1024-baseline-ce-imb" --cuda=3
 
 
