@@ -1,11 +1,5 @@
-'''
-This file is for loading in the models themselves, and then running through the test loader and 
-picking the appropriate model for each class. 
 
-Models were trained on taus [0.1, 0.125, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
-Models are evaluated on [0.1, 0.2, ... , 0.9]
 
-'''
 import os
 import torch
 import json
@@ -29,7 +23,9 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 # CUSTOM IMPORT
 from download_cifar import *
 
-_MODELS_PATH = "/app/timeseries/multiclass_src/models/"
+
+_MODELS_PATH = "/app/timeseries/multiclass_src/models/baseline"
+
 EPS = 1e-7
 
 
@@ -89,7 +85,7 @@ def set_seed(seed):
     random.seed(seed)
 
 
-def load_model(model_name): 
+def load_model(model_name):
     model = Net()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     model_path = "/".join([_MODELS_PATH, model_name])
@@ -104,7 +100,7 @@ def get_test_loader(batch_size, seed):
     test_set = Dataset(data_splits['test'])
 
     data_params = {'batch_size': batch_size, 'shuffle': True,
-                   'num_workers': 1, 'worker_init_fn': np.random.seed(seed)}
+                   'num_workers': 0, 'worker_init_fn': np.random.seed(seed)}
     set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
     set_seed(seed)
@@ -143,212 +139,93 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
     return mean_f1s, mean_f1s.mean(), precisions, recalls
 
 
-def get_metrics(device, batch_size, seed): 
-    # LOAD IN TEST LOADER 
+def get_metrics(device, model_name, batch_size, seed, output_file):
+    # LOAD IN TEST LOADER
     test_loader, _, _ = get_test_loader(batch_size=batch_size, seed=seed)
 
+    # LOAD iN MODEL
+    model = load_model(model_name)
+
     # EVALUATION
+    model.eval()
     test_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
-    results_json = {   
-        "0.1": {
-            "0.1": {"mean_f1": None, "eval_dxn": None},
-            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-        },
-        "0.125":  {
-            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-        },
-        "0.2": {
-            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-        },
-        "0.3": {
-            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-        },
-        "0.4":  {
-            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-        },
-        "0.5": {
-            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-        },
-        "0.6":  {
-            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-        },
-        "0.7": {
-            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-        }, 
-        "0.8":  {
-            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-        },
-        "0.9":  {
-            "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-            "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-        },
+
+    eval_json = {
+        "0.1": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.2": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.3": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.4": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.45": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.5": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.55": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.6": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.7": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.8": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
+        "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
     }
-    
-    # Need to pull in results across all runs and average them. 
-    model_list_0 = [
-        "20201202_best_model_1024_100_0.1_train_tau-approx-f1-imb-0.1-4.pth",
-        "20201202_best_model_1024_100_0.125_train_tau-approx-f1-imb-0.125-4.pth", 
-        "20201202_best_model_1024_100_0.2_train_tau-approx-f1-imb-0.2-4.pth", 
-        "20201202_best_model_1024_100_0.3_train_tau-approx-f1-imb-0.3-4.pth", 
-        "20201202_best_model_1024_100_0.4_train_tau-approx-f1-imb-0.4-4.pth", 
-        "20201202_best_model_1024_100_0.5_train_tau-approx-f1-imb-0.5-4.pth", 
-        "20201202_best_model_1024_100_0.6_train_tau-approx-f1-imb-0.6-4.pth", 
-        "20201202_best_model_1024_100_0.7_train_tau-approx-f1-imb-0.7-4.pth", 
-        "20201202_best_model_1024_100_0.8_train_tau-approx-f1-imb-0.8-4.pth", 
-        "20201202_best_model_1024_100_0.9_train_tau-approx-f1-imb-0.9-4.pth"
-    ]
-    trained_taus = ["0.1", "0.125", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
-    with torch.no_grad():    
-        # 0.1, 0.2, 0.3, 0.5, 0.7 
-        # for each trained model, go through all the thresholds and evaluate the performance again. 
-        for x in range(len(model_list_0)):
-            # loading in model 
-            print("loading in model: {}".format(model_list_0[x]))
-            model = load_model(model_list_0[x])
-            model.eval()
 
-            for tau in test_thresholds:
-                final_test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                test_preds, test_labels = [], []
+    with torch.no_grad():
+        for tau in test_thresholds:
+            # go through all the thresholds, and test them out again.
+            final_test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            test_preds, test_labels = [], []
+            for i, (inputs, labels) in enumerate(test_loader):
+                # updating distribution of labels.
+                labels_list = labels.numpy()
+                for label in labels_list:
+                    final_test_dxn[label] += 1
 
-                for i, (inputs, labels) in enumerate(test_loader):
-                    # updating distribution of labels.
-                    labels_list = labels.numpy()
-                    for label in labels_list:
-                        final_test_dxn[label] += 1
+                # stacking onto tensors.
+                inputs = inputs.to(device)
+                labels = labels.to(device)
 
-                    # stacking onto tensors.
-                    inputs = inputs.to(device)
-                    labels = labels.to(device)
+                # passing it through our finalized model.
+                output = model(inputs)
+                labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                    1, labels.unsqueeze(1), 1.).to(device)
 
-                    # passing it through our finalized model.
-                    output = model(inputs)
-                    labels = torch.zeros(len(labels), 10).to(device).scatter_(1, labels.unsqueeze(1), 1.).to(device)
+                pred_arr = output.detach().cpu().numpy()
+                label_arr = labels.detach().cpu().numpy()
 
-                    pred_arr = output.detach().cpu().numpy()
-                    label_arr = labels.detach().cpu().numpy()
+                # appending results.
+                test_preds.append(pred_arr)
+                test_labels.append(label_arr)
 
-                    # appending results.
-                    test_preds.append(pred_arr)
-                    test_labels.append(label_arr)
+            test_preds = torch.tensor(test_preds[0])
+            test_labels = torch.tensor(test_labels[0])
 
-                test_preds = torch.tensor(test_preds[0])
-                test_labels = torch.tensor(test_labels[0])
+            class_f1s, mean_f1, precisions, recalls = evaluation_f1(
+                device=device, y_labels=test_labels, y_preds=test_preds, threshold=tau)
 
-                class_f1s, mean_f1, precisions, recalls = evaluation_f1(device=device, y_labels=test_labels, y_preds=test_preds, threshold=tau)
-
-                tau = str(tau)
-                print("For Model {}, Eval Tau: {}, Mean F1: {}".format(trained_taus[x], tau, mean_f1.item()))
-                print("For Model {}, Eval Tau: {}, Class F1: {}".format(
-                    trained_taus[x], tau, class_f1s.numpy().tolist() ))
-
-                results_json[trained_taus[x]][tau]['class_f1s'] = class_f1s.numpy().tolist() 
-                results_json[trained_taus[x]][tau]['mean_f1'] = mean_f1.item()
-                results_json[trained_taus[x]][tau]['eval_dxn'] = final_test_dxn
-                results_json[trained_taus[x]][tau]['class_precisions'] = precisions.numpy().tolist()
-                results_json[trained_taus[x]][tau]['class_recalls'] = recalls.numpy().tolist()
-
-    record_results(results_json, "20201203_train_tau_eval_run4.json")
-    return results_json
+            tau = str(tau)
+            eval_json[tau]['class_f1s'] = class_f1s.numpy().tolist()
+            eval_json[tau]['mean_f1'] = mean_f1.item()
+            eval_json[tau]['eval_dxn'] = final_test_dxn
+            eval_json[tau]['class_precisions'] = precisions.numpy().tolist()
+            eval_json[tau]['class_recalls'] = recalls.numpy().tolist()
+    eval_json['run_name'] = model_name
+    record_results(eval_json, output_file)
+    return eval_json
 
 
 if __name__ == '__main__':
-    get_metrics(device="cuda:3", batch_size=1024, seed=11)
+    approx_f1_models = [
+        "20201128_best_model_1024_approx-f1_145_run3-1024-approx-f1-imb-3.pth",
+        "20201128_best_model_1024_approx-f1_156_run3-1024-approx-f1-imb-4.pth",
+        "20201128_best_model_1024_approx-f1_159_run3-1024-approx-f1-imb-1.pth",
+        "20201128_best_model_1024_approx-f1_184_run3-1024-approx-f1-imb-2.pth",
+        "20201128_best_model_1024_approx-f1_293_run3-1024-approx-f1-imb-0.pth"
+    ]
+    ce_models=[
+        "20201128_best_model_1024_ce_177_run3-1024-baseline-ce-imb-3.pth",
+        "20201128_best_model_1024_ce_277_run3-1024-baseline-ce-imb-0.pth",
+        "20201128_best_model_1024_ce_212_run3-1024-baseline-ce-imb-1.pth",
+        "20201128_best_model_1024_ce_533_run3-1024-baseline-ce-imb-2.pth"
+    ]
+    # for approx_f1_model in approx_f1_models: 
+    #     get_metrics(device="cuda:3", model_name=approx_f1_model,
+    #                 batch_size=1024, seed=11, output_file="approx_f1_results.json")
+    
+    for ce_model in ce_models: 
+        get_metrics(device="cuda:3", model_name=ce_model,
+                    batch_size=1024, seed=11, output_file="baseline_results.json")
