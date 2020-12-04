@@ -920,9 +920,9 @@ def run(loss, epochs, batch_size, imb, run_name, cuda):
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [2, 46, 93, 35, 16]
     # seeds = [21, 151, 793, 4, 82]
-    seeds = [14, 57, 23]
+    seeds = [944, 529]
     for i in range(len(seeds)):
-        temp_name = str(run_name) + "-" + str(i)
+        temp_name = str(run_name) + "-" + str(i+3)
         train_cifar(loss_metric=loss, epochs=int(
             epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda, batch_size=int(batch_size))
 
@@ -937,6 +937,10 @@ if __name__ == '__main__':
     main()
 
 '''
+python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=1024 --imb --run_name="run4-1024-approx-f1-imb" --cuda=2
+python3 cifar.py --loss="ce" --epochs=1000 --batch_size=1024 --imb --run_name="run4-1024-baseline-ce-imb" --cuda=2
+
+
 seeds = [14, 57, 23, 944, 529]
 python3 cifar.py --loss="approx-f1" --epochs=1000 --batch_size=1024 --imb --run_name="run3-1024-approx-f1-imb" --cuda=0
 python3 cifar.py --loss="ce" --epochs=1000 --batch_size=1024 --imb --run_name="run3-1024-baseline-ce-imb" --cuda=1
