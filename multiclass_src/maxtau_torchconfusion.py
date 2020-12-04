@@ -77,12 +77,12 @@ def l_tp(gt, pt, thresh, agg='sum'):
     gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
     pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
     
-    condition = (gt_t == 0) & (pt_t >= pt_t)
+    condition = (gt_t == 0) & (pt_t >= thresh)
     xs = torch.where(condition, 1-pt_t, pt_t)
     # print("XS: {}".format(xs))
     # print("PT_T: {}".format(pt_t))
-    # thresholds = torch.where(condition, 1-pt_t, pt_t)
-    return heaviside_agg(pt_t, pt_t, agg)
+    thresholds = torch.where(condition, 1-thresh, thresh)
+    return heaviside_agg(pt_t, thresholds, agg)
 
 
 def l_fn(gt, pt, thresh, agg='sum'):
@@ -95,10 +95,10 @@ def l_fn(gt, pt, thresh, agg='sum'):
     gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
     pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
 
-    condition = (gt_t == 0) & (pt_t < pt_t)
+    condition = (gt_t == 0) & (pt_t < thresh)
     xs = torch.where(condition, pt_t, 1-pt_t)
-    # thresholds = torch.where(condition, pt_t, 1-pt_t)
-    return heaviside_agg(pt_t, pt_t, agg)
+    thresholds = torch.where(condition, thresh, 1-thresh)
+    return heaviside_agg(pt_t, thresholds, agg)
 
 
 def l_fp(gt, pt, thresh, agg='sum'):
@@ -111,10 +111,13 @@ def l_fp(gt, pt, thresh, agg='sum'):
     gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
     pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
 
-    condition = (gt_t == 1) & (pt_t >= pt_t)
+    condition = (gt_t == 1) & (pt_t >= thresh)
     xs = torch.where(condition, 1-pt_t, pt_t)
-    # thresholds = torch.where(condition, 1-pt_t, pt_t)
-    return heaviside_agg(pt_t, pt_t, agg)
+
+    thresholds = torch.where(condition, 1-thresh, thresh)
+    
+    # try this 2nd: slowly move the threshold to pt as the number of iterations increases 
+    return heaviside_agg(pt_t, thresholds, agg)
 
 
 def l_tn(gt, pt, thresh, agg='sum'):
@@ -127,10 +130,10 @@ def l_tn(gt, pt, thresh, agg='sum'):
     gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
     pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
 
-    condition = (gt_t == 1) & (pt_t < pt_t)
+    condition = (gt_t == 1) & (pt_t < thresh)
     xs = torch.where(condition, pt_t, 1-pt_t)
-    # thresholds = torch.where(condition, pt_t, 1-pt_t)
-    return heaviside_agg(pt_t, pt_t, agg)
+    thresholds = torch.where(condition, thresh, 1-thresh)
+    return heaviside_agg(pt_t, thresholds, agg)
 
 
 def confusion(gt, pt, thresholds, agg='sum'):
@@ -170,8 +173,9 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
         for i in range(classes):
             gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
             pt_list = y_preds[:, i].to(device)
-            
-            tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds=pt_list)
+            thresholds = pt_list.clone().detach() 
+
+            tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds=thresholds)
             
             # print("TP:{}".format(tp))
             precision = tp/(tp+fp+EPS)
