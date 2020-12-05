@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-[{}]
-=======
 [
     {
         "0.1": {
@@ -2259,4 +2256,3 @@
         "run_name": "20201204_best_model_1024_ce_run4-1024-baseline-ce-imb-3.pth"
     }
 ]
->>>>>>> master
