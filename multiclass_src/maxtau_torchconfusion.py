@@ -3,6 +3,22 @@ import torch
 EPS = 1e-7
 
 
+'''
+- Slowly move the threshold towards PT as the number of iterations increases 
+- You want a percentage of PT (have some lambda that increases over time, that goes from 0 to 1 over training). 
+- In your training curves, there should be something really steep - you need to know what time to use the prediction as your threshold. 
+- After the steep part of your learning curve, or before it starts flattening too much. 
+
+Have some lambda value
+Tau = PT * (1-lambda)
+Slowly shift from passed in Tau to your PT as your tau. 
+
+Make sure to invert the thresholds, and pass it through. 
+
+Passed in threshold, default threshold, and prediction as a threshold. 
+'''
+
+
 def lin(m=1, b=0):
     ''' just a line
     '''
@@ -129,6 +145,10 @@ def l_tn(gt, pt, thresh, agg='sum'):
 
     gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
     pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
+
+    print("Incoming Thresh: {}".format(thresh))
+    print("GT_T: {}".format(gt_t))
+    print("PT_T: {}".format(pt_t))
 
     condition = (gt_t == 1) & (pt_t < thresh)
     xs = torch.where(condition, pt_t, 1-pt_t)
