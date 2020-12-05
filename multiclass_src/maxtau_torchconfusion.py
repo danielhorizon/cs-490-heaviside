@@ -152,7 +152,9 @@ def l_tn(gt, pt, thresh, agg='sum'):
 
     condition = (gt_t == 1) & (pt_t < thresh)
     xs = torch.where(condition, pt_t, 1-pt_t)
+    print("Xs: {}".format(xs))
     thresholds = torch.where(condition, thresh, 1-thresh)
+    print("")
     return heaviside_agg(pt_t, thresholds, agg)
 
 
