@@ -209,22 +209,21 @@ def get_metrics(device, model_name, batch_size, seed, output_file):
 
 
 if __name__ == '__main__':
+    ce_models = [
+        "20201204_best_model_1024_ce_run4-1024-baseline-ce-imb-0.pth",
+        "20201204_best_model_1024_ce_run4-1024-baseline-ce-imb-1.pth",
+        "20201204_best_model_1024_ce_run4-1024-baseline-ce-imb-2.pth",
+        "20201204_best_model_1024_ce_run4-1024-baseline-ce-imb-3.pth",
+    ]
     approx_f1_models = [
-        "20201128_best_model_1024_approx-f1_145_run3-1024-approx-f1-imb-3.pth",
-        "20201128_best_model_1024_approx-f1_156_run3-1024-approx-f1-imb-4.pth",
-        "20201128_best_model_1024_approx-f1_159_run3-1024-approx-f1-imb-1.pth",
-        "20201128_best_model_1024_approx-f1_184_run3-1024-approx-f1-imb-2.pth",
-        "20201128_best_model_1024_approx-f1_293_run3-1024-approx-f1-imb-0.pth"
+        "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-0.pth", 
+        "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-1.pth", 
+        "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-2.pth",
+        "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-3.pth",
     ]
-    ce_models=[
-        "20201128_best_model_1024_ce_177_run3-1024-baseline-ce-imb-3.pth",
-        "20201128_best_model_1024_ce_277_run3-1024-baseline-ce-imb-0.pth",
-        "20201128_best_model_1024_ce_212_run3-1024-baseline-ce-imb-1.pth",
-        "20201128_best_model_1024_ce_533_run3-1024-baseline-ce-imb-2.pth"
-    ]
-    # for approx_f1_model in approx_f1_models: 
-    #     get_metrics(device="cuda:3", model_name=approx_f1_model,
-    #                 batch_size=1024, seed=11, output_file="approx_f1_results.json")
+    for approx_f1_model in approx_f1_models: 
+        get_metrics(device="cuda:3", model_name=approx_f1_model,
+                    batch_size=1024, seed=11, output_file="approx_f1_results.json")
     
     for ce_model in ce_models: 
         get_metrics(device="cuda:3", model_name=ce_model,

@@ -346,7 +346,7 @@ def get_metrics(device, batch_size, seed):
                 results_json[trained_taus[x]][tau]['class_precisions'] = precisions.numpy().tolist()
                 results_json[trained_taus[x]][tau]['class_recalls'] = recalls.numpy().tolist()
 
-    record_results(results_json, "20201203_train_tau_eval_run4.json")
+    record_results(results_json, "20201204_train_tau_eval_run4.json")
     return results_json
 
 
