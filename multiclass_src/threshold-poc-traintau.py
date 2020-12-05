@@ -89,12 +89,15 @@ def set_seed(seed):
     random.seed(seed)
 
 
-def load_model(model_name): 
+def load_model(model_name):
+    model_path = "/".join([_MODELS_PATH, model_name])
+    # model = torch.load(model_path).to("cuda:3")
     model = Net()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    model_path = "/".join([_MODELS_PATH, model_name])
-    model = torch.load(model_path).to("cuda:3")
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
     return model
+
 
 
 def get_test_loader(batch_size, seed):
@@ -284,16 +287,16 @@ def get_metrics(device, batch_size, seed):
     
     # Need to pull in results across all runs and average them. 
     model_list_0 = [
-        "20201202_best_model_1024_100_0.1_train_tau-approx-f1-imb-0.1-4.pth",
-        "20201202_best_model_1024_100_0.125_train_tau-approx-f1-imb-0.125-4.pth", 
-        "20201202_best_model_1024_100_0.2_train_tau-approx-f1-imb-0.2-4.pth", 
-        "20201202_best_model_1024_100_0.3_train_tau-approx-f1-imb-0.3-4.pth", 
-        "20201202_best_model_1024_100_0.4_train_tau-approx-f1-imb-0.4-4.pth", 
-        "20201202_best_model_1024_100_0.5_train_tau-approx-f1-imb-0.5-4.pth", 
-        "20201202_best_model_1024_100_0.6_train_tau-approx-f1-imb-0.6-4.pth", 
-        "20201202_best_model_1024_100_0.7_train_tau-approx-f1-imb-0.7-4.pth", 
-        "20201202_best_model_1024_100_0.8_train_tau-approx-f1-imb-0.8-4.pth", 
-        "20201202_best_model_1024_100_0.9_train_tau-approx-f1-imb-0.9-4.pth"
+        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.1-2.pth", 
+        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.125-2.pth",
+        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.2-2.pth", 
+        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.3-2.pth", 
+        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.4-2.pth", 
+        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.5-2.pth", 
+        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.6-2.pth", 
+        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.7-2.pth", 
+        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.8-2.pth", 
+        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.9-2.pth",
     ]
     trained_taus = ["0.1", "0.125", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
     with torch.no_grad():    
@@ -346,9 +349,9 @@ def get_metrics(device, batch_size, seed):
                 results_json[trained_taus[x]][tau]['class_precisions'] = precisions.numpy().tolist()
                 results_json[trained_taus[x]][tau]['class_recalls'] = recalls.numpy().tolist()
 
-    record_results(results_json, "20201203_train_tau_eval_run4.json")
+    record_results(results_json, "20201204_train_tau_eval_run2.json")
     return results_json
 
 
 if __name__ == '__main__':
-    get_metrics(device="cuda:3", batch_size=1024, seed=11)
+    get_metrics(device="cpu", batch_size=1024, seed=11)
