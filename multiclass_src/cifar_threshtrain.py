@@ -318,7 +318,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     patience = 100
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
                                 '{}_best_model_{}_{}_{}.pth'.format(
-                                    20201203, batch_size, loss_metric, run_name
+                                    20201204, batch_size, loss_metric, run_name
                                 )])
     best_test['model_file_path'] = model_file_path
     early_stopping = EarlyStopping(patience=patience, verbose=True, path=model_file_path)
@@ -329,7 +329,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # setting up tensorboard
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard", "cifar-10", "train_tau", experiment_name])
+        tensorboard_path = "/".join(["tensorboard", "cifar-10", "train_tau2", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
 
@@ -807,14 +807,14 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     best_test['val_accuracy'] = val_acc
 
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
-    # print("--- Finished Training - Entering Final Evaluation Step\n")
-    # # saving the model.
-    # model_file_path = "/".join(["/app/timeseries/multiclass_src/models", "tau_trained", 
-    #                             '{}_best_model_{}_{}_{}_{}.pth'.format(
-    #                                 20201202, batch_size, patience, str(train_tau), run_name
-    #                             )])
-    # torch.save(model, model_file_path)
-    # print("Saving best model to {}".format(model_file_path))
+    print("--- Finished Training - Entering Final Evaluation Step\n")
+    # saving the model.
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models", "tau_trained", 
+                                '{}_overfit_model_{}_{}_{}_{}.pth'.format(
+                                    20201204, batch_size, patience, str(train_tau), run_name
+                                )])
+    torch.save(model, model_file_path)
+    print("Saving best model to {}".format(model_file_path))
 
     # # inits.
     # model.eval()
@@ -894,7 +894,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "train_tau_results_run2.json")
+    record_results(best_test, "train_tau_results_run3.json")
     return
 
 
@@ -915,7 +915,8 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau):
         imbalanced = True
 
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
-    seeds = [14, 57, 23]
+    # seeds = [14, 57, 23]
+    seeds = [21, 151, 793]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(
@@ -936,17 +937,17 @@ if __name__ == '__main__':
 Run it from 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 
 seeds: [21, 151, 793, 4, 82]
 
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run2-train_tau-approx-f1-imb_0.1" --cuda=1 --train_tau=0.1 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run2-train_tau-approx-f1-imb-0.125" --cuda=1 --train_tau=0.125 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run2-train_tau-approx-f1-imb-0.2" --cuda=1 --train_tau=0.2 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run2-train_tau-approx-f1-imb-0.3" --cuda=1 --train_tau=0.3 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run2-train_tau-approx-f1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run3-train_tau-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run3-train_tau-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run3-train_tau-approx-f1-imb-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run3-train_tau-approx-f1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run3-train_tau-approx-f1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024
 
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run2-train_tau-approx-f1-imb-0.5" --cuda=1 --train_tau=0.5 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run2-train_tau-approx-f1-imb-0.6" --cuda=3 --train_tau=0.6 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run2-train_tau-approx-f1-imb-0.7" --cuda=3 --train_tau=0.7 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run2-train_tau-approx-f1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run2-train_tau-approx-f1-imb-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run3-train_tau-approx-f1-imb-0.5" --cuda=3 --train_tau=0.5 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run3-train_tau-approx-f1-imb-0.6" --cuda=3 --train_tau=0.6 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run3-train_tau-approx-f1-imb-0.7" --cuda=3 --train_tau=0.7 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run3-train_tau-approx-f1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --imb --run_name="run3-train_tau-approx-f1-imb-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024
 
 
 
