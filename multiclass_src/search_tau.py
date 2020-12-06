@@ -287,7 +287,10 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         "seed": seed,
         "batch_size": batch_size,
         "model_file_path": None,
-        "train_class_thresholds":None
+        "train_class_thresholds":None,
+        "class_thresholds": {
+            1:[], 2:[], 3:[], 4:[], 5:[], 6:[], 7:[], 8:[], 9:[], 10:[]
+        }
     }
 
     # setting seeds
@@ -306,7 +309,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     patience = 100
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models/search_tau",
                                 '{}_best_model_{}_{}_{}.pth'.format(
-                                    20201204, batch_size, loss_metric, run_name
+                                    20201206, batch_size, loss_metric, run_name
                                 )])
     best_test['model_file_path'] = model_file_path
     early_stopping = EarlyStopping(
@@ -335,28 +338,41 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # ----- TRAINING, TESTING, VALIDATION -----
     losses = []
     train_class_thresholds = {
-        1: {"0.1": 0, "0.125": 0, "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
-        2: {"0.1": 0, "0.125": 0, "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
-        3: {"0.1": 0, "0.125": 0, "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
-        4: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
-        5: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
-        6: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
-        7: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
-        8: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
-        9: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
-        10: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0},
+        1: {"0.1": 0, "0.125": 0, "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9":0},
+        2: {"0.1": 0, "0.125": 0, "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9": 0},
+        3: {"0.1": 0, "0.125": 0, "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9":0},
+        4: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0,"0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9":0},
+        5: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0,"0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9":0},
+        6: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9":0},
+        7: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9":0},
+        8: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9":0},
+        9: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9":0},
+        10: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9": 0},
     }
 
     for epoch in range(epochs):
         running_loss = 0.0
         accs, microf1s, macrof1s, wf1s = [], [], [], []
 
-        if epoch == 0:
-            print("--- MODEL PARAMS ---")
-            for param in model.parameters():
-                print(param.data[1])
-                print(param.data[1].shape)
-                break
+        # for every 10th epoch 
+        if epoch % 5 == 0:
+            for x in range(1, 11):
+                cls_thresh = max(
+                    train_class_thresholds[x], key=train_class_thresholds[x].get)
+                best_test['class_thresholds'][x].append(cls_thresh)
+            # reset these values
+            train_class_thresholds = {
+                1: {"0.1": 0, "0.125": 0, "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9": 0},
+                2: {"0.1": 0, "0.125": 0, "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9": 0},
+                3: {"0.1": 0, "0.125": 0, "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9": 0},
+                4: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9": 0},
+                5: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9": 0},
+                6: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9": 0},
+                7: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9": 0},
+                8: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9": 0},
+                9: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9": 0},
+                10: {"0.1": 0, "0.125": 0,  "0.2": 0, "0.25": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9": 0},
+            }
 
         if epoch != 0:
             # going over in batches 
@@ -381,11 +397,10 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
 
-
                     criterion = st_mean_f1_approx_loss_on(device=device)
                     loss, train_class_thresholds = criterion(
-                        y_labels=train_labels, y_preds=output, class_thresholds=train_class_thresholds)
-
+                        y_labels=train_labels, y_preds=output, class_thresholds=train_class_thresholds, epoch=epoch)
+                
                 losses.append(loss)
                 loss.backward()
                 optimizer.step()
@@ -479,7 +494,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     test_class_rec[i]).mean(), epoch)
 
                 # adding in per class training
-                # get_confusion(gt, pt, class_value=None):
                 tp, fp, fn, tn = get_confusion(
                     gt=test_labels, pt=test_preds, class_value=i)
                 tp_title = 'test/class-' + str(i) + "-TP"
@@ -490,6 +504,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 writer.add_scalar(fp_title, fp, epoch)
                 writer.add_scalar(fn_title, fn, epoch)
                 writer.add_scalar(tn_title, tn, epoch)
+
         if epoch != 0:
             if best_test['loss'] > m_loss:
                 best_test['loss'] = m_loss
@@ -505,6 +520,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
         # ----- VALIDATION SET -----
         # Calculate metrics after going through all the batches
+
         model.eval()
         valid_losses = []
         with torch.no_grad():
@@ -622,7 +638,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
     best_test['train_class_thresholds'] = train_class_thresholds
-    record_results(best_test, "20201204_searchtau_results.json")
+    record_results(best_test, "20201206_searchtau_results.json")
 
     print(train_class_thresholds)
     return
@@ -643,7 +659,7 @@ def run(loss, epochs, batch_size, imb, run_name, cuda):
     if imb:
         imbalanced = True
 
-    seeds = [46, 23, 945]
+    seeds = [46, 23]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(
@@ -660,15 +676,10 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 search_tau.py --loss="approx-f1" --epochs=1000 --imb --cuda=3 --run_name="searchtau-1024-approx-f1-imb" 
-{1: {'0.1': 364, '0.125': 428, '0.2': 396, '0.3': 396, '0.4': 396, '0.5': 396, '0.7': 396}, 
-2: {'0.1': 443, '0.125': 414, '0.2': 501, '0.3': 478, '0.4': 338, '0.5': 484, '0.7': 114}, 
-3: {'0.1': 580, '0.125': 226, '0.2': 279, '0.3': 491, '0.4': 192, '0.5': 813, '0.7': 191}, 
-4: {'0.1': 68, '0.125': 262, '0.2': 374, '0.3': 594, '0.4': 520, '0.5': 934, '0.7': 20}, 
-5: {'0.1': 444, '0.125': 55, '0.2': 162, '0.3': 265, '0.4': 231, '0.5': 1583, '0.7': 32}, 
-6: {'0.1': 245, '0.125': 353, '0.2': 248, '0.3': 400, '0.4': 329, '0.5': 1175, '0.7': 22}, 
-7: {'0.1': 492, '0.125': 117, '0.2': 145, '0.3': 200, '0.4': 258, '0.5': 1452, '0.7': 108}, 
-8: {'0.1': 172, '0.125': 232, '0.2': 244, '0.3': 339, '0.4': 224, '0.5': 1388, '0.7': 173}, 
-9: {'0.1': 125, '0.125': 455, '0.2': 367, '0.3': 535, '0.4': 436, '0.5': 844, '0.7': 10}, 
-10: {'0.1': 234, '0.125': 263, '0.2': 397, '0.3': 790, '0.4': 446, '0.5': 641, '0.7': 1}}
+python3 search_tau.py --loss="approx-f1" --epochs=1000 --imb --cuda=1 --batch_size=1024 --run_name="searchtau-v2-e10-1024" 
+
+python3 search_tau.py --loss="approx-f1" --epochs=1000 --imb --cuda=1 --batch_size=1024 --run_name="searchtau-v2-e5-1024" 
+
+for the first 10 epochs, use 0.5
+after that, use the majority counts, but every 10 epochs, reset them. 
 '''

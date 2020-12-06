@@ -213,7 +213,7 @@ def st_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
         y_preds: softmaxed predictions
     '''
 
-    def loss(y_labels, y_preds, class_thresholds):
+    def loss(y_labels, y_preds, class_thresholds, epoch):
         y_labels = y_labels.to(device)
         y_preds = y_preds.to(device)
         classes = len(y_labels[0])
@@ -262,16 +262,19 @@ def st_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
             class_tau = max(class_thresholds[i+1], key=class_thresholds[i+1].get)
             # print("class {}, tau {}".format(i+1, class_tau))
 
-            thresholds = torch.Tensor([float(class_tau)]).to(device)
+            # for the first 10 epochs, just use 0.5 (fastest movements)
+            # after that, every 20 epochs, reset the best one. 
+            if epoch < 10: 
+                thresholds = torch.Tensor([float(0.5)]).to(device)
+            else: 
+                thresholds = torch.Tensor([float(class_tau)]).to(device)
             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
 
             precision = tp/(tp+fp+EPS)
             recall = tp/(tp+fn+EPS)
-            temp_f1 = torch.mean(2 * (precision * recall) /
-                                (precision + recall + EPS))
+            temp_f1 = torch.mean(2 * (precision * recall) / (precision + recall + EPS))
             mean_f1s[i] = temp_f1
         loss = 1 - mean_f1s.mean()
-
 
         return loss, class_thresholds
     return loss
