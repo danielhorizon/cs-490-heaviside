@@ -152,9 +152,9 @@ def l_tn(gt, pt, thresh, agg='sum'):
 
     condition = (gt_t == 1) & (pt_t < thresh)
     xs = torch.where(condition, pt_t, 1-pt_t)
-    print("Xs: {}".format(xs))
+    print("X: {}".format(xs))
     thresholds = torch.where(condition, thresh, 1-thresh)
-    print("")
+    print("Thresholds: {}".format(thresholds))
     return heaviside_agg(pt_t, thresholds, agg)
 
 
@@ -177,7 +177,7 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
         y_preds: softmaxed predictions
     '''
 
-    def loss(y_labels, y_preds):
+    def loss(y_labels, y_preds, epoch):
         y_labels = y_labels.to(device)
         y_preds = y_preds.to(device)
 
@@ -195,11 +195,15 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
         for i in range(classes):
             gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
             pt_list = y_preds[:, i].to(device)
-            thresholds = pt_list.clone().detach() 
-
+            
+            if epoch < 20:
+                thresholds = torch.Tensor([float(0.5)]).to(device)
+            # TODO(dlee): implement it gradual learning.
+            else: 
+                thresholds = pt_list.clone().to(device)
+            
             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds=thresholds)
             
-            # print("TP:{}".format(tp))
             precision = tp/(tp+fp+EPS)
             recall = tp/(tp+fn+EPS)
             temp_f1 = torch.mean(2 * (precision * recall) /
@@ -207,7 +211,6 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
             mean_f1s[i] = temp_f1
 
             # geting the average across all thresholds.
-            # holds array of just the raw values.
             class_tp[i] = tp.mean().detach().item()
             class_fn[i] = fn.mean().detach().item()
             class_fp[i] = fp.mean().detach().item()

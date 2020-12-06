@@ -316,6 +316,12 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
     model = Net().to(device)
     patience = 100
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/max_tau",
+                                '{}_best_model_{}_{}_{}.pth'.format(
+                                    20201206, batch_size, loss_metric, run_name
+                                )])
+    best_test['model_file_path'] = model_file_path
+
     early_stopping = EarlyStopping(patience=patience, verbose=True)
     learning_rate = 0.001
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
@@ -326,7 +332,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         experiment_name = run_name
         tensorboard_path = "/".join(["tensorboard", "cifar-10", "max_tau", experiment_name])
         writer = SummaryWriter(tensorboard_path)
-
 
     # criterion
     approx = False
@@ -689,7 +694,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
                     curr_val_loss, hclass_tp, hclass_fn, hclass_fp, hclass_tn, hclass_pr, hclass_re, hclass_f1, hclass_acc = criterion(
-                        y_labels=valid_labels, y_preds=output)
+                        y_labels=valid_labels, y_preds=output, epoch=epoch)
                 else:
                     curr_val_loss = criterion(output, labels)
 
@@ -803,74 +808,10 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # saving the model.
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models", "max_tau", 
                                 '{}_best_model_{}_{}_{}.pth'.format(
-                                    20201203, batch_size, patience, run_name
+                                    20201206, batch_size, patience, run_name
                                 )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
-
-    # inits.
-    model.eval()
-    test_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
-
-    eval_json = {
-        "run_name": None,
-        "seed": seed,
-        "0.1": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.2": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.3": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.4": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.45": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.5": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.55": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.6": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.7": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.8": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-        "0.9": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-    }
-
-    with torch.no_grad():
-        for tau in test_thresholds:
-            # go through all the thresholds, and test them out again.
-            final_test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            test_preds, test_labels = [], []
-            for i, (inputs, labels) in enumerate(test_loader):
-                # updating distribution of labels.
-                labels_list = labels.numpy()
-                for label in labels_list:
-                    final_test_dxn[label] += 1
-
-                # stacking onto tensors.
-                inputs = inputs.to(device)
-                labels = labels.to(device)
-
-                # passing it through our finalized model.
-                output = model(inputs)
-                labels = torch.zeros(len(labels), 10).to(device).scatter_(
-                    1, labels.unsqueeze(1), 1.).to(device)
-
-                pred_arr = output.detach().cpu().numpy()
-                label_arr = labels.detach().cpu().numpy()
-
-                # appending results.
-                test_preds.append(pred_arr)
-                test_labels.append(label_arr)
-
-            test_preds = torch.tensor(test_preds[0])
-            test_labels = torch.tensor(test_labels[0])
-
-            class_f1s, mean_f1, precisions, recalls = evaluation_f1(
-                device=device, y_labels=test_labels, y_preds=test_preds, threshold=tau)
-
-            tau = str(tau)
-            eval_json[tau]['class_f1s'] = class_f1s.numpy().tolist()
-            eval_json[tau]['mean_f1'] = mean_f1.item()
-            eval_json[tau]['eval_dxn'] = final_test_dxn
-            eval_json[tau]['class_precisions'] = precisions.numpy().tolist()
-            eval_json[tau]['class_recalls'] = recalls.numpy().tolist()
-
-    eval_json['run'] = run_name
-    eval_json['seed'] = seed
-    best_test['evaluation'] = eval_json
 
     # ----- recording results in a json.
     if torch.is_tensor(best_test['loss']):
@@ -886,7 +827,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "20201203_max_tau_results.json")
+    record_results(best_test, "20201206_max_tau_results.json")
     return
 
 
@@ -927,7 +868,7 @@ if __name__ == '__main__':
 Run it from 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 
 seeds: [21, 151, 793, 4, 82]
 
-python3 maxtau_cifar.py --epochs=1000 --loss="approx-f1" --imb --run_name="max_tau-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024
+python3 maxtau_cifar.py --epochs=1000 --loss="approx-f1" --imb --run_name="maxtau-approx-f1-imb-" --cuda=2--batch_size=1024
 
 
 

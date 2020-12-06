@@ -218,8 +218,8 @@ def st_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
         y_preds = y_preds.to(device)
         classes = len(y_labels[0])
 
-        train_thresholds = [0.1, 0.125, 0.2, 0.3, 0.4, 0.5, 0.7]
-        loss_holder = {"0.1": 0, "0.125": 0, "0.2": 0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0}
+        train_thresholds = [0.1, 0.125, 0.2, 0.25, 0.3, 0.4, 0.5, 0.7, 0.9]
+        loss_holder = {"0.1": 0, "0.125": 0, "0.2": 0, "0.25":0, "0.3": 0, "0.4": 0, "0.5": 0, "0.7": 0, "0.9":0}
         # print("Class 1: {}".format(class_thresholds[1]))
         # print("Class 2: {}".format(class_thresholds[2]))
         # print("Class 3: {}".format(class_thresholds[3]))
@@ -240,9 +240,12 @@ def st_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
             pt_list = y_preds[:, i].to(device)
 
             for tau in train_thresholds:
+                gt_list_clone = gt_list.clone().detach().to(device)
+                pt_list_clone = pt_list.clone().detach().to(device)
                 threshold = torch.Tensor([tau]).to(device)
                 # getting confusion metrics. 
-                tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds=threshold)
+                tp, fn, fp, tn = confusion(
+                    gt_list_clone, pt_list_clone, thresholds=threshold)
                 precision = tp/(tp+fp+EPS)
                 recall = tp/(tp+fn+EPS)
                 temp_f1 = torch.mean(2 * (precision * recall) /

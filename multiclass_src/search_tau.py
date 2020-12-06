@@ -551,8 +551,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     output = output.to(device)
 
                     # setting to appropriate criterion 
-                    criterion = mean_f1_approx_loss_on(
-                        threshold=torch.arange(0.1, 1, 0.1), device=device)
+                    criterion = mean_f1_approx_loss_on(threshold=torch.arange(0.1, 1, 0.1), device=device)
                     curr_val_loss, _, _, _, _, _, _, _, _ = criterion(
                         y_labels=valid_labels, y_preds=output)
                 else:
@@ -608,8 +607,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     writer.add_scalar(fn_title, fn, epoch)
                     writer.add_scalar(tn_title, tn, epoch)
 
-            print("Val - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
-                epoch, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
+            print("Val - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
+                epoch, valid_loss, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
             )
 
             # early stopping
