@@ -230,9 +230,5 @@ if __name__ == '__main__':
     ]
     for approx_f1_model in approx_f1_models:
         get_metrics(device="cpu", model_name=approx_f1_model,
-<<<<<<< HEAD
-                    batch_size=1024, seed=11, output_file="approx_f1_20201206.json")
-=======
                     batch_size=1024, seed=11, output_file="approx_f1_results.json")
->>>>>>> b6c69aa1f6508347c84b62ff4144336e0d16a66a
 
