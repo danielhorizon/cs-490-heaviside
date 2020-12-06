@@ -87,10 +87,11 @@ def set_seed(seed):
 
 def load_model(model_name):
     model_path = "/".join([_MODELS_PATH, model_name])
-    # model = torch.load(model_path).to("cuda:3")
+    
     model = Net()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    model.load_state_dict(torch.load(model_path))
+    # model.load_state_dict(torch.load(model_path))
+    model = torch.load(model_path).to("cuda:3")
     model.eval()
     return model
 
@@ -217,16 +218,17 @@ if __name__ == '__main__':
         "20201204_best_model_1024_ce_run4-1024-baseline-ce-imb-2.pth",
         "20201204_best_model_1024_ce_run4-1024-baseline-ce-imb-3.pth",
     ]
+    for ce_model in ce_models:
+        get_metrics(device="cuda:3", model_name=ce_model,
+                    batch_size=1024, seed=11, output_file="baseline_20201206.json")
+
     approx_f1_models = [
         "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-0.pth",
         "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-1.pth",
         "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-2.pth",
         "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-3.pth",
     ]
-    # for approx_f1_model in approx_f1_models:
-    #     get_metrics(device="cpu", model_name=approx_f1_model,
-    #                 batch_size=1024, seed=11, output_file="approx_f1_results.json")
+    for approx_f1_model in approx_f1_models:
+        get_metrics(device="cpu", model_name=approx_f1_model,
+                    batch_size=1024, seed=11, output_file="approx_f1_20201206.json")
 
-    for ce_model in ce_models:
-        get_metrics(device="cpu", model_name=ce_model,
-                    batch_size=1024, seed=11, output_file="baseline_results.json")
