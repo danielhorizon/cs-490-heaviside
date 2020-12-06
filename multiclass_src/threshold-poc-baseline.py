@@ -223,9 +223,9 @@ if __name__ == '__main__':
         "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-2.pth",
         "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-3.pth",
     ]
-    # for approx_f1_model in approx_f1_models:
-    #     get_metrics(device="cpu", model_name=approx_f1_model,
-    #                 batch_size=1024, seed=11, output_file="approx_f1_results.json")
+    for approx_f1_model in approx_f1_models:
+        get_metrics(device="cpu", model_name=approx_f1_model,
+                    batch_size=1024, seed=11, output_file="approx_f1_results.json")
 
     for ce_model in ce_models:
         get_metrics(device="cpu", model_name=ce_model,

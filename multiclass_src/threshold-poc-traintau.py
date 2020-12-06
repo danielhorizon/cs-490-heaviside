@@ -29,7 +29,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 # CUSTOM IMPORT
 from download_cifar import *
 
-_MODELS_PATH = "/app/timeseries/multiclass_src/models/tau_trained"
+_MODELS_PATH = "/app/timeseries/multiclass_src/models/"
 EPS = 1e-7
 
 
@@ -287,20 +287,19 @@ def get_metrics(device, batch_size, seed):
     
     # Need to pull in results across all runs and average them. 
     model_list_0 = [
-        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.1-2.pth", 
-        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.125-2.pth",
-        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.2-2.pth", 
-        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.3-2.pth", 
-        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.4-2.pth", 
-        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.5-2.pth", 
-        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.6-2.pth", 
-        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.7-2.pth", 
-        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.8-2.pth", 
-        "20201203_best_model_1024_approx-f1_run2-train_tau-approx-f1-imb-0.9-2.pth",
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.1-0.pth", 
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.125-0.pth", 
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.2-0.pth", 
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.3-0.pth",
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.4-0.pth", 
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.5-0.pth", 
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.6-0.pth", 
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.7-0.pth",
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.8-0.pth", 
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.9-0.pth"
     ]
     trained_taus = ["0.1", "0.125", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
     with torch.no_grad():    
-        # 0.1, 0.2, 0.3, 0.5, 0.7 
         # for each trained model, go through all the thresholds and evaluate the performance again. 
         for x in range(len(model_list_0)):
             # loading in model 
@@ -349,9 +348,9 @@ def get_metrics(device, batch_size, seed):
                 results_json[trained_taus[x]][tau]['class_precisions'] = precisions.numpy().tolist()
                 results_json[trained_taus[x]][tau]['class_recalls'] = recalls.numpy().tolist()
 
-    record_results(results_json, "20201204_train_tau_eval_run2.json")
+    record_results(results_json, "20201204_train_tau_eval_run0.json")
     return results_json
 
 
 if __name__ == '__main__':
-    get_metrics(device="cpu", batch_size=1024, seed=11)
+    get_metrics(device="cuda:3", batch_size=1024, seed=11)
