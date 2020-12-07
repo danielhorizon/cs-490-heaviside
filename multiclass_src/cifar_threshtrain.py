@@ -810,7 +810,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # saving the model.
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models", "tau_trained", 
                                 '{}_overfit_model_{}_patience-{}_{}_{}.pth'.format(
-                                    20201204, batch_size, patience, str(train_tau), run_name
+                                    20201206, batch_size, patience, str(train_tau), run_name
                                 )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))

@@ -29,13 +29,13 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 # CUSTOM IMPORT
 from download_cifar import *
 
-_MODELS_PATH = "/app/timeseries/multiclass_src/models/tau_trained"
+
 EPS = 1e-7
 
 
 def record_results(best_test, output_file):
     # reading in the data from the existing file.
-    results_path = "/app/timeseries/multiclass_src/results/train_tau"
+    results_path = "/app/timeseries/multiclass_src/results/max_tau"
     file_path = "/".join([results_path, output_file])
     with open(file_path, "r+") as f:
         data = json.load(f)
@@ -89,8 +89,8 @@ def set_seed(seed):
     random.seed(seed)
 
 
-def load_model(model_name):
-    model_path = "/".join([_MODELS_PATH, model_name])
+def load_model(models_path, model_name):
+    model_path = "/".join([models_path, model_name])
     
     model = Net()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
@@ -147,12 +147,11 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
     return mean_f1s, mean_f1s.mean(), precisions, recalls
 
 
-def get_metrics(device, batch_size, seed): 
+def get_metrics(device, batch_size, seed, results_path, models_path, models_list):
     # LOAD IN TEST LOADER 
     test_loader, _, _ = get_test_loader(batch_size=batch_size, seed=seed)
 
     # EVALUATION
-    test_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
     results_json = {   
         "0.1": {
             "0.1": {"mean_f1": None, "eval_dxn": None},
@@ -285,40 +284,16 @@ def get_metrics(device, batch_size, seed):
             "0.9": {"class_f1s": None, 'class_precisions': None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
         },
     }
-    
-    # Need to pull in results across all runs and average them. 
-    # model_list_0 = [
-    #     "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.1-2.pth", 
-    #     "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.125-2.pth", 
-    #     "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.2-2.pth", 
-    #     "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.3-2.pth",
-    #     "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.4-2.pth", 
-    #     "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.5-2.pth", 
-    #     "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.6-2.pth", 
-    #     "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.7-2.pth",
-    #     "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.8-2.pth", 
-    #     "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.9-2.pth"
-    # ]
 
-    model_list_1 = [
-        "20201204_overfit_model_1024_100_0.1_run3-train_tau-approx-f1-imb-0.1-0.pth", 
-        "20201204_overfit_model_1024_100_0.125_run3-train_tau-approx-f1-imb-0.125-0.pth",
-        "20201204_overfit_model_1024_100_0.2_run3-train_tau-approx-f1-imb-0.2-0.pth", 
-        "20201204_overfit_model_1024_100_0.3_run3-train_tau-approx-f1-imb-0.3-0.pth", 
-        "20201204_overfit_model_1024_100_0.4_run3-train_tau-approx-f1-imb-0.4-0.pth", 
-        "20201204_overfit_model_1024_100_0.5_run3-train_tau-approx-f1-imb-0.5-0.pth", 
-        "20201204_overfit_model_1024_100_0.6_run3-train_tau-approx-f1-imb-0.6-0.pth", 
-        "20201204_overfit_model_1024_100_0.7_run3-train_tau-approx-f1-imb-0.7-0.pth", 
-        "20201204_overfit_model_1024_100_0.8_run3-train_tau-approx-f1-imb-0.8-0.pth", 
-        "20201204_overfit_model_1024_100_0.9_run3-train_tau-approx-f1-imb-0.9-0.pth",
-    ]
+    test_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
     trained_taus = ["0.1", "0.125", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
+
     with torch.no_grad():    
         # for each trained model, go through all the thresholds and evaluate the performance again. 
-        for x in range(len(model_list_1)):
+        for x in range(len(models_list)):
             # loading in model 
-            print("loading in model: {}".format(model_list_1[x]))
-            model = load_model(model_list_1[x])
+            print("loading in model: {}".format(models_list[x]))
+            model = load_model(models_path, models_list[x])
             model.eval()
 
             for tau in test_thresholds:
@@ -362,9 +337,74 @@ def get_metrics(device, batch_size, seed):
                 results_json[trained_taus[x]][tau]['class_precisions'] = precisions.numpy().tolist()
                 results_json[trained_taus[x]][tau]['class_recalls'] = recalls.numpy().tolist()
 
-    record_results(results_json, "overfit_20201206_train_tau_eval_run0.json")
+    record_results(results_json, results_path)
     return results_json
 
 
 if __name__ == '__main__':
-    get_metrics(device="cuda:3", batch_size=1024, seed=11)
+    train_tau_models_100p = [
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.1-2.pth",
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.125-2.pth",
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.2-2.pth",
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.3-2.pth",
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.4-2.pth",
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.5-2.pth",
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.6-2.pth",
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.7-2.pth",
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.8-2.pth",
+        "20201204_best_model_1024_approx-f1_run3-train_tau-approx-f1-imb-0.9-2.pth"
+    ]
+    overfit_train_tau_models_100p = [
+        "20201204_overfit_model_1024_100_0.1_run3-train_tau-approx-f1-imb-0.1-0.pth",
+        "20201204_overfit_model_1024_100_0.125_run3-train_tau-approx-f1-imb-0.125-0.pth",
+        "20201204_overfit_model_1024_100_0.2_run3-train_tau-approx-f1-imb-0.2-0.pth",
+        "20201204_overfit_model_1024_100_0.3_run3-train_tau-approx-f1-imb-0.3-0.pth",
+        "20201204_overfit_model_1024_100_0.4_run3-train_tau-approx-f1-imb-0.4-0.pth",
+        "20201204_overfit_model_1024_100_0.5_run3-train_tau-approx-f1-imb-0.5-0.pth",
+        "20201204_overfit_model_1024_100_0.6_run3-train_tau-approx-f1-imb-0.6-0.pth",
+        "20201204_overfit_model_1024_100_0.7_run3-train_tau-approx-f1-imb-0.7-0.pth",
+        "20201204_overfit_model_1024_100_0.8_run3-train_tau-approx-f1-imb-0.8-0.pth",
+        "20201204_overfit_model_1024_100_0.9_run3-train_tau-approx-f1-imb-0.9-0.pth",
+    ]
+
+    train_tau_models_150p = [
+        '20201206_best_model_1024_approx-f1_run4-150p-train_tau-approx-f1-imb-0.1-2.pth',
+        '20201206_best_model_1024_approx-f1_run4-150p-train_tau-approx-f1-imb-0.125-2.pth',
+        '20201206_best_model_1024_approx-f1_run4-150p-train_tau-approx-f1-imb-0.2-2.pth',
+        "20201206_best_model_1024_approx-f1_run4-150p-train_tau-approx-f1-imb-0.3-2.pth",
+        "20201206_best_model_1024_approx-f1_run4-150p-train_tau-approx-f1-imb-0.4-2.pth",
+        "20201206_best_model_1024_approx-f1_run4-150p-train_tau-approx-f1-imb-0.5-2.pth",
+        "20201206_best_model_1024_approx-f1_run4-150p-train_tau-approx-f1-imb-0.6-2.pth",
+        "20201206_best_model_1024_approx-f1_run4-150p-train_tau-approx-f1-imb-0.7-2.pth",
+        "20201206_best_model_1024_approx-f1_run4-150p-train_tau-approx-f1-imb-0.8-2.pth",
+        "20201206_best_model_1024_approx-f1_run4-150p-train_tau-approx-f1-imb-0.9-2.pth"
+    ]
+    overfit_train_tau_models_150p = [
+        "20201206_overfit_model_1024_patience-150_0.1_run4-150p-train_tau-approx-f1-imb-0.1-2.pth",
+        "20201206_overfit_model_1024_patience-150_0.125_run4-150p-train_tau-approx-f1-imb-0.125-2.pth",
+        "20201206_overfit_model_1024_patience-150_0.2_run4-150p-train_tau-approx-f1-imb-0.2-2.pth",
+        "20201206_overfit_model_1024_patience-150_0.3_run4-150p-train_tau-approx-f1-imb-0.3-2.pth",
+        "20201206_overfit_model_1024_patience-150_0.4_run4-150p-train_tau-approx-f1-imb-0.4-2.pth",
+        "20201206_overfit_model_1024_patience-150_0.5_run4-150p-train_tau-approx-f1-imb-0.5-2.pth",
+        "20201206_overfit_model_1024_patience-150_0.6_run4-150p-train_tau-approx-f1-imb-0.6-2.pth",
+        "20201206_overfit_model_1024_patience-150_0.7_run4-150p-train_tau-approx-f1-imb-0.7-2.pth",
+        "20201206_overfit_model_1024_patience-150_0.8_run4-150p-train_tau-approx-f1-imb-0.8-2.pth",
+        "20201206_overfit_model_1024_patience-150_0.9_run4-150p-train_tau-approx-f1-imb-0.9-2.pth"
+    ]
+    max_tau_models = [
+        "20201206_best_model_1024_approx-f1_maxtau-approx-f1-imb-0.pth"
+    ]
+
+    # get_metrics(device="cuda:3", batch_size=1024, seed=11,  results_path="overfit_20201207_traintau_eval_run2.json",
+    #     models_path="/app/timeseries/multiclass_src/models/tau_trained/20201206/")
+    # Need to pull in results across all runs and average them.
+
+    # 20201206_best_model_1024_approx-f1_maxtau-approx-f1-imb-0.pth
+    models_list = [
+        "20201206_best_model_1024_approx-f1_searchtau-v2-e10-1024-0.pth", 
+        "20201206_best_model_1024_approx-f1_searchtau-v2-e10-1024-1.pth", 
+        # "20201206_best_model_1024_approx-f1_searchtau-v2-e5-1024-0.pth", 
+        # "20201206_best_model_1024_approx-f1_searchtau-v2-e5-1024-1.pth"
+    ]
+    get_metrics(device="cuda:3", batch_size=1024, seed=11,  results_path="20201207_searchtau_eval_run0.json",
+                models_path="/app/timeseries/multiclass_src/models/searchtau/", models_list=models_list)
