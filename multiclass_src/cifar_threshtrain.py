@@ -315,7 +315,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             batch_size=batch_size, shuffle=True, seed=seed)
 
     model = Net().to(device)
-    patience = 150
+    patience = 100
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
                                 '{}_best_model_{}_{}_{}.pth'.format(
                                     20201207, batch_size, loss_metric, run_name
@@ -480,11 +480,11 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             m_weightedf1s = np.array(microf1s).mean()
             m_microf1s = np.array(microf1s).mean()
             m_macrof1s = np.array(macrof1s).mean()
-            print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
-                epoch, m_accs, m_weightedf1s, m_microf1s, m_macrof1s)
+            print("Train - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
+                epoch, m_loss, m_accs, m_weightedf1s, m_microf1s, m_macrof1s)
             )
             if run_name:
-                writer.add_scalar("loss", m_loss, epoch)
+                writer.add_scalar("train/train-loss", m_loss, epoch)
                 writer.add_scalar("train/accuracy", m_accs, epoch)
                 writer.add_scalar("train/w-f1", m_weightedf1s, epoch)
                 writer.add_scalar("train/micro-f1", m_microf1s, epoch)
@@ -569,6 +569,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         # ----- TEST SET -----
         # Calculate metrics after going through all the batches
         model.eval()
+        test_losses = []
         test_preds, test_labels = np.array([]), np.array([])
         for i, (inputs, labels) in enumerate(test_loader):
             labels_list = labels.numpy()
@@ -579,7 +580,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             labels = labels.to(device)
 
             output = model(inputs)
-            # print("output: {}".format(output))
             _, predicted = torch.max(output, 1)
 
             pred_arr = predicted.cpu().numpy()
@@ -587,6 +587,19 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
             test_labels = np.concatenate([test_labels, label_arr])
             test_preds = np.concatenate([test_preds, pred_arr])
+
+            if approx:
+                labels = labels.type(torch.int64)
+                test_labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                    1, labels.unsqueeze(1), 1.).to(device)
+                output = output.to(device)
+                batch_test_loss, _, _, _, _, _, _, _, _ = criterion(
+                    y_labels=test_labels, y_preds=output)
+            else:
+                batch_test_loss = criterion(output, labels)
+
+        # adding in test loss 
+        test_losses.append(batch_test_loss.detach().cpu().numpy())
 
         test_acc = accuracy_score(y_true=test_labels, y_pred=test_preds)
         test_f1_micro = f1_score(
@@ -604,7 +617,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             y_true=test_labels, y_pred=test_preds, average=None)
 
         # add in per-class metrics
+        test_loss = np.mean(test_losses)
         if run_name:
+            writer.add_scalar("test/test-loss", test_loss, epoch)
             writer.add_scalar("test/accuracy", test_acc, epoch)
             writer.add_scalar("test/micro-f1", test_f1_micro, epoch)
             writer.add_scalar("test/macro-f1", test_f1_macro, epoch)
@@ -643,8 +658,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             if best_test['test_accuracy'] < test_acc:
                 best_test['test_accuracy'] = test_acc
 
-        print("Test - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}".format(
-            epoch, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
+        print("Test - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}".format(
+            epoch, test_loss, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
         )
 
         # ----- VALIDATION SET -----
@@ -789,8 +804,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         title = "val/class-" + str(i) + "-softset-" + "acc"
                         writer.add_scalar(title, np.array(
                             ss_class_acc[i]).mean(), epoch)
-            print("Val - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
-                epoch, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
+            print("Val - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
+                epoch, valid_loss, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
             )
 
             # early stopping
@@ -815,70 +830,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                                 )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
-
-    # # inits.
-    # model.eval()
-    # test_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
-
-    # eval_json = {
-    #     "run_name": None,
-    #     "seed": seed,
-    #     "0.1": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-    #     "0.2": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-    #     "0.3": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-    #     "0.4": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-    #     "0.45": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-    #     "0.5": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-    #     "0.55": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-    #     "0.6": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-    #     "0.7": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-    #     "0.8": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None},
-    #     "0.9": {"class_f1s": None, 'class_precisions' : None, 'class_recalls': None, "mean_f1": None, "eval_dxn": None}
-    # }
-
-    # with torch.no_grad():
-    #     for tau in test_thresholds:
-    #         # go through all the thresholds, and test them out again.
-    #         final_test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    #         test_preds, test_labels = [], []
-    #         for i, (inputs, labels) in enumerate(test_loader):
-    #             # updating distribution of labels.
-    #             labels_list = labels.numpy()
-    #             for label in labels_list:
-    #                 final_test_dxn[label] += 1
-
-    #             # stacking onto tensors.
-    #             inputs = inputs.to(device)
-    #             labels = labels.to(device)
-
-    #             # passing it through our finalized model.
-    #             output = model(inputs)
-    #             labels = torch.zeros(len(labels), 10).to(device).scatter_(
-    #                 1, labels.unsqueeze(1), 1.).to(device)
-
-    #             pred_arr = output.detach().cpu().numpy()
-    #             label_arr = labels.detach().cpu().numpy()
-
-    #             # appending results.
-    #             test_preds.append(pred_arr)
-    #             test_labels.append(label_arr)
-
-    #         test_preds = torch.tensor(test_preds[0])
-    #         test_labels = torch.tensor(test_labels[0])
-
-    #         class_f1s, mean_f1, precisions, recalls = evaluation_f1(
-    #             device=device, y_labels=test_labels, y_preds=test_preds, threshold=tau)
-
-    #         tau = str(tau)
-    #         eval_json[tau]['class_f1s'] = class_f1s.numpy().tolist()
-    #         eval_json[tau]['mean_f1'] = mean_f1.item()
-    #         eval_json[tau]['eval_dxn'] = final_test_dxn
-    #         eval_json[tau]['class_precisions'] = precisions.numpy().tolist()
-    #         eval_json[tau]['class_recalls'] = recalls.numpy().tolist()
-
-    # eval_json['run'] = run_name
-    # eval_json['seed'] = seed
-    # best_test['evaluation'] = eval_json
 
     # ----- recording results in a json.
     if torch.is_tensor(best_test['loss']):
@@ -916,7 +867,8 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau):
 
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [14, 57, 23]
-    seeds = [21, 151, 793]
+    # seeds = [21, 151, 793]
+    seeds = [11]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(
@@ -937,8 +889,10 @@ if __name__ == '__main__':
 Run it from 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 
 seeds: [21, 151, 793, 4, 82]
 
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run5-100p-train_tau-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024
+
+
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024
