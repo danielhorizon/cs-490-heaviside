@@ -590,11 +590,11 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
             if approx:
                 labels = labels.type(torch.int64)
-                test_labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                trans_labels = torch.zeros(len(labels), 10).to(device).scatter_(
                     1, labels.unsqueeze(1), 1.).to(device)
                 output = output.to(device)
                 batch_test_loss, _, _, _, _, _, _, _, _ = criterion(
-                    y_labels=test_labels, y_preds=output)
+                    y_labels=trans_labels, y_preds=output)
             else:
                 batch_test_loss = criterion(output, labels)
 
