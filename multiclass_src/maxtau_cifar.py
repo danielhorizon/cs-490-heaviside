@@ -404,8 +404,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
 
+                    criterion = mean_f1_approx_loss_on(device=device)
                     loss, hclass_tp, hclass_fn, hclass_fp, hclass_tn, hclass_pr, hclass_re, hclass_f1, hclass_acc = criterion(
-                        y_labels=train_labels, y_preds=output)
+                        y_labels=train_labels, y_preds=output, epoch=epoch)
 
                 losses.append(loss)
                 loss.backward()
@@ -693,8 +694,12 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     valid_labels = torch.zeros(len(labels), 10).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
+
+                    criterion = val_mean_f1_approx_loss_on(
+                        threshold=torch.arange(0.1, 1, 0.1), device=device)
+
                     curr_val_loss, hclass_tp, hclass_fn, hclass_fp, hclass_tn, hclass_pr, hclass_re, hclass_f1, hclass_acc = criterion(
-                        y_labels=valid_labels, y_preds=output, epoch=epoch)
+                        y_labels=valid_labels, y_preds=output)
                 else:
                     curr_val_loss = criterion(output, labels)
 
