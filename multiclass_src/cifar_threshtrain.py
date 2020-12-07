@@ -318,7 +318,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     patience = 150
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
                                 '{}_best_model_{}_{}_{}.pth'.format(
-                                    20201206, batch_size, loss_metric, run_name
+                                    20201207, batch_size, loss_metric, run_name
                                 )])
     best_test['model_file_path'] = model_file_path
     early_stopping = EarlyStopping(patience=patience, verbose=True, path=model_file_path)
@@ -329,7 +329,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # setting up tensorboard
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard", "cifar-10", "train_tau3", experiment_name])
+        tensorboard_path = "/".join(["tensorboard", "cifar-10", "train_tau4", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -731,6 +731,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
             # add in per-class metrics
             if run_name:
+                writer.add_scalar("val/valid-loss", valid_loss, epoch)
                 writer.add_scalar("val/accuracy", val_acc, epoch)
                 writer.add_scalar("val/micro-f1", val_f1_micro, epoch)
                 writer.add_scalar("val/macro-f1", val_f1_macro, epoch)
@@ -810,7 +811,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # saving the model.
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models", "tau_trained", 
                                 '{}_overfit_model_{}_patience-{}_{}_{}.pth'.format(
-                                    20201206, batch_size, patience, str(train_tau), run_name
+                                    20201207, batch_size, patience, str(train_tau), run_name
                                 )])
     torch.save(model, model_file_path)
     print("Saving best model to {}".format(model_file_path))
@@ -893,7 +894,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "train_tau_results_run4_longerpatience.json")
+    record_results(best_test, "train_tau_results_run5.json")
     return
 
 
