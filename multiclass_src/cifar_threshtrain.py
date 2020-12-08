@@ -305,8 +305,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         train_loader, val_loader, test_loader = load_imbalanced_data(batch_size=batch_size,seed=seed)
         best_test['imbalanced'] = True
     else:
-        train_loader, val_loader, test_loader = load_data_v2(
-            batch_size=batch_size, shuffle=True, seed=seed)
+        train_loader, val_loader, test_loader = load_data_v2(batch_size=batch_size, shuffle=True, seed=seed)
 
     model = Net().to(device)
     learning_rate = 0.001
@@ -362,7 +361,15 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         ss_class_f1 = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
         ss_class_acc = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
 
-        if epoch != 0:
+                # adding per-class f1, precision, and recall
+                for i in range(10):
+                    title = "train/class-" + str(i) + "-f1"
+                    writer.add_scalar(title, 0, epoch)
+                    title = "train/class-" + str(i) + "-precision"
+                    writer.add_scalar(title, 0, epoch)
+                    title = "train/class-" + str(i) + "-recall"
+                    writer.add_scalar(title, 0, epoch)
+        else:
             # going over in batches 
             for i, (inputs, labels) in enumerate(train_loader):
                 # for class distribution - loop through and add
@@ -404,51 +411,37 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         ss_class_f1[i].append(hclass_f1[i])
                         ss_class_acc[i].append(hclass_acc[i])
 
-                # check prediction
+                ## check prediction, switch to evaluation 
                 model.eval()
                 y_pred = model(inputs)
                 _, train_preds = torch.max(y_pred, 1)
 
                 # storing metrics for each batch
                 # accs = array of each batch's accuracy -> averaged at each epoch
-                accs.append(accuracy_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu()))
-                microf1s.append(f1_score(y_true=labels.cpu(),
-                                         y_pred=train_preds.cpu(), average="micro"))
-                macrof1s.append(f1_score(y_true=labels.cpu(),
-                                         y_pred=train_preds.cpu(), average="macro"))
-                wf1s.append(f1_score(y_true=labels.cpu(),
-                                     y_pred=train_preds.cpu(), average="weighted"))
+                accs.append(accuracy_score(y_true=labels.cpu(), y_pred=train_preds.cpu()))
+                microf1s.append(f1_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
+                macrof1s.append(f1_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
+                wf1s.append(f1_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
                 # precision
-                micro_prs.append(precision_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
-                macro_prs.append(precision_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
-                weighted_prs.append(precision_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
+                micro_prs.append(precision_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
+                macro_prs.append(precision_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
+                weighted_prs.append(precision_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
 
                 # recall
-                micro_recalls.append(recall_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
-                macro_recalls.append(recall_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
-                weighted_recalls.append(recall_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
+                micro_recalls.append(recall_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
+                macro_recalls.append(recall_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
+                weighted_recalls.append(recall_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
 
-                class_f1s = f1_score(y_true=labels.cpu(),
-                                     y_pred=train_preds.cpu(), average=None)
-                class_re = recall_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
-                class_pr = precision_score(
-                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
+                class_f1s = f1_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
+                class_re = recall_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
+                class_pr = precision_score(y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
 
                 for i in range(len(class_f1s)):
                     class_f1_scores[i].append(class_f1s[i])
                     class_precision[i].append(class_pr[i])
                     class_recall[i].append(class_re[i])
 
-            m_loss = torch.mean(torch.stack(losses)) if using_gpu else np.array(
-                [x.item for x in losses]).mean()
+            m_loss = torch.mean(torch.stack(losses)) if using_gpu else np.array([x.item for x in losses]).mean()
             m_accs = np.array(accs).mean()
             m_weightedf1s = np.array(microf1s).mean()
             m_microf1s = np.array(microf1s).mean()
@@ -639,7 +632,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         # ----- VALIDATION SET -----
         # Calculate metrics after going through all the batches
         model.eval()
-        valid_losses = []
+        
         with torch.no_grad():
             val_preds, val_labels = np.array([]), np.array([])
             ss_class_tp = {0: [], 1: [], 2: [], 3: [],
@@ -659,6 +652,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             ss_class_acc = {0: [], 1: [], 2: [], 3: [],
                             4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
 
+            valid_losses = []
             for i, (inputs, labels) in enumerate(val_loader):
                 labels_list = labels.numpy()
                 for label in labels_list:
@@ -887,32 +881,4 @@ python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.7" --cuda=3 --train_tau=0.7 --batch_size=1024
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024
-
-
-
-'''
-
-
-
-
-
-
-
-
-
-'''
-seeds = [14, 57, 23, 944, 529]
-
-
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.1" --cuda=1 --train_tau=0.1 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.2" --cuda=2 --train_tau=0.2 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.3" --cuda=1 --train_tau=0.3 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.5" --cuda=2 --train_tau=0.5 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.7" --cuda=2 --train_tau=0.7 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-reg-tau_0.9" --cuda=2 --train_tau=0.9 --batch_size=1024
-
-
-python3 cifar_threshtrain.py --epochs=1000 --loss="approx-f1" --run_name="1024-approx-f1-imb-tau_0.125" --cuda=3 --train_tau=0.125 --batch_size=1024
-
-need to run immb- train 0.7 and 0.9 
 '''
