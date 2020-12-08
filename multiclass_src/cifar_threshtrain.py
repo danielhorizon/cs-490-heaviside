@@ -31,9 +31,6 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.metrics import confusion_matrix
 from sklearn import metrics
 
-# for early stopping.
-# for early stopping.
-from pytorchtools import EarlyStopping
 from torchconfusion import *
 from download_cifar import *
 
