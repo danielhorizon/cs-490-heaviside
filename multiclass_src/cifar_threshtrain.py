@@ -315,7 +315,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # setting up tensorboard
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard", "cifar-10" experiment_name])
+        tensorboard_path = "/".join(["tensorboard", "cifar-10", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
