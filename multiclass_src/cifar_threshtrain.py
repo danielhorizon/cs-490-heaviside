@@ -876,7 +876,7 @@ if __name__ == '__main__':
 Run it from 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 
 seeds: [21, 151, 793, 4, 82]
 
-python3 cifar_threshtrain.py --epochs=2 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
