@@ -24,22 +24,25 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from download_cifar import *
 
 
-_MODELS_PATH = "/app/timeseries/multiclass_src/models/search_tau"
-
+_MODELS_PATH = "/app/timeseries/multiclass_src/models/"
 EPS = 1e-7
 
 
-def record_results(best_test, output_file):
+def record_results(results_path, best_test, output_file):
     # reading in the data from the existing file.
-    results_path = "/app/timeseries/multiclass_src/results/searchtau"
     file_path = "/".join([results_path, output_file])
-    with open(file_path, "r+") as f:
-        data = json.load(f)
-        data.append(best_test)
-        f.close()
-
-    with open(file_path, "w") as outfile:
-        json.dump(data, outfile)
+    if os.path.isfile(file_path):
+        with open(file_path, "r+") as f:
+            data = json.load(f)
+            data.append(best_test)
+            f.close()
+        with open(file_path, "w") as outfile:
+            json.dump(data, outfile)
+    ## if the file doesn't eixst:
+    else:
+        best_test = [best_test]
+        with open(file_path, "w") as outfile:
+            json.dump(best_test, outfile)
 
 
 class Net(nn.Module):
@@ -150,7 +153,7 @@ def get_metrics(device, model_name, batch_size, seed, output_file):
     model = load_model(model_name)
 
     # EVALUATION
-    # model.eval()
+    model.eval()
     test_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
 
     eval_json = {
@@ -207,34 +210,41 @@ def get_metrics(device, model_name, batch_size, seed, output_file):
             eval_json[tau]['class_precisions'] = precisions.numpy().tolist()
             eval_json[tau]['class_recalls'] = recalls.numpy().tolist()
     eval_json['run_name'] = model_name
-    record_results(eval_json, output_file)
+    record_results(best_test=eval_json,
+                   results_path="/app/timeseries/multiclass_src/results/new_runs", 
+                   output_file=output_file)
     return eval_json
 
 
 if __name__ == '__main__':
-    # ce_models = [
-    #     "20201204_best_model_1024_ce_run4-1024-baseline-ce-imb-0.pth",
-    #     "20201204_best_model_1024_ce_run4-1024-baseline-ce-imb-1.pth",
-    #     "20201204_best_model_1024_ce_run4-1024-baseline-ce-imb-2.pth",
-    #     "20201204_best_model_1024_ce_run4-1024-baseline-ce-imb-3.pth",
-    # ]
-    # for ce_model in ce_models:
-    #     get_metrics(device="cuda:3", model_name=ce_model,
-    #                 batch_size=1024, seed=11, output_file="baseline_20201206.json")
+    ce_models = [
+        "20201208-best_model-v2-1024-baseline-ce-imb-0.pth", 
+        "20201208-best_model-v2-1024-baseline-ce-imb-1.pth",
+        "20201208-best_model-v2-1024-baseline-ce-imb-2.pth", 
+        "20201208-best_model-v2-1024-baseline-ce-imb-3.pth", 
+        "20201208-best_model-v2-1024-baseline-ce-imb-4.pth"
+    ]
 
-    # approx_f1_models = [
-    #     "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-0.pth",
-    #     "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-1.pth",
-    #     "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-2.pth",
-    #     "20201204_best_model_1024_approx-f1_run4-1024-approx-f1-imb-3.pth",
-    # ]
-    # for approx_f1_model in approx_f1_models:
-    #     get_metrics(device="cpu", model_name=approx_f1_model,
-    #                 batch_size=1024, seed=11, output_file="approx_f1_results.json")
 
-    stau_models = ["20201206_best_model_1024_approx-f1_searchtau-v2-e10-1024-0.pth",
-                   "20201206_best_model_1024_approx-f1_searchtau-v2-e10-1024-1.pth"]
-    for stau_model in stau_models: 
-        get_metrics(device="cuda:3", model_name=stau_model,
-                    batch_size=1024, seed=11, output_file="20201207_searchtau_results.json")
+    approx_f1_models = [
+        "20201208-best_model-v2-1024-approx-f1-imb-0.pth", 
+        "20201208-best_model-v2-1024-approx-f1-imb-1.pth", 
+        "20201208-best_model-v2-1024-approx-f1-imb-2.pth", 
+        "20201208-best_model-v2-1024-approx-f1-imb-3.pth", 
+        "20201208-best_model-v2-1024-approx-f1-imb-4.pth"
+    ]
+    for approx_f1_model in approx_f1_models:
+        get_metrics(device="cuda:3", model_name=approx_f1_model,
+                    batch_size=1024, seed=11, output_file="20201208_approxf1_eval.json")
+    
+    for ce_model in ce_models:
+        get_metrics(device="cuda:3", model_name=ce_model,
+                    batch_size=1024, seed=11, output_file="20201208_ce_eval.json")
+
+
+    # stau_models = ["20201206_best_model_1024_approx-f1_searchtau-v2-e10-1024-0.pth",
+    #                "20201206_best_model_1024_approx-f1_searchtau-v2-e10-1024-1.pth"]
+    # for stau_model in stau_models: 
+    #     get_metrics(device="cuda:3", model_name=stau_model,
+    #                 batch_size=1024, seed=11, output_file="20201207_approxf1_eval.json")
 
