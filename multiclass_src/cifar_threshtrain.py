@@ -310,8 +310,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     model = Net().to(device)
     learning_rate = 0.001
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
-    best_test['model_file_path'] = model_file_path
+    
     best_test['learning_rate'] = learning_rate
 
     # setting up tensorboard
@@ -336,6 +335,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     early_stopping = False 
     lowest_f1_loss = None
     print("patience: {}".format(patience))
+    patience = int(patience)
     reset_patience = patience 
 
     losses = []
@@ -361,6 +361,19 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         ss_class_f1 = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
         ss_class_acc = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
 
+        if epoch == 0: 
+            if run_name:
+                writer.add_scalar("loss", 0, epoch)
+                writer.add_scalar("train/accuracy", 0, epoch)
+                writer.add_scalar("train/w-f1", 0, epoch)
+                writer.add_scalar("train/micro-f1", 0, epoch)
+                writer.add_scalar("train/macro-f1", 0, epoch)
+                writer.add_scalar("train/w-recall", 0, epoch)
+                writer.add_scalar("train/micro-recall", 0, epoch)
+                writer.add_scalar("train/macro-recall", 0, epoch)
+                writer.add_scalar("train/w-precision", 0, epoch)
+                writer.add_scalar("train/micro-precision", 0, epoch)
+                writer.add_scalar("train/macro-precision", 0, epoch)
                 # adding per-class f1, precision, and recall
                 for i in range(10):
                     title = "train/class-" + str(i) + "-f1"
@@ -509,29 +522,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         writer.add_scalar(title, np.array(
                             ss_class_acc[i]).mean(), epoch)
 
-        else:
-            if run_name:
-                writer.add_scalar("loss", 0, epoch)
-                writer.add_scalar("train/accuracy", 0, epoch)
-                writer.add_scalar("train/w-f1", 0, epoch)
-                writer.add_scalar("train/micro-f1", 0, epoch)
-                writer.add_scalar("train/macro-f1", 0, epoch)
-                writer.add_scalar("train/w-recall", 0, epoch)
-                writer.add_scalar("train/micro-recall", 0, epoch)
-                writer.add_scalar("train/macro-recall", 0, epoch)
-                writer.add_scalar("train/w-precision", 0, epoch)
-                writer.add_scalar("train/micro-precision", 0, epoch)
-                writer.add_scalar("train/macro-precision", 0, epoch)
-
-                # adding per-class f1, precision, and recall
-                for i in range(10):
-                    title = "train/class-" + str(i) + "-f1"
-                    writer.add_scalar(title, 0, epoch)
-                    title = "train/class-" + str(i) + "-precision"
-                    writer.add_scalar(title, 0, epoch)
-                    title = "train/class-" + str(i) + "-recall"
-                    writer.add_scalar(title, 0, epoch)
-
         ## test set. 
         ## calculate all metrics after going through the batches. 
         model.eval()
@@ -557,11 +547,11 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
                 if approx:
                     labels = labels.type(torch.int64)
-                    test_labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                    trans_labels = torch.zeros(len(labels), 10).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
                     batch_test_loss, _, _, _, _, _, _, _, _ = criterion(
-                        y_labels=test_labels, y_preds=output)
+                        y_labels=trans_labels, y_preds=output)
                 else:
                     batch_test_loss = criterion(output, labels)
 
@@ -778,14 +768,18 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             )
             ## checking early stopping per epoch 
             patience -= 1 
-            print("Early stopping: {}".format(patience))
-            if lowest_f1_loss is None or lowest_f1_loss < valid_loss: 
+            if lowest_f1_loss is None or valid_loss < lowest_f1_loss: 
+                if lowest_f1_loss !=  None: 
+                    print("Valid loss decreased {:.5f} -> {:.5f}! Early stopping: {}/{}".format(
+                        lowest_f1_loss, valid_loss, reset_patience - patience, reset_patience))
+
                 today_date = time.strftime('%Y%m%d')
                 model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
                                             '{}_best_model_{}_{}_{}.pth'.format(
                                                 today_date, batch_size, loss_metric, run_name
                                             )])
                 torch.save(model, model_file_path)
+                best_test['model_file_path'] = model_file_path
                 patience = reset_patience 
                 print("Resetting patience to: {}".format(patience))
                 lowest_f1_loss = valid_loss 
@@ -868,7 +862,8 @@ if __name__ == '__main__':
 Run it from 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 
 seeds: [21, 151, 793, 4, 82]
 
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run5-100p-train_tau-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run5-100p-train_tau-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 
+
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024
 
 
