@@ -38,5 +38,7 @@ RUN pip install ap_perf \
                 torch torchvision \
                 tensorboard cython \
                 imbalanced-learn \
-                pandas
+                pandas \ 
+                jupyter \ 
+                click
 RUN pip install numpy --upgrade

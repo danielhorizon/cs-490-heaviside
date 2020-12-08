@@ -1,6 +1,7 @@
 import os
 import click
 import torch
+import time 
 import json
 import numpy as np
 import pandas as pd
@@ -107,10 +108,6 @@ class Dataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         return self.X[index, :], self.y[index]
-
-
-def _check_freq(x):
-    return np.array(np.unique(x, return_counts=True)).T
 
 
 def _show_image(img):
@@ -237,7 +234,6 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
 
         # print("GT LIST:{}".format(gt_list))
         # print("PT LIST:{}".format(pt_list))
-        # tensor([1., 1., 1.,  ..., 1., 1., 1.])
         pt_list = torch.Tensor([1 if x >= threshold else 0 for x in pt_list])
 
         tn, fp, fn, tp = confusion_matrix(y_true=gt_list.cpu().numpy(), 
@@ -258,11 +254,12 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
     return mean_f1s, mean_f1s.mean(), precisions, recalls
 
 
-def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None, batch_size=None, train_tau=None):
+def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None, batch_size=None, 
+        train_tau=None, patience=None):
     using_gpu = False
     if torch.cuda.is_available():
-        print("device = cuda")
-        print(type(cuda))
+        print("device = cuda :{}".format(type(cuda)))
+        using_gpu = True
         if cuda == "0":
             device = "cuda:0"
         elif cuda == "1":
@@ -273,7 +270,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             device = "cuda:3"
         else:
             device = "cuda:0"
-        using_gpu = True
     else:
         print("device = cpu")
         device = "cpu"
@@ -299,6 +295,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         "seed": seed, 
         "batch_size": batch_size, 
         "model_file_path": None, 
+        "patience": None 
     }
 
     # setting seeds
@@ -315,21 +312,16 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             batch_size=batch_size, shuffle=True, seed=seed)
 
     model = Net().to(device)
-    patience = 100
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
-                                '{}_best_model_{}_{}_{}.pth'.format(
-                                    20201207, batch_size, loss_metric, run_name
-                                )])
-    best_test['model_file_path'] = model_file_path
-    early_stopping = EarlyStopping(patience=patience, verbose=True, path=model_file_path)
     learning_rate = 0.001
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+    best_test['model_file_path'] = model_file_path
     best_test['learning_rate'] = learning_rate
 
     # setting up tensorboard
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard", "cifar-10", "train_tau4", experiment_name])
+        tensorboard_path = "/".join(["tensorboard", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -345,42 +337,33 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
     # ----- TRAINING, TESTING, VALIDATION -----
+    early_stopping = False 
+    lowest_f1_loss = None
+    print("patience: {}".format(patience))
+    reset_patience = patience 
+
     losses = []
     for epoch in range(epochs):
-        running_loss = 0.0
+        ## early stopping 
+        if early_stopping: 
+            print("Early stopping at Epoch {}/{}".format(epoch, epochs))
+            break 
+
         accs, microf1s, macrof1s, wf1s = [], [], [], []
         micro_prs, macro_prs, weighted_prs = [], [], []
         micro_recalls, macro_recalls, weighted_recalls = [], [], []
-        class_f1_scores = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        class_precision = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        class_recall = {0: [], 1: [], 2: [], 3: [],
-                        4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        class_f1_scores = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        class_precision = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        class_recall = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
 
-        ss_class_tp = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_fn = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_fp = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_tn = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_pr = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_re = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_f1 = {0: [], 1: [], 2: [], 3: [],
-                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-        ss_class_acc = {0: [], 1: [], 2: [], 3: [],
-                        4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-
-        if epoch == 0:
-            print("--- MODEL PARAMS ---")
-            for param in model.parameters():
-                print(param.data[1])
-                print(param.data[1].shape)
-                break
+        ss_class_tp = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_fn = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_fp = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_tn = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_pr = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_re = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_f1 = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_acc = {0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
 
         if epoch != 0:
             # going over in batches 
@@ -411,13 +394,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 losses.append(loss)
                 loss.backward()
                 optimizer.step()
-
-                # print statistics; every 2000 mini-batches
-                running_loss += loss.item()
-                if i % 2000 == 1999:
-                    print('[%d, %5d] loss: %.3f' %
-                          (epoch + 1, i + 1, running_loss / 2000))
-                    running_loss = 0.0
 
                 # storing soft-set-metrics
                 if approx:
@@ -566,101 +542,102 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     title = "train/class-" + str(i) + "-recall"
                     writer.add_scalar(title, 0, epoch)
 
-        # ----- TEST SET -----
-        # Calculate metrics after going through all the batches
+        ## test set. 
+        ## calculate all metrics after going through the batches. 
         model.eval()
         test_losses = []
         test_preds, test_labels = np.array([]), np.array([])
-        for i, (inputs, labels) in enumerate(test_loader):
-            labels_list = labels.numpy()
-            for label in labels_list:
-                test_dxn[label] += 1
+        with torch.no_grad():
+            for i, (inputs, labels) in enumerate(test_loader):
+                labels_list = labels.cpu().numpy()
+                for label in labels_list:
+                    test_dxn[label] += 1
 
-            inputs = inputs.to(device)
-            labels = labels.to(device)
+                inputs = inputs.to(device)
+                labels = labels.to(device)
 
-            output = model(inputs)
-            _, predicted = torch.max(output, 1)
+                output = model(inputs)
+                _, predicted = torch.max(output, 1)
 
-            pred_arr = predicted.cpu().numpy()
-            label_arr = labels.cpu().numpy()
+                pred_arr = predicted.cpu().numpy()
+                label_arr = labels.cpu().numpy()
 
-            test_labels = np.concatenate([test_labels, label_arr])
-            test_preds = np.concatenate([test_preds, pred_arr])
+                test_labels = np.concatenate([test_labels, label_arr])
+                test_preds = np.concatenate([test_preds, pred_arr])
 
-            if approx:
-                labels = labels.type(torch.int64)
-                test_labels = torch.zeros(len(labels), 10).to(device).scatter_(
-                    1, labels.unsqueeze(1), 1.).to(device)
-                output = output.to(device)
-                batch_test_loss, _, _, _, _, _, _, _, _ = criterion(
-                    y_labels=test_labels, y_preds=output)
-            else:
-                batch_test_loss = criterion(output, labels)
+                if approx:
+                    labels = labels.type(torch.int64)
+                    test_labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                        1, labels.unsqueeze(1), 1.).to(device)
+                    output = output.to(device)
+                    batch_test_loss, _, _, _, _, _, _, _, _ = criterion(
+                        y_labels=test_labels, y_preds=output)
+                else:
+                    batch_test_loss = criterion(output, labels)
 
-        # adding in test loss 
-        test_losses.append(batch_test_loss.detach().cpu().numpy())
+            # adding in test loss 
+            test_losses.append(batch_test_loss.detach().cpu().numpy())
 
-        test_acc = accuracy_score(y_true=test_labels, y_pred=test_preds)
-        test_f1_micro = f1_score(
-            y_true=test_labels, y_pred=test_preds, average='micro')
-        test_f1_macro = f1_score(
-            y_true=test_labels, y_pred=test_preds, average='macro')
-        test_f1_weighted = f1_score(
-            y_true=test_labels, y_pred=test_preds, average='weighted')
+            test_acc = accuracy_score(y_true=test_labels, y_pred=test_preds)
+            test_f1_micro = f1_score(
+                y_true=test_labels, y_pred=test_preds, average='micro')
+            test_f1_macro = f1_score(
+                y_true=test_labels, y_pred=test_preds, average='macro')
+            test_f1_weighted = f1_score(
+                y_true=test_labels, y_pred=test_preds, average='weighted')
 
-        test_class_f1s = f1_score(
-            y_true=test_labels, y_pred=test_preds, average=None)
-        test_class_prs = precision_score(
-            y_true=test_labels, y_pred=test_preds, average=None)
-        test_class_rec = recall_score(
-            y_true=test_labels, y_pred=test_preds, average=None)
+            test_class_f1s = f1_score(
+                y_true=test_labels, y_pred=test_preds, average=None)
+            test_class_prs = precision_score(
+                y_true=test_labels, y_pred=test_preds, average=None)
+            test_class_rec = recall_score(
+                y_true=test_labels, y_pred=test_preds, average=None)
 
-        # add in per-class metrics
-        test_loss = np.mean(test_losses)
-        if run_name:
-            writer.add_scalar("test/test-loss", test_loss, epoch)
-            writer.add_scalar("test/accuracy", test_acc, epoch)
-            writer.add_scalar("test/micro-f1", test_f1_micro, epoch)
-            writer.add_scalar("test/macro-f1", test_f1_macro, epoch)
-            writer.add_scalar("test/w-f1", test_f1_weighted, epoch)
-            # adding per-class f1, precision, and recall
-            for i in range(10):
-                title = "test/class-" + str(i) + "-f1"
-                writer.add_scalar(title, np.array(
-                    test_class_f1s[i]).mean(), epoch)
-                title = "test/class-" + str(i) + "-precision"
-                writer.add_scalar(title, np.array(
-                    test_class_prs[i]).mean(), epoch)
-                title = "test/class-" + str(i) + "-recall"
-                writer.add_scalar(title, np.array(
-                    test_class_rec[i]).mean(), epoch)
+            # add in per-class metrics
+            test_loss = np.mean(test_losses)
+            if run_name:
+                writer.add_scalar("test/test-loss", test_loss, epoch)
+                writer.add_scalar("test/accuracy", test_acc, epoch)
+                writer.add_scalar("test/micro-f1", test_f1_micro, epoch)
+                writer.add_scalar("test/macro-f1", test_f1_macro, epoch)
+                writer.add_scalar("test/w-f1", test_f1_weighted, epoch)
+                # adding per-class f1, precision, and recall
+                for i in range(10):
+                    title = "test/class-" + str(i) + "-f1"
+                    writer.add_scalar(title, np.array(
+                        test_class_f1s[i]).mean(), epoch)
+                    title = "test/class-" + str(i) + "-precision"
+                    writer.add_scalar(title, np.array(
+                        test_class_prs[i]).mean(), epoch)
+                    title = "test/class-" + str(i) + "-recall"
+                    writer.add_scalar(title, np.array(
+                        test_class_rec[i]).mean(), epoch)
 
-                # adding in per class training
-                # get_confusion(gt, pt, class_value=None):
-                tp, fp, fn, tn = get_confusion(
-                    gt=test_labels, pt=test_preds, class_value=i)
-                tp_title = 'test/class-' + str(i) + "-TP"
-                fp_title = 'test/class-' + str(i) + "-FP"
-                fn_title = 'test/class-' + str(i) + "-FN"
-                tn_title = 'test/class-' + str(i) + "-TN"
-                writer.add_scalar(tp_title, tp, epoch)
-                writer.add_scalar(fp_title, fp, epoch)
-                writer.add_scalar(fn_title, fn, epoch)
-                writer.add_scalar(tn_title, tn, epoch)
+                    # adding in per class training
+                    # get_confusion(gt, pt, class_value=None):
+                    tp, fp, fn, tn = get_confusion(
+                        gt=test_labels, pt=test_preds, class_value=i)
+                    tp_title = 'test/class-' + str(i) + "-TP"
+                    fp_title = 'test/class-' + str(i) + "-FP"
+                    fn_title = 'test/class-' + str(i) + "-FN"
+                    tn_title = 'test/class-' + str(i) + "-TN"
+                    writer.add_scalar(tp_title, tp, epoch)
+                    writer.add_scalar(fp_title, fp, epoch)
+                    writer.add_scalar(fn_title, fn, epoch)
+                    writer.add_scalar(tn_title, tn, epoch)
 
-        if epoch != 0:
-            if best_test['loss'] > m_loss:
-                best_test['loss'] = m_loss
-                best_test['best-epoch'] = epoch
-            if best_test['test_wt_f1_score'] < test_f1_weighted:
-                best_test['test_wt_f1_score'] = test_f1_weighted
-            if best_test['test_accuracy'] < test_acc:
-                best_test['test_accuracy'] = test_acc
+            if epoch != 0:
+                if best_test['loss'] > m_loss:
+                    best_test['loss'] = m_loss
+                    best_test['best-epoch'] = epoch
+                if best_test['test_wt_f1_score'] < test_f1_weighted:
+                    best_test['test_wt_f1_score'] = test_f1_weighted
+                if best_test['test_accuracy'] < test_acc:
+                    best_test['test_accuracy'] = test_acc
 
-        print("Test - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}".format(
-            epoch, test_loss, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
-        )
+            print("Test - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}".format(
+                epoch, test_loss, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
+            )
 
         # ----- VALIDATION SET -----
         # Calculate metrics after going through all the batches
@@ -728,6 +705,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         ss_class_f1[i].append(hclass_f1[i])
                         ss_class_acc[i].append(hclass_acc[i])
 
+            valid_loss = np.mean(valid_losses)
             val_acc = accuracy_score(y_true=val_labels, y_pred=val_preds)
             val_f1_micro = f1_score(
                 y_true=val_labels, y_pred=val_preds, average='micro')
@@ -742,8 +720,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 y_true=val_labels, y_pred=val_preds, average=None)
             class_val_re = recall_score(
                 y_true=val_labels, y_pred=val_preds, average=None)
-            valid_loss = np.mean(valid_losses)
-
+            
             # add in per-class metrics
             if run_name:
                 writer.add_scalar("val/valid-loss", valid_loss, epoch)
@@ -804,32 +781,42 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         title = "val/class-" + str(i) + "-softset-" + "acc"
                         writer.add_scalar(title, np.array(
                             ss_class_acc[i]).mean(), epoch)
+            
             print("Val - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
                 epoch, valid_loss, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
             )
-
-            # early stopping
-            early_stopping(valid_loss, model)
-            if early_stopping.early_stop:
-                print("Early Stopping")
-                break
-
-            
-            if epoch != 0:
-                if best_test['val_wt_f1_score'] < val_f1_weighted:
-                    best_test['val_wt_f1_score'] = val_f1_weighted
-                if best_test['val_accuracy'] < val_acc:
-                    best_test['val_accuracy'] = val_acc
+            ## checking early stopping per epoch 
+            patience -= 1 
+            print("Early stopping: {}".format(patience))
+            if lowest_f1_loss is None or lowest_f1_loss < valid_loss: 
+                today_date = time.strftime('%Y%m%d')
+                model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
+                                            '{}_best_model_{}_{}_{}.pth'.format(
+                                                today_date, batch_size, loss_metric, run_name
+                                            )])
+                torch.save(model, model_file_path)
+                patience = reset_patience 
+                print("Resetting patience to: {}".format(patience))
+                lowest_f1_loss = valid_loss 
+                
+                ## storing values into best run json
+                if epoch != 0:
+                    if best_test['val_wt_f1_score'] < val_f1_weighted:
+                        best_test['val_wt_f1_score'] = val_f1_weighted
+                    if best_test['val_accuracy'] < val_acc:
+                        best_test['val_accuracy'] = val_acc
+            if patience <= 0: 
+                early_stopping = True 
 
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models", "tau_trained", 
                                 '{}_overfit_model_{}_patience-{}_{}_{}.pth'.format(
-                                    20201207, batch_size, patience, str(train_tau), run_name
+                                    time.strftime('%Y%m%d'), batch_size, patience, str(
+                                        train_tau), run_name
                                 )])
     torch.save(model, model_file_path)
-    print("Saving best model to {}".format(model_file_path))
 
     # ----- recording results in a json.
     if torch.is_tensor(best_test['loss']):
@@ -856,8 +843,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 @click.option("--imb", required=False, is_flag=True, default=False)
 @click.option("--run_name", required=False)
 @click.option("--cuda", required=False)
-@click.option("--train_tau", required=False)
-def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau):
+@click.option("--train_tau", required=True)
+@click.option("--patience", required=True)
+def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience):
     # check if forcing imbalance
     print(run_name)
     print("Running on cuda: {}".format(cuda))
@@ -871,8 +859,8 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau):
     seeds = [11]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
-        train_cifar(loss_metric=loss, epochs=int(
-            epochs), imbalanced=imbalanced, run_name=temp_name, seed=seeds[i], cuda=cuda, batch_size=int(batch_size), train_tau=train_tau)
+        train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name, 
+                    seed=seeds[i], cuda=cuda, batch_size=int(batch_size), train_tau=train_tau, patience=patience)
 
 
 def main():
