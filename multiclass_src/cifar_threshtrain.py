@@ -199,9 +199,8 @@ def load_imbalanced_data(batch_size, seed):
     return train_loader, val_loader, test_loader
 
 
-def record_results(best_test, output_file):
+def record_results(results_path, best_test, output_file):
     # reading in the data from the existing file.
-    results_path = "/app/timeseries/multiclass_src/results/train_tau"
     file_path = "/".join([results_path, output_file])
     with open(file_path, "r+") as f:
         data = json.load(f)
@@ -271,7 +270,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         print("device = cpu")
         device = "cpu"
 
-    set_seed(seed)
+    
     train_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     valid_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -296,6 +295,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     }
 
     # setting seeds
+    set_seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     np.random.seed(seed)
@@ -307,16 +307,15 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     else:
         train_loader, val_loader, test_loader = load_data_v2(batch_size=batch_size, shuffle=True, seed=seed)
 
-    model = Net().to(device)
     learning_rate = 0.001
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    
     best_test['learning_rate'] = learning_rate
+    model = Net().to(device)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     # setting up tensorboard
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard", experiment_name])
+        tensorboard_path = "/".join(["tensorboard", "cifar-10" experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -385,12 +384,12 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         else:
             # going over in batches 
             for i, (inputs, labels) in enumerate(train_loader):
+
                 # for class distribution - loop through and add
                 labels_list = labels.numpy()
                 for label in labels_list:
                     train_dxn[label] += 1
-                inputs = inputs.to(device)
-                labels = labels.to(device)
+                inputs, labels = inputs.to(device), labels.to(device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -768,10 +767,11 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             )
             ## checking early stopping per epoch 
             patience -= 1 
+            adjust = False 
             if lowest_f1_loss is None or valid_loss < lowest_f1_loss: 
+                adjust = True 
                 if lowest_f1_loss !=  None: 
-                    print("Valid loss decreased {:.5f} -> {:.5f}! Early stopping: {}/{}".format(
-                        lowest_f1_loss, valid_loss, reset_patience - patience, reset_patience))
+                    print("Valid loss decreased {:.5f} -> {:.5f}! Resetting patience to: {}".format(lowest_f1_loss, valid_loss, reset_patience))
 
                 today_date = time.strftime('%Y%m%d')
                 model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
@@ -781,7 +781,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 torch.save(model, model_file_path)
                 best_test['model_file_path'] = model_file_path
                 patience = reset_patience 
-                print("Resetting patience to: {}".format(patience))
                 lowest_f1_loss = valid_loss 
                 
                 ## storing values into best run json
@@ -790,6 +789,10 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         best_test['val_wt_f1_score'] = val_f1_weighted
                     if best_test['val_accuracy'] < val_acc:
                         best_test['val_accuracy'] = val_acc
+
+            ## if early stopping has begun, print it like this. 
+            if not adjust: 
+                print("Early stopping {}/{}...".format(reset_patience-patience, reset_patience))
             if patience <= 0: 
                 early_stopping = True 
 
@@ -810,14 +813,15 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         best_test['test_wt_f1_score'] = best_test['test_wt_f1_score'].item()
     if torch.is_tensor(best_test['val_wt_f1_score']):
         best_test['val_wt_f1_score'] = best_test['val_wt_f1_score'].item()
-
     best_test['loss'] = round(best_test['loss'], 5)
     best_test['test_wt_f1_score'] = round(best_test['test_wt_f1_score'], 5)
     best_test['val_wt_f1_score'] = round(best_test['val_wt_f1_score'], 5)
     best_test['train_dxn'] = train_dxn
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
-    record_results(best_test, "train_tau_results_run5.json")
+
+    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/train_tau", 
+                    output_file="train_tau_results_run5.json")
     return
 
 
