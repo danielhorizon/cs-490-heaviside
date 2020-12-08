@@ -76,8 +76,8 @@ def l_tp(gt, pt, thresh, agg='sum'):
     #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (inverter = true)
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
 
-    # thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
-    #                      torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
     gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
     pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
     
@@ -93,8 +93,8 @@ def l_fn(gt, pt, thresh, agg='sum'):
     #  fn: (gt == 1 and pt == 0) -> closer to 1 -> (inverter = true)
     #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (inverter = true)
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
-    # thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
-    #                      torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
 
     gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
     pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
@@ -111,8 +111,8 @@ def l_fp(gt, pt, thresh, agg='sum'):
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (inverter = false)
     #  fp: (gt == 0 and pt == 1) -> closer to 1 -> (inverter = false)
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
-    # thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
-    #                      torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
     gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
     pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
 
@@ -128,8 +128,8 @@ def l_tn(gt, pt, thresh, agg='sum'):
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (invert = false)
     #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (invert = true)
     #  tn: (gt == 0 and pt == 0) -> closer to 1 -> (invert = true)
-    # thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
-    #                      torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
     gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
     pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
 
@@ -218,11 +218,6 @@ def st_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
         y_preds = y_preds.to(device)
 
         classes = len(y_labels[0])
-
-        train_thresholds = [0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.7]
-        # train_threshold = float(train_tau)
-        # threshold_tensor = torch.Tensor([train_threshold]).to(device)
-
         mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
         for i in range(classes):
             gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)

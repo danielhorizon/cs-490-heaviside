@@ -698,12 +698,12 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     valid_labels = torch.zeros(len(labels), 10).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
-                    curr_val_loss, hclass_tp, hclass_fn, hclass_fp, hclass_tn, hclass_pr, hclass_re, hclass_f1, hclass_acc = criterion(
+                    batch_val_loss, hclass_tp, hclass_fn, hclass_fp, hclass_tn, hclass_pr, hclass_re, hclass_f1, hclass_acc = criterion(
                         y_labels=valid_labels, y_preds=output)
                 else:
-                    curr_val_loss = criterion(output, labels)
+                    batch_val_loss = criterion(output, labels)
 
-                valid_losses.append(curr_val_loss.detach().cpu().numpy())
+                valid_losses.append(batch_val_loss.detach().cpu().numpy())
 
                 # storing soft-set-metrics
                 if approx:
@@ -879,10 +879,11 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, patience, output_file):
     if imb:
         imbalanced = True
 
-    # seeds = [1, 45, 92, 34, 15, 20, ]
+    # seeds = [20, ]
     # seeds = [14, 57, 23]
     # seeds = [21, 151, 793]
-    seeds = [11, 150, 792, 3, 81]
+    seeds = [1, 45, 92, 34, 15]
+    # seeds = [3, 81]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name,
@@ -899,7 +900,7 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --imb --run_name="v2-1024-approx-f1-imb" --cuda=3 --patience=100 --output_file="20201207_results.json" 
+python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --imb --run_name="v3-1024-approx-f1-imb" --cuda=3 --patience=100 --output_file="20201208_results.json" 
 
-python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --imb --run_name="v2-1024-baseline-ce-imb" --cuda=2 --patience=100 --output_file="20201207_results.json" 
+python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --imb --run_name="v3-1024-baseline-ce-imb" --cuda=3 --patience=100 --output_file="20201208_results.json" 
 '''
