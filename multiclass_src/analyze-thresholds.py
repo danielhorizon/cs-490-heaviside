@@ -347,7 +347,8 @@ def get_metrics(device, batch_size, seed, results_path, models_path, models_list
 if __name__ == '__main__':
     trained_taus = ["0.1", "0.125", "0.2", "0.3",
                     "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
-    run_name = "20201208-overfit-model-v2-traintau-approx-f1-imb"
+    run_name = "20201208-overfit-model-v3-traintau-approx-f1-imb"
+
     num_runs = 3 
 
     for run_number in range(num_runs): 
@@ -355,7 +356,7 @@ if __name__ == '__main__':
         for i in range(len(trained_taus)):
             models_list.append(run_name + "-" + str(trained_taus[i] + "-" + str(run_number) +  ".pth"))
         get_metrics(device="cuda:3", batch_size=1024, seed=11,
-                    results_path="/app/timeseries/multiclass_src/results/train_tau/20201208",
+                    results_path="/app/timeseries/multiclass_src/results/train_tau/20201208_v2",
                     models_path="/app/timeseries/multiclass_src/models/", 
                     models_list=models_list, 
                     output_file="overfit_agg_results.json")
