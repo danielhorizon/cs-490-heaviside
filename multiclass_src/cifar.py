@@ -809,8 +809,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 today_date = time.strftime('%Y%m%d')
                 # TODO(dlee): add in support for balanced dataset. 
                 model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
-                                            '{}-best_model_{}_{}_p{}.pth'.format(
-                                                today_date, batch_size, loss_metric, patience
+                                            '{}-best_model-{}.pth'.format(
+                                                today_date, run_name
                                             )])
                 torch.save(model, model_file_path)
                 best_test['model_file_path'] = model_file_path
@@ -835,8 +835,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
     model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
-                                '{}-overfit-model-{}-{}-p{}.pth'.format(
-                                    time.strftime('%Y%m%d'), batch_size, loss_metric, patience
+                                '{}-overfit-model-{}.pth'.format(
+                                    time.strftime('%Y%m%d'), run_name
                                 )])
     torch.save(model, model_file_path)
 
@@ -901,5 +901,5 @@ if __name__ == '__main__':
 '''
 python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --imb --run_name="v2-1024-approx-f1-imb" --cuda=3 --patience=100 --output_file="20201207_results.json" 
 
-python3 cifar.py --loss="ce" --epochs=2 --batch_size=1024 --imb --run_name="v2-1024-baseline-ce-imb" --cuda=2 --patience=100 --output_file="20201207_results.json" 
+python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --imb --run_name="v2-1024-baseline-ce-imb" --cuda=2 --patience=100 --output_file="20201207_results.json" 
 '''

@@ -202,13 +202,18 @@ def load_imbalanced_data(batch_size, seed):
 def record_results(results_path, best_test, output_file):
     # reading in the data from the existing file.
     file_path = "/".join([results_path, output_file])
-    with open(file_path, "r+") as f:
-        data = json.load(f)
-        data.append(best_test)
-        f.close()
-
-    with open(file_path, "w") as outfile:
-        json.dump(data, outfile)
+    if os.path.isfile(file_path):
+        with open(file_path, "r+") as f:
+            data = json.load(f)
+            data.append(best_test)
+            f.close()
+        with open(file_path, "w") as outfile:
+            json.dump(data, outfile)
+    ## if the file doesn't eixst:
+    else:
+        best_test = [best_test]
+        with open(file_path, "w") as outfile:
+            json.dump(best_test, outfile)
 
 
 def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
@@ -251,7 +256,7 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
 
 
 def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None, batch_size=None, 
-        train_tau=None, patience=None):
+        train_tau=None, patience=None, output_file=None):
     using_gpu = False
     if torch.cuda.is_available():
         print("device = cuda :{}".format(type(cuda)))
@@ -765,24 +770,26 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             print("Val - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
                 epoch, valid_loss, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
             )
-            ## checking early stopping per epoch 
-            patience -= 1 
-            adjust = False 
-            if lowest_f1_loss is None or valid_loss < lowest_f1_loss: 
-                adjust = True 
-                if lowest_f1_loss !=  None: 
-                    print("Valid loss decreased {:.5f} -> {:.5f}! Resetting patience to: {}".format(lowest_f1_loss, valid_loss, reset_patience))
+            ## checking early stopping per epoch
+            patience -= 1
+            adjust = False
+            if lowest_f1_loss is None or valid_loss < lowest_f1_loss:
+                adjust = True
+                if lowest_f1_loss != None:
+                    print("Valid loss decreased {:.5f} -> {:.5f}! Resetting patience to: {}".format(
+                        lowest_f1_loss, valid_loss, reset_patience))
 
                 today_date = time.strftime('%Y%m%d')
+                # TODO(dlee): add in support for balanced dataset.
                 model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
-                                            '{}_best_model_{}_{}_{}.pth'.format(
-                                                today_date, batch_size, loss_metric, run_name
+                                            '{}-best_model-{}.pth'.format(
+                                                today_date, run_name
                                             )])
                 torch.save(model, model_file_path)
                 best_test['model_file_path'] = model_file_path
-                patience = reset_patience 
-                lowest_f1_loss = valid_loss 
-                
+                patience = reset_patience
+                lowest_f1_loss = valid_loss
+
                 ## storing values into best run json
                 if epoch != 0:
                     if best_test['val_wt_f1_score'] < val_f1_weighted:
@@ -790,19 +797,19 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     if best_test['val_accuracy'] < val_acc:
                         best_test['val_accuracy'] = val_acc
 
-            ## if early stopping has begun, print it like this. 
-            if not adjust: 
-                print("Early stopping {}/{}...".format(reset_patience-patience, reset_patience))
-            if patience <= 0: 
-                early_stopping = True 
+            ## if early stopping has begun, print it like this.
+            if not adjust:
+                print("Early stopping {}/{}...".format(reset_patience -
+                                                       patience, reset_patience))
+            if patience <= 0:
+                early_stopping = True
 
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models", "tau_trained", 
-                                '{}_overfit_model_{}_patience-{}_{}_{}.pth'.format(
-                                    time.strftime('%Y%m%d'), batch_size, patience, str(
-                                        train_tau), run_name
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
+                                '{}-overfit-model-{}.pth'.format(
+                                    time.strftime('%Y%m%d'), run_name
                                 )])
     torch.save(model, model_file_path)
 
@@ -820,8 +827,11 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     best_test['test_dxn'] = test_dxn
     best_test['valid_dxn'] = valid_dxn
 
-    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/train_tau", 
-                    output_file="train_tau_results_run5.json")
+    if output_file == None:
+        output_file = "testing.json"
+
+    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/train_tau/20201208",
+                   output_file=output_file)
     return
 
 
@@ -834,7 +844,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 @click.option("--cuda", required=False)
 @click.option("--train_tau", required=True)
 @click.option("--patience", required=True)
-def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience):
+@click.option("--output_file", required=True)
+def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience, output_file):
     # check if forcing imbalance
     print(run_name)
     print("Running on cuda: {}".format(cuda))
@@ -844,12 +855,11 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience):
 
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [14, 57, 23]
-    # seeds = [21, 151, 793]
-    seeds = [11]
+    seeds = [21, 151, 793]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name, 
-                    seed=seeds[i], cuda=cuda, batch_size=int(batch_size), train_tau=train_tau, patience=patience)
+                    seed=seeds[i], cuda=cuda, batch_size=int(batch_size), train_tau=train_tau, patience=patience, output_file=output_file)
 
 
 def main():
@@ -866,18 +876,18 @@ if __name__ == '__main__':
 Run it from 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 
 seeds: [21, 151, 793, 4, 82]
 
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run5-100p-train_tau-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 
+python3 cifar_threshtrain.py --epochs=2 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.5" --cuda=1 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.6" --cuda=1 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.7" --cuda=1 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.8" --cuda=1 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v2-traintau-approx-f1-imb-0.9" --cuda=1 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
 
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024
 
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.5" --cuda=3 --train_tau=0.5 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.6" --cuda=3 --train_tau=0.6 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.7" --cuda=3 --train_tau=0.7 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="run4-150p-train_tau-approx-f1-imb-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024
 '''
