@@ -512,6 +512,7 @@ def train(args):
             y_pred_thresh = (y_pred >= threshold).float()
             np_pred = y_pred_thresh.cpu().numpy()
             np_labels = labels.cpu().numpy()
+            
             batch_cm = CM_Value(np_pred, np_labels)
             data_cm = add_cm_val(data_cm, batch_cm)
             # sklearn.metrics to tensorboard
