@@ -350,7 +350,6 @@ if __name__ == '__main__':
     run_name = "20201208-overfit-model-v3-traintau-approx-f1-imb"
 
     num_runs = 3 
-
     for run_number in range(num_runs): 
         models_list = []
         for i in range(len(trained_taus)):

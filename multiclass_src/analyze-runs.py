@@ -211,7 +211,7 @@ def get_metrics(device, model_name, batch_size, seed, output_file):
             eval_json[tau]['class_recalls'] = recalls.numpy().tolist()
     eval_json['run_name'] = model_name
     record_results(best_test=eval_json,
-                   results_path="/app/timeseries/multiclass_src/results/new_runs", 
+                   results_path="/app/timeseries/multiclass_src/results/searchtau", 
                    output_file=output_file)
     return eval_json
 
@@ -233,18 +233,30 @@ if __name__ == '__main__':
         "20201208-best_model-v2-1024-approx-f1-imb-3.pth", 
         "20201208-best_model-v2-1024-approx-f1-imb-4.pth"
     ]
-    for approx_f1_model in approx_f1_models:
-        get_metrics(device="cuda:3", model_name=approx_f1_model,
-                    batch_size=1024, seed=11, output_file="20201208_approxf1_eval.json")
+    # for approx_f1_model in approx_f1_models:
+    #     get_metrics(device="cuda:3", model_name=approx_f1_model,
+    #                 batch_size=1024, seed=11, output_file="20201208_agg_results.json")
     
-    for ce_model in ce_models:
-        get_metrics(device="cuda:3", model_name=ce_model,
-                    batch_size=1024, seed=11, output_file="20201208_ce_eval.json")
+    # for ce_model in ce_models:
+    #     get_metrics(device="cuda:3", model_name=ce_model,
+    #                 batch_size=1024, seed=11, output_file="20201208_ce_eval.json")
 
-
-    # stau_models = ["20201206_best_model_1024_approx-f1_searchtau-v2-e10-1024-0.pth",
-    #                "20201206_best_model_1024_approx-f1_searchtau-v2-e10-1024-1.pth"]
-    # for stau_model in stau_models: 
+    # search_tau_models = [
+    #     "20201208-best_model-v2-searchtau-e10-1024-0.pth",
+    #     "20201208-best_model-v2-searchtau-e10-1024-1.pth",
+    #     "20201208-best_model-v2-searchtau-e10-1024-2.pth",
+    # ]
+    # for stau_model in search_tau_models: 
     #     get_metrics(device="cuda:3", model_name=stau_model,
-    #                 batch_size=1024, seed=11, output_file="20201207_approxf1_eval.json")
+    #                 batch_size=1024, seed=11, output_file="20201208_e10_agg_results.json")
+    
+    search_tau_models = [
+        "20201208-best_model-v2-searchtau-e5-1024-0.pth",
+        "20201208-best_model-v2-searchtau-e5-1024-1.pth",
+        "20201208-best_model-v2-searchtau-e5-1024-2.pth",
+    ]
+    for stau_model in search_tau_models:
+        get_metrics(device="cuda:3", model_name=stau_model,
+                    batch_size=1024, seed=11, output_file="20201208_e5_agg_results.json")
+
 
