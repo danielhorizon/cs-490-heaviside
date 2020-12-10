@@ -187,8 +187,7 @@ def mt_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, valid=None):
         y_labels: one-hot encoded label, i.e. 2 -> [0, 0, 1] 
         y_preds: softmaxed predictions
     '''
-
-    def loss(y_labels, y_preds, epoch, valid=False):
+    def loss(y_labels, y_preds, epoch, print_num, valid=False):
         classes = len(y_labels[0])
         mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
         class_tp = [0]*classes
@@ -204,11 +203,41 @@ def mt_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, valid=None):
             gt_list = torch.Tensor([x[i] for x in y_labels])
             pt_list = y_preds[:, i]  # pt list for the given class
 
-            if (epoch < 5) or valid: 
-                thresholds = torch.arange(0.1, 1, 0.1)
-            else: 
-                print("PT LIST: {}".format(pt_list))
-                thresholds = y_preds[:, i] 
+        
+            
+            #     thresholds = torch.arange(0.1, 1, 0.1)
+            
+            # if (valid): 
+            if (valid) or (epoch < 5):
+                # thresholds = torch.arange(0.1, 1, 0.1)
+                thresholds = torch.Tensor([0.3]).to(device)
+            
+            if (epoch >= 5) and (epoch < 10): 
+                thresholds = torch.Tensor([0.25]).to(device)
+            if (epoch >= 10) and (epoch < 15):
+                thresholds = torch.Tensor([0.20]).to(device)
+            if (epoch >= 15) and (epoch < 20): 
+                thresholds = torch.Tensor([0.15]).to(device)
+            if epoch >= 20: 
+                # thresholds = y_preds[:, i].detach().clone()
+                # thresholds = torch.Tensor([0.5]).to(device)
+        
+                ## option #1: using the preds themselves 
+                # thresholds = y_preds[:, i]
+
+                ## option #2: 
+                ## alternatively, taking the mean of all of the items in the pt_list 
+                ## and then making a threshold list that is the same size, but 
+                ## only full of all the items. 
+                
+                # thresholds 
+                mean_pt = y_preds[:, i].clone().detach().cpu().numpy().mean()
+                thresholds = torch.Tensor([mean_pt]).to(device)
+            
+            if print_num: 
+                mean_pt = y_preds[:, i].clone().detach().cpu().numpy().mean()
+                print("Class: {}, MEAN PT: {}".format(i, mean_pt))
+                print("using threshold: {}".format(thresholds))
 
             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
             precision = tp/(tp+fp+EPS)

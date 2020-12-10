@@ -836,7 +836,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     if output_file == None:
         output_file = "testing.json"
 
-    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/train_tau/20201208_v2",
+    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/train_tau/20201210",
                    output_file=output_file)
     return
 
@@ -881,6 +881,9 @@ if __name__ == '__main__':
 '''
 Run it from 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 
 seeds: [21, 151, 793, 4, 82]
+
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.08" --cuda=2 --train_tau=0.08 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.09" --cuda=2 --train_tau=0.09 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"

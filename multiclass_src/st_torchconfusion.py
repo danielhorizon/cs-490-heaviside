@@ -267,7 +267,7 @@ def st_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
 
             # for the first 10 epochs, just use 0.5 (fastest movements)
             # after that, every 20 epochs, reset the best one. 
-            if epoch < 10: 
+            if epoch < 5: 
                 thresholds = torch.Tensor([float(0.5)]).to(device)
             else: 
                 thresholds = torch.Tensor([float(class_tau)]).to(device)

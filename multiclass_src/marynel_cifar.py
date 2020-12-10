@@ -331,7 +331,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         criterion = nn.CrossEntropyLoss()
     elif loss_metric == "approx-f1":
         approx = True
-        criterion = mean_f1_approx_loss_on(device=device)
+        criterion = mt_mean_f1_approx_loss_on(device=device)
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
@@ -421,9 +421,10 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
 
+                    print_val = True if i == 0 else False 
                     loss, hclass_tp, hclass_fn, hclass_fp, hclass_tn, hclass_pr, hclass_re, hclass_f1, hclass_acc = criterion(
-                        y_labels=train_labels, y_preds=output)
-
+                        y_labels=train_labels, y_preds=output, epoch=epoch, print_num=print_val, valid=False)
+                    
                 losses.append(loss)
                 loss.backward()
                 optimizer.step()
@@ -581,7 +582,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
                     batch_test_loss, _, _, _, _, _, _, _, _ = criterion(
-                        y_labels=trans_labels, y_preds=output)
+                        y_labels=trans_labels, y_preds=output, epoch=epoch, print_num=False, valid=False)
                 else:
                     batch_test_loss = criterion(output, labels)
 
@@ -698,7 +699,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
                     batch_val_loss, hclass_tp, hclass_fn, hclass_fp, hclass_tn, hclass_pr, hclass_re, hclass_f1, hclass_acc = criterion(
-                        y_labels=valid_labels, y_preds=output)
+                        y_labels=valid_labels, y_preds=output, epoch=epoch, print_num=False, valid=True)
                 else:
                     batch_val_loss = criterion(output, labels)
 
