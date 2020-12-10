@@ -166,7 +166,7 @@ def mean_f1_approx_loss_on(device, threshold, y_labels=None, y_preds=None):
 
         classes = len(y_labels[0])
         class_f1 = [0]*classes
-        class_loss = [0]*classes
+        class_losses = [0]*classes
         mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
 
         for i in range(classes):
@@ -176,19 +176,18 @@ def mean_f1_approx_loss_on(device, threshold, y_labels=None, y_preds=None):
             
             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
             
-            # print("TP:{}".format(tp))
             precision = tp/(tp+fp+EPS)
             recall = tp/(tp+fn+EPS)
             temp_f1 = torch.mean(2 * (precision * recall) /
                                  (precision + recall + EPS))
             mean_f1s[i] = temp_f1
 
-            # geting the average across all thresholds.
-            # holds array of just the raw values.
+            # geting the average across all thresholds, holds array of just the raw values.
             class_f1[i] = temp_f1.detach().item()
-
+            # for each class, store the loss 
+            class_losses[i] = 1 - temp_f1
         loss = 1 - mean_f1s.mean()
-        return loss, lass_f1, 
+        return loss, class_losses 
     return loss
 
 
@@ -225,74 +224,3 @@ def st_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
         loss = 1 - mean_f1s.mean()
         return loss
     return loss
-
-
-#########
-
-# def mean_accuracy_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
-#     ''' Mean of Heaviside Approx Accuracy 
-#     Accuracy across the classes is evenly weighted 
-#     '''
-#     thresholds = thresholds.to(device)
-
-#     def loss(y_labels, y_preds):
-#         classes = len(y_labels[0])
-#         mean_accs = torch.zeros(classes, dtype=torch.float32).to(device)
-#         for i in range(classes):
-#             gt_list = torch.Tensor([x[i] for x in y_labels])
-#             pt_list = y_preds[:, i]
-
-#             thresholds = torch.arange(0.1, 1, 0.1)
-#             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
-#             mean_accs[i] = torch.mean((tp + tn) / (tp + tn + fp + fn))
-#         loss = 1 - mean_accs.mean()
-#         return loss
-#     return loss
-
-
-# def area(x, y):
-#     ''' area under curve via trapezoidal rule '''
-#     direction = 1
-#     # the following is equivalent to: dx = np.diff(x)
-#     dx = x[1:] - x[:-1]
-#     if torch.any(dx < 0):
-#         if torch.all(dx <= 0):
-#             direction = -1
-#         else:
-#             # when you compute area under the curve using trapezoidal approx,
-#             # assume that the whole area under the curve is going one direction
-#             # compute one trapezoidal rule
-
-#             # INSTEAD, compute under every part of the curve.
-#             # TODO(dlee): compute from every single point, and compute
-#             # the trapezoidal rule under every single one of these points.
-#             logging.warn(
-#                 "x is neither increasing nor decreasing\nx: {}\ndx: {}.".format(x, dx))
-#             return 0
-#     return direction * torch.trapz(y, x)
-
-
-# def mean_auroc_approx_loss_on(device, y_labels=None, y_preds=None, linspacing=11):
-#     def loss(y_labels, y_preds):
-#         """Approximate auroc:
-#             - Linear interpolated Heaviside function
-#             - roc (11-point approximation)
-#             - integrate via trapezoidal rule under curve
-#         """
-#         classes = len(y_labels[0])
-#         thresholds = torch.linspace(0, 1, linspacing).to(device)
-#         areas = []
-#         # mean over all classes
-#         for i in range(classes):
-#             gt_list = torch.Tensor([x[i] for x in y_labels])
-#             pt_list = y_preds[:, i]
-
-#             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
-#             fpr = fp/(fp+tn+EPS)
-#             tpr = tp/(tp+fn+EPS)
-#             a = area(fpr, tpr)
-#             if a > 0:
-#                 areas.append(a)
-#         loss = 1 - torch.stack(areas).mean()
-#         return loss
-#     return loss

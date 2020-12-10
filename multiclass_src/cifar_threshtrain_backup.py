@@ -381,9 +381,10 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     title = "train/class-" + str(i) + "-recall"
                     writer.add_scalar(title, 0, epoch)
         else:
-            # going over in batches
+            # going over in batches, adding in class-based losses
+            tr_class_losses = []
             for i, (inputs, labels) in enumerate(train_loader):
-
+                
                 # for class distribution - loop through and add
                 labels_list = labels.numpy()
                 for label in labels_list:
@@ -403,12 +404,15 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
 
-                    loss,  = criterion(
+                    loss, batch_class_losses = criterion(
                         y_labels=train_labels, y_preds=output)
 
                 losses.append(loss)
                 loss.backward()
                 optimizer.step()
+
+                ## appending in class based losses 
+                tr_class_losses.append(batch_class_losses)
 
                 ## check prediction, switch to evaluation
                 model.eval()
@@ -459,6 +463,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             m_weightedf1s = np.array(microf1s).mean()
             m_microf1s = np.array(microf1s).mean()
             m_macrof1s = np.array(macrof1s).mean()
+            tr_class_losses = np.array(tr_class_losses)
+            tr_class_losses = np.mean(tr_class_losses, axis=0)
+
             print("Train - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
                 epoch, m_loss, m_accs, m_weightedf1s, m_microf1s, m_macrof1s)
             )
@@ -481,7 +488,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 writer.add_scalar("train/macro-precision",
                                   np.array(macro_prs).mean(), epoch)
 
-                # adding per-class f1, precision, and recall
+                # adding per-class f1, precision, and recall, and losses 
                 for i in range(10):
                     title = "train/class-" + str(i) + "-f1"
                     writer.add_scalar(title, np.array(
@@ -492,11 +499,53 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     title = "train/class-" + str(i) + "-recall"
                     writer.add_scalar(title, np.array(
                         class_recall[i]).mean(), epoch)
+                    
+                    title = "train/class-" + str(i) + "loss"
+                    writer.add_scalar(
+                        title, tr_class_losses[i], epoch)
+        model.eval() 
+        with torch.no_grad(): 
+        ## purely for tensorboard logging
+            tau_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
+            for tau in tau_thresholds:
+                # go through all the thresholds, and test them out again.
+                tr_preds, tr_labels = [], []
+                for i, (inputs, labels) in enumerate(train_loader):
+                    # stacking onto tensors.
+                    inputs, labels = inputs.to(device), labels.to(device)
+
+                    # passing it through our finalized model.
+                    output = model(inputs)
+                    labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                        1, labels.unsqueeze(1), 1.).to(device)
+
+                    pred_arr = output.detach().cpu().numpy()
+                    label_arr = labels.detach().cpu().numpy()
+
+                    # appending results.
+                    tr_preds.append(pred_arr)
+                    tr_labels.append(label_arr)
+
+                tr_preds = torch.tensor(tr_preds[0])
+                tr_labels = torch.tensor(tr_labels[0])
+
+                tr_class_f1s, tr_mean_f1, _, _ = evaluation_f1(
+                    device=device, y_labels=tr_labels, y_preds=tr_preds, threshold=tau)
+
+                ## writing out results to tensorboard
+                title = "train/mean-f1-{}".format(tau)
+                writer.add_scalar(title, tr_mean_f1, epoch)
+
+                for i in range(10):
+                    title = "train/class-" + str(i) + "-loss-{}".format(tau)
+                    writer.add_scalar(title, tr_class_f1s[i], epoch)
+
 
         ## test set.
         ## calculate all metrics after going through the batches.
         model.eval()
         test_losses = []
+        test_class_losses = []
         test_preds, test_labels = np.array([]), np.array([])
         with torch.no_grad():
             for i, (inputs, labels) in enumerate(test_loader):
@@ -521,13 +570,17 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     trans_labels = torch.zeros(len(labels), 10).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
-                    batch_test_loss, _, _, _, _, _, _, _, _ = criterion(
+
+                    batch_test_loss, batch_test_class_losses = criterion(
                         y_labels=trans_labels, y_preds=output)
                 else:
                     batch_test_loss = criterion(output, labels)
 
             # adding in test loss
             test_losses.append(batch_test_loss.detach().cpu().numpy())
+            test_class_losses.append(batch_test_class_losses)
+            test_class_losses = np.array(test_class_losses)
+            test_class_losses = np.mean(test_class_losses, axis=0)
 
             test_acc = accuracy_score(y_true=test_labels, y_pred=test_preds)
             test_f1_micro = f1_score(
@@ -564,6 +617,9 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     writer.add_scalar(title, np.array(
                         test_class_rec[i]).mean(), epoch)
 
+                    title = "test/class-" + str(i) + "-loss"
+                    writer.add_scalar(title, test_class_losses[i], epoch)
+
                     # adding in per class training
                     # get_confusion(gt, pt, class_value=None):
                     tp, fp, fn, tn = get_confusion(
@@ -593,27 +649,11 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         # ----- VALIDATION SET -----
         # Calculate metrics after going through all the batches
         model.eval()
-
         with torch.no_grad():
             val_preds, val_labels = np.array([]), np.array([])
-            ss_class_tp = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_fn = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_fp = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_tn = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_pr = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_re = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_f1 = {0: [], 1: [], 2: [], 3: [],
-                           4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
-            ss_class_acc = {0: [], 1: [], 2: [], 3: [],
-                            4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
 
             valid_losses = []
+            valid_class_losses = []
             for i, (inputs, labels) in enumerate(val_loader):
                 labels_list = labels.numpy()
                 for label in labels_list:
@@ -642,14 +682,14 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     thresholds = torch.arange(0.1, 1, 0.1)
                     criterion = mean_f1_approx_loss_on(
                         device=device, threshold=thresholds)
-                    curr_val_loss,  = criterion(
+                    curr_val_loss, batch_valid_class_losses = criterion(
                         y_labels=valid_labels, y_preds=output)
                 else:
                     curr_val_loss = criterion(output, labels)
 
                 valid_losses.append(curr_val_loss.detach().cpu().numpy())
 
-            valid_loss = np.mean(valid_losses)
+            
             val_acc = accuracy_score(y_true=val_labels, y_pred=val_preds)
             val_f1_micro = f1_score(
                 y_true=val_labels, y_pred=val_preds, average='micro')
@@ -664,6 +704,11 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 y_true=val_labels, y_pred=val_preds, average=None)
             class_val_re = recall_score(
                 y_true=val_labels, y_pred=val_preds, average=None)
+            
+            valid_loss = np.mean(valid_losses)
+            valid_class_losses.append(batch_valid_class_losses)
+            valid_class_losses = np.array(valid_class_losses)
+            valid_class_losses = np.mean(valid_class_losses, axis=0)
 
             # add in per-class metrics
             if run_name:
@@ -684,6 +729,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     title = "val/class-" + str(i) + "-recall"
                     writer.add_scalar(title, np.array(
                         class_val_re[i]).mean(), epoch)
+                    title = "val/class-" + str(i) + "-loss"
+                    writer.add_scalar(title, valid_class_losses[i], epoch)
 
                     # adding in per class training
                     # get_confusion(gt, pt, class_value=None):
@@ -713,7 +760,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 today_date = time.strftime('%Y%m%d')
                 # TODO(dlee): add in support for balanced dataset.
                 model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
-                                            '{}-best_model-{}.pth'.format(
+                                            '{}-best-model-{}.pth'.format(
                                                 today_date, run_name
                                             )])
                 torch.save(model, model_file_path)
@@ -734,6 +781,45 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                                                        patience, reset_patience))
             if patience <= 0:
                 early_stopping = True
+
+
+        ## purely for tensorboard logging 
+        eval_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
+        with torch.no_grad(): 
+            for tau in eval_thresholds:
+            # go through all the thresholds, and test them out again.
+                eval_preds, eval_labels = [], []
+                for i, (inputs, labels) in enumerate(val_loader):
+                    # stacking onto tensors.
+                    inputs, labels  = inputs.to(device), labels.to(device)
+
+                    # passing it through our finalized model.
+                    output = model(inputs)
+                    labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                        1, labels.unsqueeze(1), 1.).to(device)
+
+                    pred_arr = output.detach().cpu().numpy()
+                    label_arr = labels.detach().cpu().numpy()
+
+                    # appending results.
+                    eval_preds.append(pred_arr)
+                    eval_labels.append(label_arr)
+
+                eval_preds = torch.tensor(eval_preds[0])
+                eval_labels = torch.tensor(eval_labels[0])
+
+                eval_class_f1s, eval_mean_f1, _, _ = evaluation_f1(
+                    device=device, y_labels=eval_labels, y_preds=eval_preds, threshold=tau)
+
+                ## writing out results to tensorboard
+                title = "val/mean-f1-{}".format(tau)
+                writer.add_scalar(title, eval_mean_f1, epoch) 
+
+                for i in range(10):
+                    title = "val/class-" + str(i) + "-loss-{}".format(tau)
+                    writer.add_scalar(title, eval_class_f1s[i], epoch)
+
+
 
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
@@ -761,7 +847,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     if output_file == None:
         output_file = "testing.json"
 
-    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/train_tau/20201208_v2",
+    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/train_tau/20201210",
                    output_file=output_file)
     return
 
@@ -786,7 +872,7 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience, outp
 
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [14, 57, 23]
-    seeds = [21, 151, 793]
+    seeds = [21]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name,
@@ -804,6 +890,12 @@ if __name__ == '__main__':
 
 
 '''
+
+python3 cifar_threshtrain_backup.py --epochs=2000 --loss="approx-f1" --imb --run_name="debug-traintau-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain_backup.py --epochs=2000 --loss="approx-f1" --imb --run_name="debug-traintau-approx-f1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain_backup.py --epochs=2000 --loss="approx-f1" --imb --run_name="debug-traintau-approx-f1-imb-0.5" --cuda=3 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
+
 Run it from 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 
 seeds: [21, 151, 793, 4, 82]
 

@@ -69,6 +69,8 @@ def l_tp(gt, pt, thresh, agg='sum'):
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (inverter = false)
     #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (inverter = true)
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
 
     gt_t = torch.reshape(torch.repeat_interleave(
         gt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
@@ -93,6 +95,10 @@ def l_fn(gt, pt, thresh, agg='sum'):
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
 
     # filling in the places where it's 0 or 1.
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
+
+    
 
     gt_t = torch.reshape(torch.repeat_interleave(
         gt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
@@ -116,6 +122,10 @@ def l_fp(gt, pt, thresh, agg='sum'):
     #  fp: (gt == 0 and pt == 1) -> closer to 1 -> (inverter = false)
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
 
+    # filling in the places where it's 0 or 1.
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
+
     gt_t = torch.reshape(torch.repeat_interleave(
         gt, thresh.shape[0]), (-1, thresh.shape[0])).to(thresh.device)
     pt_t = torch.reshape(torch.repeat_interleave(
@@ -137,6 +147,9 @@ def l_tn(gt, pt, thresh, agg='sum'):
     #  tn: (gt == 0 and pt == 0) -> closer to 1 -> (invert = true)
 
     # thresh: tensor([0.1000, 0.2000, 0.3000, 0.4000, 0.5000, 0.6000, 0.7000, 0.8000, 0.9000])
+    # filling in the places where it's 0 or 1.
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
 
     # GT_T: tensor([[0., 0., 0., 0., 0., 0., 0., 0., 0.]]) -or-
     # GT_T: tensor([[1., 1., 1., 1., 1., 1., 1., 1., 1.]])
@@ -152,23 +165,6 @@ def l_tn(gt, pt, thresh, agg='sum'):
     # if it matches the threshold, keep the pt; otherwise, flip it.
     xs = torch.where(condition, pt_t, 1-pt_t)  # (1-pt_t/ (9)) -> n_classes-1
 
-    ''' 
-    - You can get the prob that it doesn't belong (belongs to other class) -> 1-pt. No longer true the MC case. 
-    - The softmax output sums to one. You have pt + other classes = 1 
-
-    To fix this: 
-    Subpar: Assumption is that the prob should be assigned to the other classes 
-    - (1) Do 1-pt and divide by the total # of other classes. 
-        Would give it a probability that it belongs to the other classes
-        (1-pt_t)/n_classes 
-        Indefinitely it's in one classes. 
-
-    Next step: 
-    - Take output of the network's prob from softmax tensor - assign this prob 
-    - Will be some smaller value than PT 
-    - When we take 1-pt, this is almost always bigger than PT becuase of the softmax; it matters much less in the 
-    negative case than in the positive case. 
-    '''
 
     # thresholds: tensor([[0.9000, 0.8000, 0.7000, 0.6000, 0.5000, 0.4000, 0.3000, 0.2000, 0.1000]])
     thresholds = torch.where(condition, thresh, 1-thresh)
