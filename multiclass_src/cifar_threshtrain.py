@@ -526,6 +526,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         writer.add_scalar(title, np.array(
                             ss_class_acc[i]).mean(), epoch)
 
+                
+
         ## test set. 
         ## calculate all metrics after going through the batches. 
         model.eval()

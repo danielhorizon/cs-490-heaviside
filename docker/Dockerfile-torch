@@ -40,5 +40,5 @@ RUN pip install ap_perf \
                 imbalanced-learn \
                 pandas \ 
                 jupyter \ 
-                click
+                click tensorflow seaborn 
 RUN pip install numpy --upgrade
