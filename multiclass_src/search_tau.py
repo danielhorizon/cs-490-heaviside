@@ -176,7 +176,7 @@ def set_seed(seed):
 
 
 def load_imbalanced_data(batch_size, seed):
-    data_splits = load_imb_data(seed)
+    data_splits = load_imb_data_v2(seed)
     train_set = Dataset(data_splits['train'])
     validation_set = Dataset(data_splits['val'])
     test_set = Dataset(data_splits['test'])
@@ -645,7 +645,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
                 today_date = time.strftime('%Y%m%d')
                 # TODO(dlee): add in support for balanced dataset.
-                model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
+                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-v2",
                                             '{}-best_model-{}.pth'.format(
                                                 today_date, run_name
                                             )])
@@ -671,7 +671,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-v2",
                                 '{}-overfit-model-{}.pth'.format(
                                     time.strftime('%Y%m%d'), run_name
                                 )])
@@ -736,9 +736,9 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 search_tau.py --loss="approx-f1" --epochs=2000 --imb --cuda=3 --batch_size=1024 --run_name="v2-searchtau-e10-1024" --patience=100 --output_file="20201208_st_results.json"
+python3 search_tau.py --loss="approx-f1" --epochs=2000 --imb --cuda=3 --batch_size=1024 --run_name="v2-searchtau-e10-1024" --patience=100 --output_file="20201210_results.json"
 
-python3 search_tau.py --loss="approx-f1" --epochs=2000 --imb --cuda=3 --batch_size=1024 --run_name="v2-searchtau-e5-1024" --patience=100 --output_file="20201208_st_results.json"
+python3 search_tau.py --loss="approx-f1" --epochs=2000 --imb --cuda=3 --batch_size=1024 --run_name="v3-searchtau-e5-1024" --patience=100 --output_file="20201210_results.json"
 
 for the first 10 epochs, use 0.5
 after that, use the majority counts, but every 10 epochs, reset them. 

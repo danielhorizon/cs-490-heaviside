@@ -30,66 +30,71 @@ def get_idx_list(arr):
     return class_nine
 
 
-# imbalance for train data 
-def create_imbalance_train(images, labels): 
-    print("Length of Train: {}".format(len(images)))
-    print("Length of Labels: {}".format(len(labels)))
+def convert_shape(x): 
+    return x.reshape([1,3,32,32])
 
+
+def create_imbalance_train_v2(images, labels, seed):
     class_count = np.unique(labels, return_counts=True)[1]
-    # gets us indices of all class 9's - 5000 indices 
-    class_nine_idx = get_idx_list(labels)       
-    # choosing 4000 of these indices to remove from images and labels 
-    remove_indices = sample(class_nine_idx, 4000)
+    # gets us indices of all class 9's - 5000 indices
+    class_nine_idx = get_idx_list(labels)
+    print("LENGTH OF THIS CLASS:{}".format(len(class_nine_idx)))
+    subset_amt = int(len(class_nine_idx) * 0.8)
+
+    remove_indices = sample(class_nine_idx, subset_amt)
     imb_images = [i for j, i in enumerate(images) if j not in remove_indices]
     imb_labels = [i for j, i in enumerate(labels) if j not in remove_indices]
 
-    print("Length of IMB Train: {}".format(len(imb_images)))
-    print("Length of IMB Labels: {}".format(len(imb_labels)))
-
-    # getting the 1000 indices that are left that are class 9 
+    # getting the 1000 indices that are left that are class 9
     class_count = np.unique(imb_labels, return_counts=True)[1]
     print("Class Count: {}".format(class_count))
     class_nine_leftover = get_idx_list(imb_labels)
     print("Size of leftover: {}".format(len(class_nine_leftover)))
-    # sample from the 1000 indices 4000 times
-    random.seed(1000)
-    list_4000_indices = random.choices(class_nine_leftover, k=4000)
 
-    for idx in list_4000_indices:
+    # sample from the 1000 indices 4000 times
+    random.seed(seed)
+    list_4800_indices = random.choices(class_nine_leftover, k=subset_amt)
+
+    for idx in list_4800_indices:
         imb_images.append(imb_images[idx])
         imb_labels.append(imb_labels[idx])
-    
+
     class_count = np.unique(imb_labels, return_counts=True)[1]
     # need to split into validation as well
     print("Class Count: {}".format(class_count))
     return imb_images, imb_labels
 
 
-def convert_shape(x): 
-    return x.reshape([1,3,32,32])
 
-
-def load_imb_data(seed):
+def load_imb_data_v2(seed):
     """ Loads imbalanced data (80-20 split on class 9, and sampling again from 20%). 
     """
     maybe_download_and_extract()
-    imgs, cls, _ = load_training_data()
+    train_imgs, train_cls, _ = load_training_data()
+    test_imgs, test_cls, _ = load_test_data()
 
-    # reshaping images. 
-    images = [] 
-    for i in range(len(imgs)): 
-        images.append(imgs[i].reshape([3,32,32]))
+    imgs = np.vstack((train_imgs, test_imgs))
+    print("dataset shape: {}".format(imgs.shape))
+    cls = np.hstack((train_cls, test_cls))
+    print("labels shape: {}".format(cls.shape))
+
+    # reshaping images.
+    images = []
+    for i in range(len(imgs)):
+        images.append(imgs[i].reshape([3, 32, 32]))
     images = np.array(images)
+    
 
-    # creating imbalance, and oversampling. 
-    X, y = create_imbalance_train(images, labels=cls)
-    X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.10, shuffle=True, random_state=seed)
-    X_test, y_test, _ = load_test_data()
+    # creating imbalance, and oversampling.
+    X, y = create_imbalance_train_v2(images=images, labels=cls, seed=seed)
 
-    X_test_reshaped = [] 
-    for i in range(len(X_test)):
-        X_test_reshaped.append(X_test[i].reshape([3, 32, 32]))
-    X_test_reshaped = np.array(X_test_reshaped)
+    # https://stackoverflow.com/questions/58955816/difference-between-shuffle-and-random-state-in-train-test-split
+    # if you run the code again with the same random_state, the output will always remain the same.
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=seed)
+    X_train, X_valid, y_train, y_valid = train_test_split(
+        X_train, y_train, test_size=0.25, random_state=seed)  # 0.25 x 0.8 = 0.2
+
 
     print("Shape of train: {}".format(X_train[0].shape))
     print("Shape of test: {}".format(X_test[0].shape))
@@ -99,10 +104,10 @@ def load_imb_data(seed):
     print("Size of test labels: {}".format(len(y_test)))
 
     X_train = np.array(X_train)
-    X_test = np.array(X_test_reshaped)
+    X_test = np.array(X_test)
     X_valid = np.array(X_valid)
 
-    # Adding in scaling 
+    # Adding in scaling
     # https://stackoverflow.com/questions/50125844/how-to-standard-scale-a-3d-matrix
     scaler = StandardScaler()
     X_train = scaler.fit_transform(
@@ -110,8 +115,8 @@ def load_imb_data(seed):
     X_valid = scaler.transform(
         X_valid.reshape(-1, X_valid.shape[-1])).reshape(X_valid.shape)
     X_test = scaler.transform(
-        X_test_reshaped.reshape(-1, X_test_reshaped.shape[-1])).reshape(X_test_reshaped.shape)
-    
+        X_test.reshape(-1, X_test.shape[-1])).reshape(X_test.shape)
+
     print("Shape of train: {}".format(X_train[0].shape))
     print("Shape of test: {}".format(X_test[0].shape))
     print("Shape of val: {}".format(X_valid[0].shape))
@@ -130,5 +135,3 @@ def load_imb_data(seed):
             'y': y_test
         },
     }
-    
-

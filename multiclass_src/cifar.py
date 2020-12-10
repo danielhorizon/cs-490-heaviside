@@ -183,7 +183,7 @@ def set_seed(seed):
 
 
 def load_imbalanced_data(batch_size, seed):
-    data_splits = load_imb_data(seed)
+    data_splits = load_imb_data_v2(seed)
     train_set = Dataset(data_splits['train'])
     validation_set = Dataset(data_splits['val'])
     test_set = Dataset(data_splits['test'])
@@ -322,7 +322,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     if run_name:
         experiment_name = run_name
         tensorboard_path = "/".join(["tensorboard",
-                                     "cifar-10", experiment_name])
+                                     "cifar-10-v2", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -808,7 +808,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
                 today_date = time.strftime('%Y%m%d')
                 # TODO(dlee): add in support for balanced dataset. 
-                model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
+                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-v2",
                                             '{}-best_model-{}.pth'.format(
                                                 today_date, run_name
                                             )])
@@ -834,7 +834,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models",
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-v2",
                                 '{}-overfit-model-{}.pth'.format(
                                     time.strftime('%Y%m%d'), run_name
                                 )])
@@ -879,11 +879,7 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, patience, output_file):
     if imb:
         imbalanced = True
 
-    # seeds = [20, ]
-    # seeds = [14, 57, 23]
-    # seeds = [21, 151, 793]
     seeds = [1, 45, 92, 34, 15]
-    # seeds = [3, 81]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name,
@@ -900,7 +896,7 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --imb --run_name="v3-1024-approx-f1-imb" --cuda=3 --patience=100 --output_file="20201208_results.json" 
+python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --imb --run_name="v4-1024-approx-f1-imb" --cuda=3 --patience=100 --output_file="20201210_results.json" 
 
-python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --imb --run_name="v3-1024-baseline-ce-imb" --cuda=3 --patience=100 --output_file="20201208_results.json" 
+python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --imb --run_name="v4-1024-baseline-ce-imb" --cuda=3 --patience=100 --output_file="20201210_results.json" 
 '''
