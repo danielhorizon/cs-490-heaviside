@@ -31,7 +31,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.metrics import confusion_matrix
 from sklearn import metrics
 
-from mc_torchconfusion import *
+from marynel_torchconfusion import *
 from download_cifar import *
 
 
@@ -856,7 +856,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     if output_file == None:
         output_file = "testing.json"
 
-    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/new_runs",
+    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/marynel",
                    output_file=output_file)
     return
 
@@ -899,7 +899,7 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --imb --run_name="v3-1024-approx-f1-imb" --cuda=3 --patience=100 --output_file="20201208_results.json" 
+python3 marynel_cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --imb --run_name="marynel-1024-approx-f1-imb" --cuda=3 --patience=100 --output_file="marynel.json" 
 
 python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --imb --run_name="v3-1024-baseline-ce-imb" --cuda=3 --patience=100 --output_file="20201208_results.json" 
 '''

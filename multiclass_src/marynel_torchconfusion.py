@@ -204,12 +204,11 @@ def mt_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, valid=None):
             gt_list = torch.Tensor([x[i] for x in y_labels])
             pt_list = y_preds[:, i]  # pt list for the given class
 
-            if (epoch < 15) or valid: 
+            if (epoch < 5) or valid: 
                 thresholds = torch.arange(0.1, 1, 0.1)
             else: 
                 print("PT LIST: {}".format(pt_list))
                 thresholds = y_preds[:, i] 
-
 
             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
             precision = tp/(tp+fp+EPS)
