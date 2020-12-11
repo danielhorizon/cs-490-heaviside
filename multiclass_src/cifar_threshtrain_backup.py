@@ -183,7 +183,7 @@ def set_seed(seed):
 
 
 def load_imbalanced_data(batch_size, seed):
-    data_splits = load_imb_data(seed)
+    data_splits = load_imb_data_v2(seed)
     train_set = Dataset(data_splits['train'])
     validation_set = Dataset(data_splits['val'])
     test_set = Dataset(data_splits['test'])
@@ -891,9 +891,9 @@ if __name__ == '__main__':
 
 '''
 
-python3 cifar_threshtrain_backup.py --epochs=2000 --loss="approx-f1" --imb --run_name="debug-traintau-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain_backup.py --epochs=2000 --loss="approx-f1" --imb --run_name="debug-traintau-approx-f1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain_backup.py --epochs=2000 --loss="approx-f1" --imb --run_name="debug-traintau-approx-f1-imb-0.5" --cuda=3 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain_backup.py --epochs=2000 --loss="approx-f1" --imb --run_name="debug-traintau-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="debug_results.json"
+python3 cifar_threshtrain_backup.py --epochs=2000 --loss="approx-f1" --imb --run_name="debug-traintau-approx-f1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="debug_results.json"
+python3 cifar_threshtrain_backup.py --epochs=2000 --loss="approx-f1" --imb --run_name="debug-traintau-approx-f1-imb-0.5" --cuda=3 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="debug_results.json"
 
 
 Run it from 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 

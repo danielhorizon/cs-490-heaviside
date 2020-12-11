@@ -490,7 +490,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             m_weightedf1s = np.array(microf1s).mean()
             m_microf1s = np.array(microf1s).mean()
             m_macrof1s = np.array(macrof1s).mean()
-            print("Train - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
+            print("Train - Epoch ({}): | Loss: {:.4f} | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f}| Macro F1: {:.4f}".format(
                 epoch, m_loss, m_accs, m_weightedf1s, m_microf1s, m_macrof1s)
             )
             if run_name:
@@ -646,7 +646,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 if best_test['test_accuracy'] < test_acc:
                     best_test['test_accuracy'] = test_acc
 
-            print("Test - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}".format(
+            print("Test - Epoch ({}): | Loss: {:.4f} | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f} | Macro F1: {:.4f}".format(
                 epoch, test_loss, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
             )
 
@@ -794,7 +794,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         writer.add_scalar(title, np.array(
                             ss_class_acc[i]).mean(), epoch)
 
-            print("Val - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
+            print("Val - Epoch ({}): | Loss: {:.4f} | Acc: {:.4f} | W F1: {:.4f} | Micro F1: {:.4f} | Macro F1: {:.4f}\n".format(
                 epoch, valid_loss, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
             )
             ## checking early stopping per epoch
@@ -879,7 +879,8 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, patience, output_file):
     if imb:
         imbalanced = True
 
-    seeds = [1, 45, 92, 34, 15]
+    # seeds = [1, 45, 92, 34, 15]
+    seeds = [1, 45, 92]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name,
@@ -896,7 +897,7 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --imb --run_name="v4-1024-approx-f1-imb" --cuda=3 --patience=100 --output_file="20201210_results.json" 
+python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --run_name="v4-1024-approx-f1-reg" --cuda=3 --patience=100 --output_file="20201211_results.json" 
 
-python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --imb --run_name="v4-1024-baseline-ce-imb" --cuda=3 --patience=100 --output_file="20201210_results.json" 
+python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --run_name="v4-1024-baseline-ce-reg" --cuda=3 --patience=100 --output_file="20201211_results.json" 
 '''

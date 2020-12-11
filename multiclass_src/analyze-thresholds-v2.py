@@ -32,7 +32,6 @@ from download_cifar import *
 
 EPS = 1e-7
 
-
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -348,9 +347,8 @@ if __name__ == '__main__':
     trained_taus = ["0.1", "0.125", "0.2", "0.3",
                     "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
 
-    run_name = "best_model-v4-traintau-approx-f1-imb"
-
-    num_runs = 3 
+    run_name = "overfit-model-v4-traintau-approx-f1-imb"
+    num_runs = 3
     for run_number in range(num_runs): 
         models_list = []
         for i in range(len(trained_taus)):
@@ -358,8 +356,6 @@ if __name__ == '__main__':
     
         get_metrics(device="cuda:3", batch_size=1024, seed=11,
                     results_path="/app/timeseries/multiclass_src/results/train_tau/20201210",
-                    models_path="/app/timeseries/multiclass_src/models/cifar-10-v2", 
-                    models_list=models_list, 
-                    output_file="agg_results.json")
-
-
+                    models_path="/app/timeseries/multiclass_src/models/cifar-10-v2",
+                    models_list=models_list,
+                    output_file="overfit_agg_results.json")
