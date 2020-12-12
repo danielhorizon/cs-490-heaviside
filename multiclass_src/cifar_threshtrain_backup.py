@@ -538,7 +538,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
                 for i in range(10):
                     title = "train/class-" + str(i) + "-loss-{}".format(tau)
-                    writer.add_scalar(title, tr_class_f1s[i], epoch)
+                    writer.add_scalar(title, 1-tr_class_f1s[i], epoch)
 
 
         ## test set.
