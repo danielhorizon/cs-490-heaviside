@@ -180,7 +180,7 @@ def load_imbalanced_data(batch_size, seed):
     test_set = Dataset(data_splits['test'])
 
     data_params = {'batch_size': batch_size, 'shuffle': True,
-                   'num_workers': 1, 'worker_init_fn': np.random.seed(seed)}
+                   'num_workers': 0, 'worker_init_fn': np.random.seed(seed)}
     set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
     set_seed(seed)
@@ -832,11 +832,11 @@ python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.3" --cuda=3 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.4" --cuda=3 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.5" --cuda=3 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.6" --cuda=3 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.7" --cuda=3 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.5" --cuda=0 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.6" --cuda=0 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.7" --cuda=0 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.8" --cuda=0 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.9" --cuda=0 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
 
 
