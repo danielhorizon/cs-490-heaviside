@@ -776,6 +776,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     ## storing values into best run json
                     if patience_classes[i] <= 0: 
                         early_stopping_per_class[i] = True 
+                        best_test['best-class-epoch'][i] = epoch
 
         ## below code is just for tensorboard logging 
         ## purely for tensorboard logging AT EVALUATION THRESHOLDS
@@ -878,31 +879,15 @@ if __name__ == '__main__':
 
 
 '''
-python3 cifar-poc.py --epochs=5 --loss="approx-f1" --imb --run_name="testing" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="testing.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
-
-
-
-python3 cifar_threshtrain_backup.py --epochs=2000 --loss="approx-f1" --imb --run_name="debug-traintau-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="debug_results.json"
-python3 cifar_threshtrain_backup.py --epochs=2000 --loss="approx-f1" --imb --run_name="debug-traintau-approx-f1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="debug_results.json"
-python3 cifar_threshtrain_backup.py --epochs=2000 --loss="approx-f1" --imb --run_name="debug-traintau-approx-f1-imb-0.5" --cuda=3 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="debug_results.json"
-
-
-Run it from 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9 
-seeds: [21, 151, 793, 4, 82]
-
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.5" --cuda=1 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.6" --cuda=1 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.7" --cuda=1 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.8" --cuda=1 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="v3-traintau-approx-f1-imb-0.9" --cuda=1 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-
-
-
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.5" --cuda=1 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.6" --cuda=1 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.7" --cuda=1 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.8" --cuda=1 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.9" --cuda=1 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 '''

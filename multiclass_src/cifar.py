@@ -280,6 +280,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     valid_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     best_test = {
         "best-epoch": 0,
+        "best-class-epoch": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         "loss": float('inf'),
         "test_wt_f1_score": 0,
         "val_wt_f1_score": 0,
