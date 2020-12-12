@@ -333,7 +333,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         "best-epoch": 0,
         "loss": float('inf'),
         "test_wt_f1_score": 0,
-        "val_f1_score": 0,
         "test_accuracy": 0,
         "learning_rate": 0,
         "imbalanced": False,

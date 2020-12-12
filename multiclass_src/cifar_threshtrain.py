@@ -322,7 +322,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         "best-epoch": 0,
         "loss": float('inf'),
         "test_wt_f1_score": 0,
-        "val_f1_score": 0,
         "test_accuracy": 0,
         "learning_rate": 0,
         "imbalanced": False,
@@ -751,7 +750,6 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 lowest_f1_loss = valid_loss
 
                 best_test['model_file_path'] = model_file_path
-                best_test['val_f1_score'] = lowest_f1_loss
 
             ## if early stopping has begun, print it like this.
             if not adjust:
@@ -826,7 +824,7 @@ if __name__ == '__main__':
 
 
 '''
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.1" --cuda=3 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=3 --loss="approx-f1" --imb --run_name="asdf" --cuda=3 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="asdf.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.125" --cuda=3 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.2" --cuda=3 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.3" --cuda=3 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
