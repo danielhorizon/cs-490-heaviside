@@ -108,13 +108,6 @@ class Dataset(torch.utils.data.Dataset):
         return self.X[index, :], self.y[index]
 
 
-def _show_image(img):
-    img = img / 2 + 0.5     # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
-
-
 # https://gist.github.com/kevinzakka/d33bf8d6c7f06a9d8c76d97a7879f5cb
 def load_data_v2(shuffle=True, batch_size=None, seed=None):
     torch.manual_seed(seed)
@@ -707,6 +700,11 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             ## looping through every single batch.
             eval_preds, eval_labels = [], []
             for i, (inputs, labels) in enumerate(val_loader):
+                # logging validation distribution 
+                labels_list = labels.numpy() 
+                for label in labels_list: 
+                    valid_dxn[label] += 1 
+                
                 # stacking onto tensors.
                 inputs, labels = inputs.to(device), labels.to(device)
 
@@ -752,25 +750,25 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             )
 
             ## adding in class_losses, and checking for early stopping here
-            # if the loss is less (per class), reset that class's patience  
             for i in range(10):
+                # if the loss is less (per class), reset that class's patience 
                 if (best_valid_class_losses[i] == None) or (eval_class_losses[i] < best_valid_class_losses[i]): 
                     if best_valid_class_losses[i] != None: 
                         print("Class {}: Valid loss decreased {:.5f} -> {:.5f}! Resetting patience to: {}".format(
                             i + 1, best_valid_class_losses[i], eval_class_losses[i], patience))
                     
-                    ## saving model for that class. 
-                    today_date = time.strftime('%Y%m%d')
-                    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-poc",
-                                                '{}-class-{}-best-model-{}.pth'.format(
-                                                today_date, i+1, run_name
-                                            )])
-                    torch.save(model, model_file_path)
+                    ## saving model for that class, only if it hasn't hit negative patience 
+                    if early_stopping_per_class[i] == False: 
+                        today_date = time.strftime('%Y%m%d')
+                        model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-poc",
+                                                    '{}-class-{}-best-model-{}.pth'.format(
+                                                    today_date, i+1, run_name
+                                                )])
+                        torch.save(model, model_file_path)
 
                     ## setting the new best loss 
                     best_valid_class_losses[i] = eval_class_losses[i] 
                     patience_classes[i] = reset_patience[i] 
-     
                 else: 
                     patience_classes[i] -= 1 
                     ## storing values into best run json
@@ -837,7 +835,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     if output_file == None:
         output_file = "testing.json"
 
-    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/poc/20201212",
+    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/poc/20201213",
                    output_file=output_file)
     return
 
@@ -879,15 +877,15 @@ if __name__ == '__main__':
 
 
 '''
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="test.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.1" --cuda=3 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.125" --cuda=3 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.2" --cuda=3 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.3" --cuda=3 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.4" --cuda=3 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.5" --cuda=1 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.6" --cuda=1 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.7" --cuda=1 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.8" --cuda=1 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.9" --cuda=1 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.5" --cuda=2 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.6" --cuda=2 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.7" --cuda=2 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.8" --cuda=2 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.9" --cuda=2 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 '''
