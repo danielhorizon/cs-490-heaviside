@@ -866,8 +866,8 @@ if __name__ == '__main__':
 
 '''
 
-python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --run_name="1024-approx-f1-reg" --cuda=1 --patience=100 --output_file="20201212_results.json" 
-python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --run_name="1024-baseline-ce-reg" --cuda=1 --patience=100 --output_file="20201212_results.json" 
+python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --run_name="1024-approx-f1-reg" --cuda=0 --patience=100 --output_file="20201212_results.json" 
+python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --run_name="1024-baseline-ce-reg" --cuda=0 --patience=100 --output_file="20201212_results.json" 
 
 
 python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --imb --run_name="1024-approx-f1-imb" --cuda=2 --patience=100 --output_file="20201212_results.json" 
