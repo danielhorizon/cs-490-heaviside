@@ -189,7 +189,7 @@ def load_imbalanced_data(batch_size, seed):
     test_set = Dataset(data_splits['test'])
 
     data_params = {'batch_size': batch_size, 'shuffle': True,
-                   'num_workers': 1, 'worker_init_fn': np.random.seed(seed)}
+                   'num_workers': 0, 'worker_init_fn': np.random.seed(seed)}
     set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
     set_seed(seed)
@@ -740,29 +740,33 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     valid_losses.append(curr_val_loss.detach().cpu().numpy())
 
             valid_loss = np.mean(valid_losses)
-            valid_mean_f1 = np.array(eval_class_f1s).mean()
+            if approx: 
+                valid_mean_f1 = np.array(eval_class_f1s).mean()
+            else: 
+                valid_mean_f1 = f1_score(y_true=val_labels, y_pred=val_preds, average="macro")
 
             # add in per-class metrics
             if run_name:
                 writer.add_scalar("val/valid-loss", valid_loss, epoch)
                 writer.add_scalar("val/f1", valid_mean_f1, epoch)
 
+                if approx: 
                 # adding per-class f1, precision, and recall
-                for i in range(10):
-                    # logging f1
-                    title = "val/class-" + str(i) + "-f1"
-                    writer.add_scalar(title, eval_class_f1s[i], epoch)
+                    for i in range(10):
+                        # logging f1
+                        title = "val/class-" + str(i) + "-f1"
+                        writer.add_scalar(title, eval_class_f1s[i], epoch)
 
-                    # logging precision
-                    title = "val/class-" + \
-                        str(i) + "-precision"
-                    writer.add_scalar(title, eval_class_prs[i], epoch)
-                    # logging recall
-                    title = "val/class-" + str(i) + "-recall"
-                    writer.add_scalar(title, eval_class_recs[i], epoch)
-                    # logging losses
-                    title = "val/class-" + str(i) + "-loss"
-                    writer.add_scalar(title, eval_class_losses[i], epoch)
+                        # logging precision
+                        title = "val/class-" + \
+                            str(i) + "-precision"
+                        writer.add_scalar(title, eval_class_prs[i], epoch)
+                        # logging recall
+                        title = "val/class-" + str(i) + "-recall"
+                        writer.add_scalar(title, eval_class_recs[i], epoch)
+                        # logging losses
+                        title = "val/class-" + str(i) + "-loss"
+                        writer.add_scalar(title, eval_class_losses[i], epoch)
 
             print("Val - Epoch ({}): | Loss: {:.4f} | Mean F1: {:.4f} \n".format(
                 epoch, valid_loss, valid_mean_f1)
@@ -861,9 +865,11 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --run_name="1024-approx-f1-reg" --cuda=2 --patience=100 --output_file="20201212_results.json" 
-python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --run_name="1024-baseline-ce-reg" --cuda=2 --patience=100 --output_file="20201212_results.json" 
 
-python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --imb --run_name="1024-approx-f1-imb" --cuda=3 --patience=100 --output_file="20201212_results.json" 
-python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --imb --run_name="1024-baseline-ce-imb" --cuda=3 --patience=100 --output_file="20201212_results.json" 
+python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --run_name="1024-approx-f1-reg" --cuda=1 --patience=100 --output_file="20201212_results.json" 
+python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --run_name="1024-baseline-ce-reg" --cuda=1 --patience=100 --output_file="20201212_results.json" 
+
+
+python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --imb --run_name="1024-approx-f1-imb" --cuda=2 --patience=100 --output_file="20201212_results.json" 
+python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --imb --run_name="1024-baseline-ce-imb" --cuda=2 --patience=100 --output_file="20201212_results.json" 
 '''
