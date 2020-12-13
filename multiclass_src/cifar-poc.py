@@ -190,7 +190,7 @@ def load_imbalanced_data(batch_size, seed):
     test_set = Dataset(data_splits['test'])
 
     data_params = {'batch_size': batch_size, 'shuffle': True,
-                   'num_workers': 1, 'worker_init_fn': np.random.seed(seed)}
+                   'num_workers': 0, 'worker_init_fn': np.random.seed(seed)}
     set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
     set_seed(seed)
@@ -879,7 +879,7 @@ if __name__ == '__main__':
 
 
 '''
-python3 cifar-poc.py --epochs=2 --loss="approx-f1" --imb --run_name="test" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="test.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="test.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
