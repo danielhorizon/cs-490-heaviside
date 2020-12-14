@@ -36,11 +36,6 @@ EPS = 1e-7
 _WHITE_WINE = "../data/winequality-white.csv"
 _RED_WINE = "../data/winequality-red.csv"
 
-# setting seeds
-torch.manual_seed(45)
-torch.cuda.manual_seed(45)
-np.random.seed(45)
-
 
 '''
 https://www.koreascience.or.kr/article/JAKO201832073079660.pdf
@@ -90,10 +85,8 @@ def load_white_wine(shuffle=True):
     print("shape after: {}".format(raw_df.shape))
 
     # Split and shuffle
-    train_df, test_df = train_test_split(
-        raw_df, test_size=0.2, shuffle=shuffle)
-    train_df, val_df = train_test_split(
-        train_df, test_size=0.1, shuffle=shuffle)
+    train_df, test_df = train_test_split(raw_df, test_size=0.2, shuffle=shuffle)
+    train_df, val_df = train_test_split(train_df, test_size=0.1, shuffle=shuffle)
 
     train_labels = np.array(train_df.pop("quality"))
     val_labels = np.array(val_df.pop("quality"))

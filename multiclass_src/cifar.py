@@ -739,6 +739,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     curr_val_loss = criterion(output, labels)
                     valid_losses.append(curr_val_loss.detach().cpu().numpy())
 
+            # TODO(dlee): fix this so that it includes the metrics, like we did in iris
             valid_loss = np.mean(valid_losses)
             if approx: 
                 valid_mean_f1 = np.array(eval_class_f1s).mean()
