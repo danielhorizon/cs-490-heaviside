@@ -828,7 +828,7 @@ if __name__ == '__main__':
 '''
 python3 cifar_threshtrain.py --epochs=3 --loss="approx-f1" --imb --run_name="asdf" --cuda=3 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="asdf.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.125" --cuda=3 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.2" --cuda=3 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.2" --cuda=1 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.3" --cuda=3 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.4" --cuda=3 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
@@ -837,6 +837,11 @@ python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.7" --cuda=0 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.8" --cuda=0 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.9" --cuda=0 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
+
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.7" --cuda=2 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.9" --cuda=2 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
 
 
