@@ -859,9 +859,9 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience, outp
         imbalanced = True
 
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
-    seeds = [14, 57, 23]
+    seeds = [57, 23]
     for i in range(len(seeds)):
-        temp_name = str(run_name) + "-" + str(i)
+        temp_name = str(run_name) + "-" + str(i+1)
         train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name,
                     seed=seeds[i], cuda=cuda, batch_size=int(batch_size), train_tau=train_tau, patience=patience, output_file=output_file)
 
@@ -881,11 +881,11 @@ python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-appr
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.2" --cuda=0 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.4" --cuda=3 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.5" --cuda=0 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.6" --cuda=1 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.7" --cuda=1 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.7" --cuda=3 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.8" --cuda=1 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.9" --cuda=1 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 '''

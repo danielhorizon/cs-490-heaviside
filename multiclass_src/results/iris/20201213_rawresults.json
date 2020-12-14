@@ -1,1 +1,482 @@
-[{"best-epoch": 110, "loss": 0.30129, "test_wt_f1_score": 0.96577, "val_wt_f1_score": Infinity, "test_accuracy": 0.9666666666666667, "val_accuracy": 0.9, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-acc", "run_name": "256-approx-acc-0", "train_dxn": [2860, 3630, 3410], "test_dxn": [1221, 1443, 666], "valid_dxn": [1443, 444, 1443], "seed": 1, "batch_size": 256, "evaluation": null, "patience": "20", "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-approx-acc-0.pth"}, {"best-epoch": 221, "loss": 0.74022, "test_wt_f1_score": 0.96728, "val_wt_f1_score": Infinity, "test_accuracy": 0.9666666666666667, "val_accuracy": 0.9, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "ce", "run_name": "256-baseline-ce-0", "train_dxn": [5746, 7293, 6851], "test_dxn": [2442, 2886, 1332], "valid_dxn": [2886, 888, 2886], "seed": 1, "batch_size": 256, "evaluation": null, "patience": "20", "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-baseline-ce-0.pth"}]
+[
+    {
+        "best-epoch": 110,
+        "loss": 0.30129,
+        "test_wt_f1_score": 0.96577,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9666666666666667,
+        "val_accuracy": 0.9,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-acc",
+        "run_name": "256-approx-acc-0",
+        "train_dxn": [
+            2860,
+            3630,
+            3410
+        ],
+        "test_dxn": [
+            1221,
+            1443,
+            666
+        ],
+        "valid_dxn": [
+            1443,
+            444,
+            1443
+        ],
+        "seed": 1,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-approx-acc-0.pth"
+    },
+    {
+        "best-epoch": 221,
+        "loss": 0.74022,
+        "test_wt_f1_score": 0.96728,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9666666666666667,
+        "val_accuracy": 0.9,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "ce",
+        "run_name": "256-baseline-ce-0",
+        "train_dxn": [
+            5746,
+            7293,
+            6851
+        ],
+        "test_dxn": [
+            2442,
+            2886,
+            1332
+        ],
+        "valid_dxn": [
+            2886,
+            888,
+            2886
+        ],
+        "seed": 1,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-baseline-ce-0.pth"
+    },
+    {
+        "best-epoch": 283,
+        "loss": 0.21467,
+        "test_wt_f1_score": 0.96728,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9666666666666667,
+        "val_accuracy": 0.9333333333333333,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "256-approx-f1-0",
+        "train_dxn": [
+            7358,
+            9339,
+            8773
+        ],
+        "test_dxn": [
+            3124,
+            3692,
+            1704
+        ],
+        "valid_dxn": [
+            3692,
+            1136,
+            3692
+        ],
+        "seed": 1,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-approx-f1-0.pth"
+    },
+    {
+        "best-epoch": 3834,
+        "loss": 0.57549,
+        "test_wt_f1_score": 0.96703,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9666666666666667,
+        "val_accuracy": 1.0,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "ce",
+        "run_name": "256-baseline-ce-1",
+        "train_dxn": [
+            103518,
+            122688,
+            118854
+        ],
+        "test_dxn": [
+            53690,
+            30680,
+            30680
+        ],
+        "valid_dxn": [
+            34515,
+            38350,
+            42185
+        ],
+        "seed": 2,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-baseline-ce-1.pth"
+    },
+    {
+        "best-epoch": 365,
+        "loss": 0.68783,
+        "test_wt_f1_score": 0.96658,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9666666666666667,
+        "val_accuracy": 0.9666666666666667,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "ce",
+        "run_name": "256-baseline-ce-2",
+        "train_dxn": [
+            10585,
+            11680,
+            10585
+        ],
+        "test_dxn": [
+            3660,
+            3660,
+            3660
+        ],
+        "valid_dxn": [
+            4026,
+            2928,
+            4026
+        ],
+        "seed": 3,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-baseline-ce-2.pth"
+    },
+    {
+        "best-epoch": 4999,
+        "loss": 0.5617,
+        "test_wt_f1_score": 0.96569,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9666666666666667,
+        "val_accuracy": 1.0,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "ce",
+        "run_name": "256-baseline-ce-3",
+        "train_dxn": [
+            124975,
+            169966,
+            154969
+        ],
+        "test_dxn": [
+            80000,
+            25000,
+            45000
+        ],
+        "valid_dxn": [
+            45000,
+            55000,
+            50000
+        ],
+        "seed": 4,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-baseline-ce-3.pth"
+    },
+    {
+        "best-epoch": 495,
+        "loss": 0.65753,
+        "test_wt_f1_score": 0.9666,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9666666666666667,
+        "val_accuracy": 1.0,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "ce",
+        "run_name": "256-baseline-ce-4",
+        "train_dxn": [
+            16830,
+            12870,
+            14850
+        ],
+        "test_dxn": [
+            3968,
+            5456,
+            5456
+        ],
+        "valid_dxn": [
+            3968,
+            6448,
+            4464
+        ],
+        "seed": 5,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-baseline-ce-4.pth"
+    },
+    {
+        "best-epoch": 539,
+        "loss": 0.13934,
+        "test_wt_f1_score": 0.96703,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9666666666666667,
+        "val_accuracy": 1.0,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "256-approx-f1-1",
+        "train_dxn": [
+            14553,
+            17248,
+            16709
+        ],
+        "test_dxn": [
+            7560,
+            4320,
+            4320
+        ],
+        "valid_dxn": [
+            4860,
+            5400,
+            5940
+        ],
+        "seed": 2,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-approx-f1-1.pth"
+    },
+    {
+        "best-epoch": 336,
+        "loss": 0.20062,
+        "test_wt_f1_score": 0.96658,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9666666666666667,
+        "val_accuracy": 0.9666666666666667,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "256-approx-f1-2",
+        "train_dxn": [
+            9744,
+            10752,
+            9744
+        ],
+        "test_dxn": [
+            3370,
+            3370,
+            3370
+        ],
+        "valid_dxn": [
+            3707,
+            2696,
+            3707
+        ],
+        "seed": 3,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-approx-f1-2.pth"
+    },
+    {
+        "best-epoch": 1257,
+        "loss": 0.05087,
+        "test_wt_f1_score": 0.96703,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9666666666666667,
+        "val_accuracy": 1.0,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-acc",
+        "run_name": "256-approx-acc-1",
+        "train_dxn": [
+            33939,
+            40224,
+            38967
+        ],
+        "test_dxn": [
+            17612,
+            10064,
+            10064
+        ],
+        "valid_dxn": [
+            11322,
+            12580,
+            13838
+        ],
+        "seed": 2,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-approx-acc-1.pth"
+    },
+    {
+        "best-epoch": 372,
+        "loss": 0.17368,
+        "test_wt_f1_score": 0.93367,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9333333333333333,
+        "val_accuracy": 1.0,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "256-approx-f1-3",
+        "train_dxn": [
+            9300,
+            12648,
+            11532
+        ],
+        "test_dxn": [
+            5968,
+            1865,
+            3357
+        ],
+        "valid_dxn": [
+            3357,
+            4103,
+            3730
+        ],
+        "seed": 4,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-approx-f1-3.pth"
+    },
+    {
+        "best-epoch": 347,
+        "loss": 0.13889,
+        "test_wt_f1_score": 0.96658,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9666666666666667,
+        "val_accuracy": 0.9666666666666667,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-acc",
+        "run_name": "256-approx-acc-2",
+        "train_dxn": [
+            10063,
+            11104,
+            10063
+        ],
+        "test_dxn": [
+            3480,
+            3480,
+            3480
+        ],
+        "valid_dxn": [
+            3828,
+            2784,
+            3828
+        ],
+        "seed": 3,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-approx-acc-2.pth"
+    },
+    {
+        "best-epoch": 432,
+        "loss": 0.17197,
+        "test_wt_f1_score": 0.9666,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9666666666666667,
+        "val_accuracy": 1.0,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "256-approx-f1-4",
+        "train_dxn": [
+            14688,
+            11232,
+            12960
+        ],
+        "test_dxn": [
+            3464,
+            4763,
+            4763
+        ],
+        "valid_dxn": [
+            3464,
+            5629,
+            3897
+        ],
+        "seed": 5,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-approx-f1-4.pth"
+    },
+    {
+        "best-epoch": 356,
+        "loss": 0.12478,
+        "test_wt_f1_score": 0.93367,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9333333333333333,
+        "val_accuracy": 0.9666666666666667,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-acc",
+        "run_name": "256-approx-acc-3",
+        "train_dxn": [
+            8900,
+            12104,
+            11036
+        ],
+        "test_dxn": [
+            5712,
+            1785,
+            3213
+        ],
+        "valid_dxn": [
+            3213,
+            3927,
+            3570
+        ],
+        "seed": 4,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-approx-acc-3.pth"
+    },
+    {
+        "best-epoch": 418,
+        "loss": 0.12095,
+        "test_wt_f1_score": 0.9666,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.9666666666666667,
+        "val_accuracy": 1.0,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-acc",
+        "run_name": "256-approx-acc-4",
+        "train_dxn": [
+            14212,
+            10868,
+            12540
+        ],
+        "test_dxn": [
+            3352,
+            4609,
+            4609
+        ],
+        "valid_dxn": [
+            3352,
+            5447,
+            3771
+        ],
+        "seed": 5,
+        "batch_size": 256,
+        "evaluation": null,
+        "patience": "20",
+        "model_file_path": "/app/timeseries/multiclass_src/models/iris/20201214-best_model-256-approx-acc-4.pth"
+    }
+]
