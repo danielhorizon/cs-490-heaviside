@@ -629,19 +629,13 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             test_class_losses = np.mean(test_class_losses, axis=0)
 
             test_acc = accuracy_score(y_true=test_labels, y_pred=test_preds)
-            test_f1_micro = f1_score(
-                y_true=test_labels, y_pred=test_preds, average='micro')
-            test_f1_macro = f1_score(
-                y_true=test_labels, y_pred=test_preds, average='macro')
-            test_f1_weighted = f1_score(
-                y_true=test_labels, y_pred=test_preds, average='weighted')
+            test_f1_micro = f1_score(y_true=test_labels, y_pred=test_preds, average='micro')
+            test_f1_macro = f1_score(y_true=test_labels, y_pred=test_preds, average='macro')
+            test_f1_weighted = f1_score(y_true=test_labels, y_pred=test_preds, average='weighted')
 
-            test_class_f1s = f1_score(
-                y_true=test_labels, y_pred=test_preds, average=None)
-            test_class_prs = precision_score(
-                y_true=test_labels, y_pred=test_preds, average=None)
-            test_class_rec = recall_score(
-                y_true=test_labels, y_pred=test_preds, average=None)
+            test_class_f1s = f1_score(y_true=test_labels, y_pred=test_preds, average=None)
+            test_class_prs = precision_score(y_true=test_labels, y_pred=test_preds, average=None)
+            test_class_rec = recall_score(y_true=test_labels, y_pred=test_preds, average=None)
 
             # add in per-class metrics
             test_loss = np.mean(test_losses)
@@ -723,7 +717,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             eval_labels = torch.tensor(eval_labels[0])
 
             ## evaluating across a range of thresholds...
-            eval_class_f1s, eval_class_prs, eval_class_recs, eval_class_losses  = evaluation_f1_across_thresholds(
+            eval_class_f1s, eval_class_prs, eval_class_recs, eval_class_losses = evaluation_f1_across_thresholds(
                 device=device, y_labels=eval_labels, y_preds=eval_preds, thresholds=torch.arange(0.1, 1, 0.1))
             
             valid_loss = np.array(eval_class_losses).mean()
@@ -859,7 +853,8 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience, outp
         imbalanced = True
 
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
-    seeds = [57, 23]
+    # seeds = [57, 23]
+    seeds = [14, 57, 23]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i+1)
         train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name,
@@ -877,6 +872,20 @@ if __name__ == '__main__':
 
 
 '''
+
+python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.2" --cuda=0 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.4" --cuda=3 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
+python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.5" --cuda=0 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.6" --cuda=1 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.7" --cuda=3 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.8" --cuda=1 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
+
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.2" --cuda=0 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"

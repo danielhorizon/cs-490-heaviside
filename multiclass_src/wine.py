@@ -6,6 +6,7 @@ import click
 import logging
 import math
 import random 
+import json 
 
 import pandas as pd
 import numpy as np
@@ -29,8 +30,6 @@ from mc_torchconfusion import *
 from mc_torchconfusion_weighted import wt_mean_f1_approx_loss_on
 from gradient_flow import *
 
-# for early stopping.
-from pytorchtools import EarlyStopping
 
 EPS = 1e-7
 _WHITE_WINE = "../data/winequality-white.csv"
@@ -54,7 +53,17 @@ https://link.springer.com/chapter/10.1007/978-3-030-52249-0_27#enumeration
 '''
 
 
-def load_white_wine(shuffle=True):
+def set_seed(seed):
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+
+
+def load_white_wine(shuffle=True, seed=None):
+    set_seed(seed)
     # https://link.springer.com/chapter/10.1007/978-3-030-52249-0_27
     # solely doing this on white wine
     raw_df = pd.read_csv(_WHITE_WINE, sep=';')
@@ -129,13 +138,38 @@ def load_white_wine(shuffle=True):
     }
 
 
-def set_seed(seed):
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    random.seed(seed)
+def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
+    classes = len(y_labels[0])
+    mean_f1s = torch.zeros(classes, dtype=torch.float32)
+    precisions = torch.zeros(classes, dtype=torch.float32)
+    recalls = torch.zeros(classes, dtype=torch.float32)
+
+    '''
+    y_labels = tensor([[0., 0., 0., 0., 0., 1., 0., 0., 0., 0.]])
+    y_preds = tensor([[0.0981, 0.0968, 0.0977, 0.0869, 0.1180, 0.1081, 0.0972, 0.0919, 0.1003, 0.1050]])
+    '''
+    for i in range(classes):
+        gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
+        pt_list = y_preds[:, i]
+
+        pt_list = torch.Tensor([1 if x >= threshold else 0 for x in pt_list])
+
+        tn, fp, fn, tp = confusion_matrix(y_true=gt_list.cpu().numpy(),
+                                          y_pred=pt_list.cpu().numpy(), labels=[0, 1]).ravel()
+
+        # converting to tensors
+        tp, fn, fp, tn = torch.tensor([tp]).to(device), torch.tensor([fn]).to(
+            device), torch.tensor([fp]).to(device), torch.tensor([tn]).to(device)
+        precision = tp/(tp+fp+EPS)
+        recall = tp/(tp+fn+EPS)
+        temp_f1 = torch.mean(2 * (precision * recall) /
+                             (precision + recall + EPS))
+        mean_f1s[i] = temp_f1
+        precisions[i] = precision
+        recalls[i] = recall
+
+    # return class wise f1, and the mean of the f1s.
+    return mean_f1s, mean_f1s.mean(), precisions, recalls
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -179,12 +213,52 @@ class Model(nn.Module):
         return x
 
 
-def train_wine(data_splits, loss_metric, epochs, run_name):
+def create_loaders(data_splits, batch_size, seed):
+    dataparams = {'batch_size': batch_size, 'shuffle': True, 'num_workers': 0}
+    trainset = Dataset(data_splits['train'])
+    validationset = Dataset(data_splits['val'])
+    testset = Dataset(data_splits['test'])
+    set_seed(seed)
+    train_loader = DataLoader(trainset, **dataparams)
+    set_seed(seed)
+    val_loader = DataLoader(validationset, **dataparams)
+    set_seed(seed)
+    test_loader = DataLoader(testset, **dataparams)
+    return train_loader, val_loader, test_loader
+
+
+def record_results(results_path, best_test, output_file):
+    # reading in the data from the existing file.
+    file_path = "/".join([results_path, output_file])
+    if os.path.isfile(file_path):
+        with open(file_path, "r+") as f:
+            data = json.load(f)
+            data.append(best_test)
+            f.close()
+        with open(file_path, "w") as outfile:
+            json.dump(data, outfile)
+    ## if the file doesn't eixst:
+    else:
+        best_test = [best_test]
+        with open(file_path, "w") as outfile:
+            json.dump(best_test, outfile)
+
+
+def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_size, patience, output_file):
     using_gpu = False
     if torch.cuda.is_available():
-        print("device = cuda")
-        device = "cuda"
+        print("device = cuda :{}".format(type(cuda)))
         using_gpu = True
+        if cuda == "0":
+            device = "cuda:0"
+        elif cuda == "1":
+            device = "cuda:1"
+        elif cuda == "2":
+            device = "cuda:2"
+        elif cuda == "3":
+            device = "cuda:3"
+        else:
+            device = "cuda:0"
     else:
         print("device = cpu")
         device = "cpu"
@@ -201,264 +275,356 @@ def train_wine(data_splits, loss_metric, epochs, run_name):
     y_test = Variable(torch.Tensor(y_test).long())
     y_valid = Variable(torch.Tensor(y_valid).long())
 
+    # setting seeds
+    set_seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    np.random.seed(seed)
+
     # using DataSet and DataLoader
-    dataparams = {'batch_size': 128, 'shuffle': True, 'num_workers': 1}
-    trainset = Dataset(data_splits['train'])
-    validationset = Dataset(data_splits['val'])
-    testset = Dataset(data_splits['test'])
-    set_seed(0)
-    train_loader = DataLoader(trainset, **dataparams)
-    set_seed(0)
-    val_loader = DataLoader(validationset, **dataparams)
-    set_seed(0)
-    test_loader = DataLoader(testset, **dataparams)
+    train_loader, val_loader, test_loader = create_loaders(
+        data_splits, batch_size, seed)
 
-    # initialization
-    early_stopping = False
-    approx = False
-    model = Model().to(device)
+    # setting seeds
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    np.random.seed(seed)
 
-    # initialize the early_stopping object
-    patience = 50
-    early_stopping = EarlyStopping(patience=patience, verbose=True)
-
-    # setting up tensorboard
-    tensorboard_path = "/".join(["tensorboard", "wine", run_name])
-    writer = SummaryWriter(tensorboard_path)
-
-    avg_val_losses = []
+    # storing metrics
+    train_dxn, test_dxn, valid_dxn = [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]
     best_test = {
         "best-epoch": 0,
         "loss": float('inf'),
-        "f1_score": 0,
-        "accuracy": 0
+        "test_wt_f1_score": 0,
+        'val_wt_f1_score': float("inf"),
+        "test_accuracy": 0,
+        "val_accuracy": 0,
+        "learning_rate": 0,
+        "imbalanced": False,
+        "loss_metric": loss_metric,
+        "run_name": run_name,
+        "train_dxn": None,
+        "test_dxn": None,
+        "valid_dxn": None,
+        "seed": seed,
+        "batch_size": batch_size,
+        "evaluation": None,
+        "patience": None
     }
 
-    # setting optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    first_run = True
+    # initialization
+    learning_rate = 0.001
+    model = Model().to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    best_test['learning_rate'] = learning_rate
+
+    if run_name:
+        experiment_name = run_name
+        tensorboard_path = "/".join(["tensorboard", "iris", experiment_name])
+        writer = SummaryWriter(tensorboard_path)
 
     # criterion
+    approx = False
     if loss_metric == "ce":
         criterion = nn.CrossEntropyLoss()
+    # evaluating this across thresholds, not for a single threshold.
     elif loss_metric == "approx-f1":
         approx = True
-        criterion = mean_f1_approx_loss_on(device=device)
+        criterion = clean_mean_f1_approx_loss_on(
+            device=device, thresholds=torch.arange(0.1, 1, 0.1))
     elif loss_metric == "approx-acc":
         approx = True
-        criterion = mean_accuracy_approx_loss_on(device=device)
-    elif loss_metric == "approx-auroc":
-        approx = True
-        criterion = mean_auroc_approx_loss_on(device=device)
-    elif loss_metric == "approx-f1-wt":
-        approx = True
-        criterion = wt_mean_f1_approx_loss_on(device=device)
+        criterion = mean_accuracy_approx_loss_on(
+            device=device, thresholds=torch.arange(0.1, 1, 0.1))
+    # elif loss_metric == "approx-auroc":
+    #     approx = True
+    #     criterion = mean_auroc_approx_loss_on(device=device)
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
-    # ----- TRAINING -----
+        ## --- training ---
+    early_stopping = False
+    lowest_f1_loss = None
+    print("patience: {}".format(patience))
+    patience = int(patience)
+    reset_patience = patience
+    best_test['patience'] = patience
+    
     losses = []
     for epoch in range(epochs):
-        if first_run:
-            X_train = X_train.to(device)
-            y_train = y_train.numpy()
-            X_test = X_test.to(device)
-            y_test = y_test.numpy()
-            X_valid = X_valid.to(device)
-            y_valid = y_valid.numpy()
-            first_run = False
+        ## early stopping
+        if early_stopping:
+            print("Early stopping at Epoch {}/{}".format(epoch, epochs))
+            break
 
-        if epochs != 0:
-            for i, (inputs, labels) in enumerate(train_loader):
-                labels = labels.type(torch.LongTensor).to(device)
-                inputs = inputs.to(device)
+        accs, microf1s, macrof1s, wf1s = [], [], [], []
+        micro_prs, macro_prs, weighted_prs = [], [], []
+        micro_recalls, macro_recalls, weighted_recalls = [], [], []
+        class_f1_scores = {0: [], 1: [], 2: [], 3:[]}
+        class_precision = {0: [], 1: [], 2: [], 3:[]}
+        class_recall = {0: [], 1: [], 2: [], 3: []}
+
+        if epoch == 0:
+            if run_name:
+                writer.add_scalar("loss", 0, epoch)
+                writer.add_scalar("train/accuracy", 0, epoch)
+                writer.add_scalar("train/w-f1", 0, epoch)
+                writer.add_scalar("train/micro-f1", 0, epoch)
+                writer.add_scalar("train/macro-f1", 0, epoch)
+                writer.add_scalar("train/w-recall", 0, epoch)
+                writer.add_scalar("train/micro-recall", 0, epoch)
+                writer.add_scalar("train/macro-recall", 0, epoch)
+                writer.add_scalar("train/w-precision", 0, epoch)
+                writer.add_scalar("train/micro-precision", 0, epoch)
+                writer.add_scalar("train/macro-precision", 0, epoch)
+
+                # adding per-class f1, precision, and recall
+                for i in range(4):
+                    title = "train/class-" + str(i) + "-f1"
+                    writer.add_scalar(title, 0, epoch)
+                    title = "train/class-" + str(i) + "-precision"
+                    writer.add_scalar(title, 0, epoch)
+                    title = "train/class-" + str(i) + "-recall"
+                    writer.add_scalar(title, 0, epoch)
+
+        else:
+            for batch, (inputs, labels) in enumerate(train_loader):
                 # setting into train mode.
                 model.train()
 
-                # zeroing out gradients
+                # for class distribution
+                labels_list = labels.numpy()
+                for label in labels_list:
+                    train_dxn[int(label)] += 1
+
+                inputs = inputs.to(device)
+                # labels = labels.type(torch.LongTensor).to(device)
+                labels = labels.to(device)
+
+                # zero grad
                 optimizer.zero_grad()
+                output = model(inputs)
 
-                # making predictions
-                y_pred = model(inputs)
-
+                ## if we're doing regular ce
+                labels = labels.type(torch.int64)
                 if not approx:
-                    loss = criterion(y_pred, labels)
+                    loss = criterion(output, labels)
+
+                ## if we're doing approx
                 else:
                     train_labels = torch.zeros(len(labels), 4).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
-                    loss = criterion(y_labels=train_labels, y_preds=y_pred)
+                    output=output.to(device)
+                    loss = criterion(y_labels=train_labels, y_preds=output)
 
                 losses.append(loss)
                 loss.backward()
                 optimizer.step()
 
-            # TRAIN Metrics: Accuracy, F1, Loss
-            model.eval()
-            if using_gpu:
-                mloss = torch.mean(torch.stack(losses))
-            else:
-                mloss = np.array([x.item for x in losses]).mean()
-            tr_output = model(X_train)
-            tr_pred = torch.Tensor([torch.argmax(x)
-                                    for x in tr_output]).to(device)
-            tr_pred_np = [int(x) for x in tr_pred.cpu().numpy()]
-            y_preds = tr_pred_np
+                # checking prediction via evaluation (for every batch)
+                model.eval()
+                y_pred = model(inputs)
+                _, train_preds = torch.max(y_pred, 1)
 
-            tr_acc = accuracy_score(y_true=y_train, y_pred=y_preds)
-            tr_f1_micro = f1_score(
-                y_true=y_train, y_pred=y_preds, average='micro')
-            tr_f1_macro = f1_score(
-                y_true=y_train, y_pred=y_preds, average='macro')
-            tr_f1_weighted = f1_score(
-                y_true=y_train, y_pred=y_preds, average='weighted')
-            class_f1s = f1_score(y_true=y_train, y_pred=y_preds, average=None)
-            class_re = recall_score(
-                y_true=y_train, y_pred=y_preds, average=None)
-            class_pr = precision_score(
-                y_true=y_train, y_pred=y_preds, average=None)
+                # storing metrics for each batch
+                # accs = array of each batch's accuracy -> averaged at each epoch
+                accs.append(accuracy_score(
+                    y_true=labels.cpu(), y_pred=train_preds.cpu()))
+                microf1s.append(f1_score(y_true=labels.cpu(),
+                                         y_pred=train_preds.cpu(), average="micro"))
+                macrof1s.append(f1_score(y_true=labels.cpu(),
+                                         y_pred=train_preds.cpu(), average="macro"))
+                wf1s.append(f1_score(y_true=labels.cpu(),
+                                     y_pred=train_preds.cpu(), average="weighted"))
 
+                # precision
+                micro_prs.append(precision_score(
+                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
+                macro_prs.append(precision_score(
+                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
+                weighted_prs.append(precision_score(
+                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
+
+                # recall
+                micro_recalls.append(recall_score(
+                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
+                macro_recalls.append(recall_score(
+                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="macro"))
+                weighted_recalls.append(recall_score(
+                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average="weighted"))
+
+                class_f1s = f1_score(y_true=labels.cpu(),
+                                     y_pred=train_preds.cpu(), average=None)
+                class_re = recall_score(
+                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
+                class_pr = precision_score(
+                    y_true=labels.cpu(), y_pred=train_preds.cpu(), average=None)
+
+                for i in range(len(class_f1s)):
+                    class_f1_scores[i].append(class_f1s[i])
+                    class_precision[i].append(class_pr[i])
+                    class_recall[i].append(class_re[i])
+
+            # https://github.com/rizalzaf/ap_perf/blob/master/examples/tabular.py
+            m_loss = torch.mean(torch.stack(losses)) if using_gpu else np.array(
+                [x.item() for x in losses]).mean()
+            m_accs = np.array(accs).mean()
+            m_weightedf1s = np.array(microf1s).mean()
+            m_microf1s = np.array(microf1s).mean()
+            m_macrof1s = np.array(macrof1s).mean()
+            print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
+                epoch, m_accs, m_weightedf1s, m_microf1s, m_macrof1s)
+            )
             if run_name:
-                writer.add_scalar("loss", mloss, epoch)
-                writer.add_scalar("train/accuracy", tr_acc, epoch)
-                writer.add_scalar("train/w-f1", tr_f1_weighted, epoch)
-                writer.add_scalar("train/micro-f1", tr_f1_micro, epoch)
-                writer.add_scalar("train/macro-f1", tr_f1_macro, epoch)
+                writer.add_scalar("train/train-loss", m_loss, epoch)
+                writer.add_scalar("train/accuracy", m_accs, epoch)
+                writer.add_scalar("train/w-f1", m_weightedf1s, epoch)
+                writer.add_scalar("train/micro-f1", m_microf1s, epoch)
+                writer.add_scalar("train/macro-f1", m_macrof1s, epoch)
+                writer.add_scalar("train/w-recall",
+                                  np.array(weighted_recalls).mean(), epoch)
+                writer.add_scalar("train/micro-recall",
+                                  np.array(micro_recalls).mean(), epoch)
+                writer.add_scalar("train/macro-recall",
+                                  np.array(macro_recalls).mean(), epoch)
+                writer.add_scalar("train/w-precision",
+                                  np.array(weighted_prs).mean(), epoch)
+                writer.add_scalar("train/micro-precision",
+                                  np.array(micro_prs).mean(), epoch)
+                writer.add_scalar("train/macro-precision",
+                                  np.array(macro_prs).mean(), epoch)
+
                 # adding per-class f1, precision, and recall
-                for i in range(4):
+                for i in range(3):
                     title = "train/class-" + str(i) + "-f1"
                     writer.add_scalar(title, np.array(
-                        class_f1s[i]).mean(), epoch)
+                        class_f1_scores[i]).mean(), epoch)
                     title = "train/class-" + str(i) + "-precision"
                     writer.add_scalar(title, np.array(
-                        class_pr[i]).mean(), epoch)
+                        class_precision[i]).mean(), epoch)
                     title = "train/class-" + str(i) + "-recall"
                     writer.add_scalar(title, np.array(
-                        class_re[i]).mean(), epoch)
-        else:
-            # adding in 0 for now.
-            writer.add_scalar("loss", 0, epoch)
-            writer.add_scalar("train/accuracy", 0, epoch)
-            writer.add_scalar("train/w-f1", 0, epoch)
-            writer.add_scalar("train/micro-f1", 0, epoch)
-            writer.add_scalar("train/macro-f1", 0, epoch)
-            for i in range(4):
-                title = "train/class-" + str(i) + "-f1"
-                writer.add_scalar(title, 0, epoch)
-                title = "train/class-" + str(i) + "-precision"
-                writer.add_scalar(title, 0, epoch)
-                title = "train/class-" + str(i) + "-recall"
-                writer.add_scalar(title, 0, epoch)
+                        class_recall[i]).mean(), epoch)
 
-        # Printing out train metrics:
-        print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
-            epoch, tr_acc, tr_f1_weighted, tr_f1_micro, tr_f1_macro)
-        )
-
-        # ----- TEST SET -----
-        # Calculate metrics after going through all the batches
-        model.eval() 
-        test_preds, test_labels = np.array([]), np.array([])
-        for i, (inputs, labels) in enumerate(test_loader):
-            inputs = inputs.to(device)
-            labels = labels.to(device) 
-            output = model(inputs)
-            _, predicted = torch.max(output, 1)
-
-            pred_arr = predicted.cpu().numpy()
-            label_arr = labels.cpu().numpy() 
-
-            test_labels = np.concatenate([test_labels, label_arr])
-            test_preds = np.concatenate([test_preds, pred_arr])
-        
-        test_acc = accuracy_score(y_true=test_labels, y_pred=test_preds)
-        test_f1_micro = f1_score(y_true=test_labels, y_pred=test_preds, average='micro')
-        test_f1_macro = f1_score(y_true=test_labels, y_pred=test_preds, average='macro')
-        test_f1_weighted = f1_score(y_true=test_labels, y_pred=test_preds, average='weighted')
-        test_class_f1s = f1_score(
-            y_true=test_labels, y_pred=test_preds, average=None)
-        test_class_prs = precision_score(
-            y_true=test_labels, y_pred=test_preds, average=None)
-        test_class_rec = recall_score(
-            y_true=test_labels, y_pred=test_preds, average=None)
-
-        # adding in tensorboard metrics 
-        if run_name: 
-            writer.add_scalar("test/accuracy", test_acc, epoch)
-            writer.add_scalar("test/micro-f1", test_f1_micro, epoch)
-            writer.add_scalar("test/macro-f1", test_f1_macro, epoch)
-            writer.add_scalar("test/w-f1", test_f1_weighted, epoch)
-            for i in range(4):
-                title = "test/class-" + str(i) + "-f1"
-                writer.add_scalar(title, np.array(
-                    test_class_f1s[i]).mean(), epoch)
-                title = "test/class-" + str(i) + "-precision"
-                writer.add_scalar(title, np.array(
-                    test_class_prs[i]).mean(), epoch)
-                title = "test/class-" + str(i) + "-recall"
-                writer.add_scalar(title, np.array(
-                    test_class_rec[i]).mean(), epoch)
-
-                tp, fp, fn, tn = get_confusion(
-                    gt=test_labels, pt=test_preds, class_value=i)
-                tp_title = 'test/class-' + str(i) + "-TP"
-                fp_title = 'test/class-' + str(i) + "-FP"
-                fn_title = 'test/class-' + str(i) + "-FN"
-                tn_title = 'test/class-' + str(i) + "-TN"
-                writer.add_scalar(tp_title, tp, epoch)
-                writer.add_scalar(fp_title, fp, epoch)
-                writer.add_scalar(fn_title, fn, epoch)
-                writer.add_scalar(tn_title, tn, epoch)
-
-
-        # storing test metrics in dict based on loss
-        if epoch != 0: 
-            if best_test['loss'] > mloss:
-                best_test['loss'] = mloss
-                best_test['best-epoch'] = epoch
-            if best_test['f1_score'] < test_f1_weighted:
-                best_test['f1_score'] = test_f1_weighted
-            if best_test['accuracy'] < test_acc:
-                best_test['accuracy'] = test_acc
-
-        print("Test - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.4f} | Macro F1: {:.3f}".format(
-            epoch, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
-        )
-        print(classification_report(y_true=test_labels, y_pred=test_preds,
-                                    target_names=['0', '1', '2', '3']))
-
-        # ----- VALIDATION -----
+        # ---------- test ----------
         model.eval()
-        valid_losses = []
-        with torch.no_grad(): 
-            val_preds, val_labels = np.array([]), np.array([])
-            for i, (inputs, labels) in enumerate(val_loader): 
+        test_losses = []
+        test_preds, test_labels = np.array([]), np.array([])
+        with torch.no_grad():
+            for i, (inputs, labels) in enumerate(test_loader):
+                labels_list = labels.cpu().numpy()
+                for label in labels_list:
+                    test_dxn[int(label)] += 1
+
                 inputs = inputs.to(device)
                 labels = labels.to(device)
+
                 output = model(inputs)
                 _, predicted = torch.max(output, 1)
 
-                # calculate metrics 
-                model.eval()
                 pred_arr = predicted.cpu().numpy()
-                label_arr = labels.cpu().numpy() 
+                label_arr = labels.cpu().numpy()
+
+                test_labels = np.concatenate([test_labels, label_arr])
+                test_preds = np.concatenate([test_preds, pred_arr])
+
+                labels = labels.type(torch.int64)
+                if approx:
+                    
+                    trans_labels = torch.zeros(len(labels), 4).to(device).scatter_(
+                        1, labels.unsqueeze(1), 1.).to(device)
+                    output = output.to(device)
+                    batch_test_loss = criterion(
+                        y_labels=trans_labels, y_preds=output)
+                else:
+                    batch_test_loss = criterion(output, labels)
+
+            # adding in test loss
+            test_losses.append(batch_test_loss.detach().cpu().numpy())
+            test_acc = accuracy_score(y_true=test_labels, y_pred=test_preds)
+            test_f1_micro = f1_score(
+                y_true=test_labels, y_pred=test_preds, average='micro')
+            test_f1_macro = f1_score(
+                y_true=test_labels, y_pred=test_preds, average='macro')
+            test_f1_weighted = f1_score(
+                y_true=test_labels, y_pred=test_preds, average='weighted')
+            test_class_f1s = f1_score(
+                y_true=test_labels, y_pred=test_preds, average=None)
+            test_class_prs = precision_score(
+                y_true=test_labels, y_pred=test_preds, average=None)
+            test_class_rec = recall_score(
+                y_true=test_labels, y_pred=test_preds, average=None)
+
+            test_loss = np.mean(test_losses)
+            if run_name:
+                writer.add_scalar("test/test-loss", test_loss, epoch)
+                writer.add_scalar("test/accuracy", test_acc, epoch)
+                writer.add_scalar("test/micro-f1", test_f1_micro, epoch)
+                writer.add_scalar("test/macro-f1", test_f1_macro, epoch)
+                writer.add_scalar("test/w-f1", test_f1_weighted, epoch)
+                # adding per-class f1, precision, and recall
+                for i in range(4):
+                    title = "test/class-" + str(i) + "-f1"
+                    writer.add_scalar(title, np.array(
+                        test_class_f1s[i]).mean(), epoch)
+                    title = "test/class-" + str(i) + "-precision"
+                    writer.add_scalar(title, np.array(
+                        test_class_prs[i]).mean(), epoch)
+                    title = "test/class-" + str(i) + "-recall"
+                    writer.add_scalar(title, np.array(
+                        test_class_rec[i]).mean(), epoch)
+
+            if epoch != 0:
+                if best_test['loss'] > m_loss:
+                    best_test['loss'] = m_loss
+                    best_test['best-epoch'] = epoch
+                if best_test['test_wt_f1_score'] < test_f1_weighted:
+                    best_test['test_wt_f1_score'] = test_f1_weighted
+                if best_test['test_accuracy'] < test_acc:
+                    best_test['test_accuracy'] = test_acc
+
+            print("Test - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}".format(
+                epoch, test_loss, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
+            )
+
+        # ---------- validation ----------
+        # Calculate metrics after going through all the batches
+        model.eval()
+        with torch.no_grad():
+            val_preds, val_labels = np.array([]), np.array([])
+            valid_losses = []
+
+            for batch, (inputs, labels) in enumerate(val_loader):
+                labels_list = labels.cpu().numpy()
+                for label in labels_list:
+                    valid_dxn[int(label)] += 1
+
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+
+                output = model(inputs)
+                _, predicted = torch.max(output, 1)
+
+                # calculate metrics
+                pred_arr = predicted.cpu().numpy()
+                label_arr = labels.cpu().numpy()
+
                 val_labels = np.concatenate([val_labels, label_arr])
                 val_preds = np.concatenate([val_preds, pred_arr])
 
+                # valid loss if APPROX
+                labels = labels.type(torch.int64)
                 if approx:
-                    labels = labels.type(torch.int64)
-                    # there are 3 wine classes
-                    valid_labels = torch.zeros(len(labels), 4).to(device).scatter_(
-                        1, labels.unsqueeze(1), 1.)
-                    curr_val_loss = criterion(
-                        y_labels=valid_labels, y_preds=output)
+                    valid_labels = torch.zeros(len(labels), 4).to(device).scatter_(1, labels.unsqueeze(1), 1.).to(device)
+
+                    output = output.to(device)
+                    batch_val_loss = criterion(y_labels=valid_labels, y_preds=output)
+                # using regular CE
                 else:
-                    labels = labels.type(torch.int64)
-                    curr_val_loss = criterion(output, labels)
+                    batch_val_loss = criterion(output, labels)
 
-                # appending loss to master list. 
-                valid_losses.append(curr_val_loss.detach().cpu().numpy())
+                valid_losses.append(batch_val_loss.detach().cpu().numpy())
 
-            # computing validation metrics via val_data
             val_acc = accuracy_score(y_true=val_labels, y_pred=val_preds)
             val_f1_micro = f1_score(
                 y_true=val_labels, y_pred=val_preds, average='micro')
@@ -473,58 +639,115 @@ def train_wine(data_splits, loss_metric, epochs, run_name):
                 y_true=val_labels, y_pred=val_preds, average=None)
             class_val_re = recall_score(
                 y_true=val_labels, y_pred=val_preds, average=None)
-
             valid_loss = np.mean(valid_losses)
-            # adding in per-class metrics: 
-            if run_name: 
-                writer.add_scalar("val/accuracy", val_acc, epoch)
-                writer.add_scalar("val/micro-f1", val_f1_micro, epoch)
-                writer.add_scalar("val/macro-f1", val_f1_macro, epoch)
-                writer.add_scalar("val/w-f1", val_f1_weighted, epoch)
+
+            if run_name:
+                writer.add_scalar("valid/train-loss", valid_loss, epoch)
+                writer.add_scalar("valid/accuracy", val_acc, epoch)
+                writer.add_scalar("valid/w-f1", val_f1_weighted, epoch)
+                writer.add_scalar("valid/micro-f1", val_f1_micro, epoch)
+                writer.add_scalar("valid/macro-f1", val_f1_macro, epoch)
 
                 # adding per-class f1, precision, and recall
                 for i in range(4):
-                    title = "val/class-" + str(i) + "-f1"
-                    writer.add_scalar(title, np.array(class_val_f1[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-precision"
-                    writer.add_scalar(title, np.array(class_val_pr[i]).mean(), epoch)
-                    title = "val/class-" + str(i) + "-recall"
-                    writer.add_scalar(title, np.array(class_val_re[i]).mean(), epoch)
+                    title = "valid/class-" + str(i) + "-f1"
+                    writer.add_scalar(title, class_val_f1[i], epoch)
+                    title = "valid/class-" + str(i) + "-precision"
+                    writer.add_scalar(title, class_val_pr[i], epoch)
+                    title = "valid/class-" + str(i) + "-recall"
+                    writer.add_scalar(title, class_val_re[i], epoch)
 
-                    # adding in per class training
-                    # get_confusion(gt, pt, class_value=None):
-                    tp, fp, fn, tn = get_confusion(
-                        gt=val_labels, pt=val_preds, class_value=i)
-                    tp_title = 'val/class-' + str(i) + "-TP"
-                    fp_title = 'val/class-' + str(i) + "-FP"
-                    fn_title = 'val/class-' + str(i) + "-FN"
-                    tn_title = 'val/class-' + str(i) + "-TN"
-                    writer.add_scalar(tp_title, tp, epoch)
-                    writer.add_scalar(fp_title, fp, epoch)
-                    writer.add_scalar(fn_title, fn, epoch)
-                    writer.add_scalar(tn_title, tn, epoch)
-
-            early_stopping(valid_loss, model)
-            if early_stopping.early_stop:
-                print("Early Stopping")
-                break
+            if epoch != 0:
+                if best_test['val_wt_f1_score'] < val_f1_weighted:
+                    best_test['val_wt_f1_score'] = val_f1_weighted
+                if best_test['val_accuracy'] < val_acc:
+                    best_test['val_accuracy'] = val_acc
 
             print("Val - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
                 epoch, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
             )
 
-    print(best_test)
+            ## checking early stopping per epoch
+            patience -= 1
+            adjust = False
+            if lowest_f1_loss is None or valid_loss < lowest_f1_loss:
+                adjust = True
+                if lowest_f1_loss != None:
+                    print("Valid loss decreased {:.5f} -> {:.5f}! Resetting patience to: {}".format(
+                        lowest_f1_loss, valid_loss, reset_patience))
+
+                today_date = time.strftime('%Y%m%d')
+
+                # TODO(dlee): add in support for balanced dataset.
+                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/wine",
+                                            '{}-best_model-{}.pth'.format(
+                                                today_date, run_name
+                                            )])
+                torch.save(model, model_file_path)
+                patience = reset_patience
+                lowest_f1_loss = valid_loss
+
+                best_test['model_file_path'] = model_file_path
+
+            ## if early stopping has begun, print it like this.
+            if not adjust:
+                print("Early stopping {}/{}...".format(reset_patience -
+                                                       patience, reset_patience))
+            if patience <= 0:
+                early_stopping = True
+
+    # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
+    print("--- Finished Training - Entering Final Evaluation Step\n")
+    # saving the model.
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/iris",
+                                '{}-overfit-model-{}.pth'.format(
+                                    time.strftime('%Y%m%d'), run_name
+                                )])
+    torch.save(model, model_file_path)
+
+    # ----- recording results in a json.
+    if torch.is_tensor(best_test['loss']):
+        best_test['loss'] = best_test['loss'].item()
+    if torch.is_tensor(best_test['test_wt_f1_score']):
+        best_test['test_wt_f1_score'] = best_test['test_wt_f1_score'].item()
+    if torch.is_tensor(best_test['val_wt_f1_score']):
+        best_test['val_wt_f1_score'] = best_test['val_wt_f1_score'].item()
+
+    best_test['loss'] = round(best_test['loss'], 5)
+    best_test['test_wt_f1_score'] = round(best_test['test_wt_f1_score'], 5)
+    best_test['val_wt_f1_score'] = round(best_test['val_wt_f1_score'], 5)
+    best_test['train_dxn'] = train_dxn
+    best_test['test_dxn'] = test_dxn
+    best_test['valid_dxn'] = valid_dxn
+
+    if output_file == None:
+        output_file = "testing.json"
+
+    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/wine",
+                   output_file=output_file)
     return
 
 
 @click.command()
 @click.option("--loss", required=True)
 @click.option("--epochs", required=True)
+@click.option("--batch_size", required=True)
 @click.option("--run_name", required=False)
-def run(loss, epochs, run_name):
-    data_splits = load_white_wine()
-    train_wine(data_splits, loss_metric=loss,
-               epochs=int(epochs), run_name=run_name)
+@click.option("--cuda", required=False)
+@click.option("--patience", required=True)
+@click.option("--output_file", required=True)
+def run(loss, epochs, batch_size, run_name, cuda, patience, output_file):
+    print(run_name)
+    
+    batch_size = int(batch_size)
+    epochs = int(epochs)
+
+    seeds = [1,2,3,4,5]
+    for i in range(len(seeds)): 
+        data_splits = load_white_wine(seed=seeds[i])
+        temp_name = str(run_name) + "-" + str(i)
+        train_wine(data_splits, loss_metric=loss, epochs=epochs, seed=seeds[i], run_name=temp_name,
+                cuda=cuda, batch_size=batch_size, patience=patience, output_file=output_file)
 
 
 def main():
@@ -536,9 +759,13 @@ def main():
 if __name__ == '__main__':
     main()
 
-
 '''
-- Write loss for the weighted classes, and for the different F1's 
+python3 wine.py --loss="approx-f1" --epochs=5000 --batch_size=256 --run_name="256-approx-f1" --cuda=1 --output_file="20201214_rawresults.json" --patience=20
+python3 wine.py --loss="ce" --epochs=5000 --batch_size=256 --run_name="256-baseline-ce" --cuda=1 --output_file="20201214_rawresults.json" --patience=20
+
+python3 wine.py --loss="approx-f1" --epochs=5000 --batch_size=512 --run_name="512-approx-f1" --cuda=1 --output_file="20201214_rawresults.json" --patience=20
+python3 wine.py --loss="ce" --epochs=5000 --batch_size=512 --run_name="512-baseline-ce" --cuda=1 --output_file="20201214_rawresults.json" --patience=20
+
 
 
 '''
