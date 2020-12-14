@@ -709,8 +709,8 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 iris.py --loss="approx-f1" --epochs=1000 --batch_size=256 --run_name="256-approx-f1" --cuda=0 --output_file="20201213_rawresults.json" --patience=20
-python3 iris.py --loss="approx-acc" --epochs=1000 --batch_size=256 --run_name="256-approx-acc" --cuda=0 --output_file="20201213_rawresults.json" --patience=20
-python3 iris.py --loss="approx-auroc" --epochs=1000 --batch_size=256 --run_name="256-approx-auroc" --cuda=0 --output_file="20201213_rawresults.json" --patience=20
-python3 iris.py --loss="ce" --epochs=2000 --batch_size=256 --run_name="256-baseline-ce" --cuda=0 --output_file="20201213_rawresults.json" --patience=20
+python3 iris.py --loss="approx-f1" --epochs=5000 --batch_size=256 --run_name="256-approx-f1" --cuda=0 --output_file="20201213_rawresults.json" --patience=20
+python3 iris.py --loss="approx-acc" --epochs=5000 --batch_size=256 --run_name="256-approx-acc" --cuda=0 --output_file="20201213_rawresults.json" --patience=20
+python3 iris.py --loss="approx-auroc" --epochs=5000 --batch_size=256 --run_name="256-approx-auroc" --cuda=0 --output_file="20201213_rawresults.json" --patience=20
+python3 iris.py --loss="ce" --epochs=5000 --batch_size=256 --run_name="256-baseline-ce" --cuda=0 --output_file="20201213_rawresults.json" --patience=20
 '''
