@@ -282,13 +282,13 @@ def train_iris(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
     # evaluating this across thresholds, not for a single threshold.
     elif loss_metric == "approx-f1":
         approx = True
-        criterion = clean_mean_f1_approx_loss_on(device=device)
+        criterion = clean_mean_f1_approx_loss_on(device=device, thresholds=torch.arange(0.1, 1, 0.1))
     elif loss_metric == "approx-acc":
         approx = True
-        criterion = mean_accuracy_approx_loss_on(device=device)
-    elif loss_metric == "approx-auroc":
-        approx = True
-        criterion = mean_auroc_approx_loss_on(device=device)
+        criterion = mean_accuracy_approx_loss_on(device=device, thresholds=torch.arange(0.1, 1, 0.1))
+    # elif loss_metric == "approx-auroc":
+    #     approx = True
+    #     criterion = mean_auroc_approx_loss_on(device=device)
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
@@ -355,18 +355,16 @@ def train_iris(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
                 output = model(inputs)
 
                 ## if we're doing regular ce
+                labels = labels.type(torch.int64)
                 if not approx:
                     loss = criterion(output, labels)
 
                 ## if we're doing approx
                 else:
-                    labels = labels.type(torch.int64)
                     train_labels = torch.zeros(len(labels), 3).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output=output.to(device)
-                    
-                    loss = criterion(
-                        y_labels=train_labels, y_preds=output, thresholds=torch.arange(0.1, 1, 0.1))
+                    loss = criterion(y_labels=train_labels, y_preds=output)
 
                 losses.append(loss)
                 loss.backward()
@@ -479,13 +477,14 @@ def train_iris(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
                 test_labels = np.concatenate([test_labels, label_arr])
                 test_preds = np.concatenate([test_preds, pred_arr])
 
+                labels = labels.type(torch.int64)
                 if approx:
-                    labels = labels.type(torch.int64)
+                    
                     trans_labels = torch.zeros(len(labels), 3).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
                     batch_test_loss = criterion(
-                        y_labels=trans_labels, y_preds=output, thresholds=torch.arange(0.1, 1, 0.1))
+                        y_labels=trans_labels, y_preds=output)
                 else:
                     batch_test_loss = criterion(output, labels)
 
@@ -563,13 +562,12 @@ def train_iris(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
                 val_preds = np.concatenate([val_preds, pred_arr])
 
                 # valid loss if APPROX
+                labels = labels.type(torch.int64)
                 if approx:
-                    # print(target)
-                    labels = labels.type(torch.int64)
                     valid_labels = torch.zeros(len(labels), 3).to(device).scatter_(1, labels.unsqueeze(1), 1.).to(device)
 
                     output = output.to(device)
-                    batch_val_loss = criterion(y_labels=valid_labels, y_preds=output, thresholds=torch.arange(0.1, 1, 0.1))
+                    batch_val_loss = criterion(y_labels=valid_labels, y_preds=output)
                 # using regular CE
                 else:
                     batch_val_loss = criterion(output, labels)
@@ -688,13 +686,17 @@ def train_iris(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
 @click.option("--patience", required=True)
 @click.option("--output_file", required=True)
 def run(loss, epochs, batch_size, run_name, cuda, patience, output_file):
-    seed = 1
     print(run_name)
-    data_splits = load_iris(seed=seed)
+    
     batch_size = int(batch_size)
     epochs = int(epochs)
-    train_iris(data_splits, loss_metric=loss, epochs=epochs, seed=seed, run_name=run_name,
-               cuda=cuda, batch_size=batch_size, patience=patience, output_file=output_file)
+
+    seeds = [1,2,3,4,5]
+    for i in range(len(seeds)): 
+        data_splits = load_iris(seed=seeds[i])
+        temp_name = str(run_name) + "-" + str(i)
+        train_iris(data_splits, loss_metric=loss, epochs=epochs, seed=seeds[i], run_name=temp_name,
+                cuda=cuda, batch_size=batch_size, patience=patience, output_file=output_file)
 
 
 def main():
@@ -708,6 +710,7 @@ if __name__ == '__main__':
 
 '''
 python3 iris.py --loss="approx-f1" --epochs=1000 --batch_size=256 --run_name="256-approx-f1" --cuda=0 --output_file="20201213_rawresults.json" --patience=20
-
-python3 iris.py --loss="ce" --epochs=1000 --batch_size=256 --run_name="256-baseline-ce" --cuda=0 --output_file="20201213_rawresults.json" --patience=20
+python3 iris.py --loss="approx-acc" --epochs=1000 --batch_size=256 --run_name="256-approx-acc" --cuda=0 --output_file="20201213_rawresults.json" --patience=20
+python3 iris.py --loss="approx-auroc" --epochs=1000 --batch_size=256 --run_name="256-approx-auroc" --cuda=0 --output_file="20201213_rawresults.json" --patience=20
+python3 iris.py --loss="ce" --epochs=2000 --batch_size=256 --run_name="256-baseline-ce" --cuda=0 --output_file="20201213_rawresults.json" --patience=20
 '''

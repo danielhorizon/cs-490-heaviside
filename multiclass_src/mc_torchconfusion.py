@@ -246,7 +246,7 @@ def clean_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds
     '''
     thresholds = thresholds.to(device)
 
-    def loss(y_labels, y_preds, thresholds):
+    def loss(y_labels, y_preds):
         classes = len(y_labels[0])
         mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
 
@@ -254,7 +254,7 @@ def clean_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds
             gt_list = torch.Tensor([x[i] for x in y_labels])
             pt_list = y_preds[:, i]  # pt list for the given class
 
-            thresholds = thresholds.to(device)
+            thresholds = torch.arange(0.1, 1, 0.1).to(device)
             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
             precision = tp/(tp+fp+EPS)
             recall = tp/(tp+fn+EPS)

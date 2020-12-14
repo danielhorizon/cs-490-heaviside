@@ -86,7 +86,7 @@ def load_white_wine(shuffle=True):
 
     # Split and shuffle
     train_df, test_df = train_test_split(raw_df, test_size=0.2, shuffle=shuffle)
-    train_df, val_df = train_test_split(train_df, test_size=0.1, shuffle=shuffle)
+    train_df, val_df = train_test_split(train_df, test_size=0.2, shuffle=shuffle)
 
     train_labels = np.array(train_df.pop("quality"))
     val_labels = np.array(val_df.pop("quality"))
