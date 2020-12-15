@@ -93,7 +93,6 @@ def load_model(model_name):
 
     model = Net()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    # model.load_state_dict(torch.load(model_path))
     model = torch.load(model_path).to("cuda:3")
     model.eval()
     return model

@@ -263,18 +263,6 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
         print("device = cpu")
         device = "cpu"
 
-    # setting train, validation, and test sets
-    X_train, y_train = data_splits['train']['X'], data_splits['train']['y']
-    X_valid, y_valid = data_splits['val']['X'], data_splits['val']['y']
-    X_test, y_test = data_splits['test']['X'], data_splits['test']['y']
-
-    X_train = Variable(torch.Tensor(X_train).float(), requires_grad=True)
-    X_test = Variable(torch.Tensor(X_test).float())
-    X_valid = Variable(torch.Tensor(X_valid).float())
-    y_train = Variable(torch.Tensor(y_train).long())
-    y_test = Variable(torch.Tensor(y_test).long())
-    y_valid = Variable(torch.Tensor(y_valid).long())
-
     # setting seeds
     set_seed(seed)
     torch.manual_seed(seed)
