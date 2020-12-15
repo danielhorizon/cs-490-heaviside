@@ -760,12 +760,10 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 wine.py --loss="approx-f1" --epochs=5000 --batch_size=256 --run_name="256-approx-f1" --cuda=1 --output_file="20201214_rawresults.json" --patience=20
-python3 wine.py --loss="ce" --epochs=5000 --batch_size=256 --run_name="256-baseline-ce" --cuda=1 --output_file="20201214_rawresults.json" --patience=20
+python3 wine.py --loss="approx-f1" --epochs=5000 --batch_size=256 --run_name="256-approx-f1" --cuda=1 --output_file="20201214_rawresults.json" --patience=50
+python3 wine.py --loss="ce" --epochs=5000 --batch_size=256 --run_name="256-baseline-ce" --cuda=1 --output_file="20201214_rawresults.json" --patience=50
 
-python3 wine.py --loss="approx-f1" --epochs=5000 --batch_size=512 --run_name="512-approx-f1" --cuda=1 --output_file="20201214_rawresults.json" --patience=20
-python3 wine.py --loss="ce" --epochs=5000 --batch_size=512 --run_name="512-baseline-ce" --cuda=1 --output_file="20201214_rawresults.json" --patience=20
-
-
+python3 wine.py --loss="approx-f1" --epochs=5000 --batch_size=512 --run_name="512-approx-f1" --cuda=1 --output_file="20201214_rawresults.json" --patience=50
+python3 wine.py --loss="ce" --epochs=5000 --batch_size=512 --run_name="512-baseline-ce" --cuda=1 --output_file="20201214_rawresults.json" --patience=50
 
 '''
