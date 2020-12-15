@@ -357,7 +357,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # setting up tensorboard
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard", "cifar-10-v3", experiment_name])
+        tensorboard_path = "/".join(["tensorboard", "cifar-10-bal", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -742,7 +742,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
                 today_date = time.strftime('%Y%m%d')
                 # TODO(dlee): add in support for balanced dataset.
-                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-v3",
+                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-bal",
                                             '{}-best_model-{}.pth'.format(
                                                 today_date, run_name
                                             )])
@@ -762,7 +762,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-v3",
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-bal",
                                 '{}-overfit-model-{}.pth'.format(
                                     time.strftime('%Y%m%d'), run_name
                                 )])
@@ -783,7 +783,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     if output_file == None:
         output_file = "testing.json"
 
-    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/train_tau/20201212",
+    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/train_tau/balanced",
                    output_file=output_file)
     return
 
@@ -807,10 +807,10 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience, outp
         imbalanced = True
 
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
-    seeds = [57, 23]
+    seeds = [44, 57, 23]
     # seeds = [23]
     for i in range(len(seeds)):
-        temp_name = str(run_name) + "-" + str(i+1)
+        temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name, 
                     seed=seeds[i], cuda=cuda, batch_size=int(batch_size), train_tau=train_tau, patience=patience, output_file=output_file)
 
@@ -826,7 +826,7 @@ if __name__ == '__main__':
 
 
 '''
-python3 cifar_threshtrain.py --epochs=3 --loss="approx-f1" --imb --run_name="asdf" --cuda=3 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="asdf.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="asdf" --cuda=3 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="asdf.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.125" --cuda=3 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.2" --cuda=1 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.3" --cuda=3 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
@@ -843,6 +843,24 @@ python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.7" --cuda=2 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.9" --cuda=2 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
+
+
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.1" --cuda=1 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.125" --cuda=1 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.2" --cuda=1 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
+
+
+
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.5" --cuda=2 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.6" --cuda=3 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.7" --cuda=3 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.8" --cuda=1 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
+# need to run 
 
 
 '''

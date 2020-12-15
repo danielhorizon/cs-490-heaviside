@@ -370,7 +370,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     if run_name:
         experiment_name = run_name
         tensorboard_path = "/".join(["tensorboard",
-                                     "cifar-10-v3", experiment_name])
+                                     "cifar-10-bal", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -784,7 +784,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
                 today_date = time.strftime('%Y%m%d')
                 # TODO(dlee): add in support for balanced dataset. 
-                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-v3",
+                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-bal",
                                             '{}-best_model-{}.pth'.format(
                                                 today_date, run_name
                                             )])
@@ -805,7 +805,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-v3",
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-bal",
                                 '{}-overfit-model-{}.pth'.format(
                                     time.strftime('%Y%m%d'), run_name
                                 )])
@@ -849,7 +849,8 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, patience, output_file):
         imbalanced = True
 
     # seeds = [1, 45, 92, 34, 15]
-    seeds = [14, 57, 23]
+    # seeds = [14, 57, 23]
+    seeds = [1,2,3]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name,
@@ -867,10 +868,10 @@ if __name__ == '__main__':
 
 '''
 
-python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --run_name="1024-approx-f1-reg" --cuda=0 --patience=100 --output_file="20201212_results.json" 
-python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --run_name="1024-baseline-ce-reg" --cuda=0 --patience=100 --output_file="20201212_results.json" 
+python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --run_name="1024-approx-f1-reg" --cuda=0 --patience=100 --output_file="20201214_results.json" 
+python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --run_name="1024-baseline-ce-reg" --cuda=0 --patience=100 --output_file="20201214_results.json" 
 
 
-python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --imb --run_name="1024-approx-f1-imb" --cuda=2 --patience=100 --output_file="20201212_results.json" 
-python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --imb --run_name="1024-baseline-ce-imb" --cuda=2 --patience=100 --output_file="20201212_results.json" 
+python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --imb --run_name="1024-approx-f1-imb" --cuda=2 --patience=100 --output_file="20201214_results.json" 
+python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --imb --run_name="1024-baseline-ce-imb" --cuda=2 --patience=100 --output_file="20201214_results.json" 
 '''

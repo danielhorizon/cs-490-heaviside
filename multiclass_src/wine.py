@@ -320,7 +320,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
 
     if run_name:
         experiment_name = run_name
-        tensorboard_path = "/".join(["tensorboard", "iris", experiment_name])
+        tensorboard_path = "/".join(["tensorboard", "wine", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -699,7 +699,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/iris",
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/wine",
                                 '{}-overfit-model-{}.pth'.format(
                                     time.strftime('%Y%m%d'), run_name
                                 )])
