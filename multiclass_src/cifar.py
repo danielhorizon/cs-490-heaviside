@@ -450,7 +450,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         else:
             # going over in batches
             for i, (inputs, labels) in enumerate(train_loader):
-
+                model.train()
                 # for class distribution - loop through and add
                 labels_list = labels.numpy()
                 for label in labels_list:
@@ -741,6 +741,8 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
             # TODO(dlee): fix this so that it includes the metrics, like we did in iris
             valid_loss = np.mean(valid_losses)
+            print("VALID_LOSS: {}".format(valid_loss))
+            print("EVAL CLASS F1: {}".format(eval_class_f1s))
             if approx: 
                 valid_mean_f1 = np.array(eval_class_f1s).mean()
             else: 
@@ -784,6 +786,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
                 today_date = time.strftime('%Y%m%d')
                 # TODO(dlee): add in support for balanced dataset. 
+                # TODO(dlee): add in epoch number to know when it saved 
                 model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-bal",
                                             '{}-best_model-{}.pth'.format(
                                                 today_date, run_name
@@ -791,9 +794,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 torch.save(model, model_file_path)
                 patience = reset_patience
                 lowest_f1_loss = valid_loss
-
                 best_test['model_file_path'] = model_file_path
-                # best_test['val_f1_score'] = lowest_f1_loss
 
             ## if early stopping has begun, print it like this.
             if not adjust:
@@ -868,7 +869,7 @@ if __name__ == '__main__':
 
 '''
 
-python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --run_name="1024-approx-f1-reg" --cuda=0 --patience=100 --output_file="20201214_results.json" 
+python3 cifar.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --run_name="1024-approx-f1-reg" --cuda=0 --patience=100 --output_file="20201217_results.json" 
 python3 cifar.py --loss="ce" --epochs=2000 --batch_size=1024 --run_name="1024-baseline-ce-reg" --cuda=0 --patience=100 --output_file="20201214_results.json" 
 
 

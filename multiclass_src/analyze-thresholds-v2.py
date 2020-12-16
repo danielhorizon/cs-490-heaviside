@@ -21,6 +21,7 @@ import torch.optim as optim
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10
 from torch.utils.data.dataloader import DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data import Dataset
 
 from sklearn.metrics import confusion_matrix
@@ -147,9 +148,72 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
     return mean_f1s, mean_f1s.mean(), precisions, recalls
 
 
-def get_metrics(device, batch_size, seed, results_path, models_path, models_list, output_file):
+# https://gist.github.com/kevinzakka/d33bf8d6c7f06a9d8c76d97a7879f5cb
+def load_data_v2(shuffle=True, batch_size=None, seed=None):
+    torch.manual_seed(seed)
+
+    normalize = transforms.Normalize(
+        mean=[0.4914, 0.4822, 0.4465],
+        std=[0.2023, 0.1994, 0.2010],
+    )
+
+    # define transforms for validation and train.
+    valid_transform = transforms.Compose([
+        transforms.ToTensor(),
+        normalize,
+    ])
+    train_transform = transforms.Compose([
+        transforms.ToTensor(),
+        normalize,
+    ])
+
+    # loading in dataset.
+    train_dataset = CIFAR10(train=True, download=True,
+                            root="../data", transform=train_transform)
+    valid_dataset = CIFAR10(train=True, download=True,
+                            root="../data", transform=valid_transform)
+    # need to transform the test according to the train.
+    test_dataset = CIFAR10(train=False, download=True,
+                           root="../data", transform=train_transform)
+
+    print("Train Size: {}, Test Size: {}, Valid Size: {}".format(
+        len(train_dataset), len(test_dataset), len(valid_dataset)))
+
+    # spliiting into validation/train/test.
+    num_train = len(train_dataset)
+    indices = list(range(num_train))
+    valid_size = 0.10
+    split = int(np.floor(valid_size * num_train))
+    if shuffle:
+        np.random.shuffle(indices)
+
+    train_idx, valid_idx = indices[split:], indices[:split]
+    print("Train Size:{} Valid Size: {}".format(len(train_idx), len(valid_idx)))
+    train_sampler = SubsetRandomSampler(train_idx)
+    valid_sampler = SubsetRandomSampler(valid_idx)
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, sampler=train_sampler,
+        num_workers=0, pin_memory=True,
+    )
+    valid_loader = DataLoader(
+        valid_dataset, batch_size=batch_size, sampler=valid_sampler,
+        num_workers=0, pin_memory=True,
+    )
+    test_loader = DataLoader(
+        test_dataset, batch_size=batch_size, shuffle=True,
+        num_workers=0, pin_memory=True,
+    )
+    return train_loader, valid_loader, test_loader
+
+
+def get_metrics(device, batch_size, seed, results_path, models_path, models_list, output_file, imbalanced):
     # LOAD IN TEST LOADER 
-    test_loader, _, _ = get_test_loader(batch_size=batch_size, seed=seed)
+    if imbalanced:
+        _, _, test_loader  = get_test_loader(batch_size=batch_size, seed=seed)
+    else: 
+        _, _, test_loader = load_data_v2(batch_size=batch_size, seed=seed)
+
 
     # EVALUATION
     results_json = {   
@@ -344,19 +408,34 @@ def get_metrics(device, batch_size, seed, results_path, models_path, models_list
 
 
 if __name__ == '__main__':
-    # trained_taus = ["0.1", "0.125", "0.2", "0.3",
-    #                 "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
+    trained_taus = ["0.1", "0.125", "0.2", "0.3",
+                    "0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
 
-    # run_name = "overfit-model-v4-traintau-approx-f1-imb"
+    # run_name = "20201215-best_model-traintau-approx-f1-reg"
     # num_runs = 3
     # for run_number in range(num_runs): 
     #     models_list = []
     #     for i in range(len(trained_taus)):
     #         models_list.append(run_name + "-" + str(trained_taus[i] + "-" + str(run_number) +  ".pth"))
     
-        get_metrics(device="cuda:3", batch_size=1024, seed=11,
-                    results_path="/app/timeseries/multiclass_src/results/train_tau/20201210",
-                    models_path="/app/timeseries/multiclass_src/models/",
-                    models_list=[
-                        '20201210-best-model-debug-traintau-approx-f1-imb-0.125-0.pth'],
-                    output_file="0_1234.json")
+    #         get_metrics(device="cuda:3", batch_size=1024, seed=11,
+    #                     results_path="/app/timeseries/multiclass_src/results/train_tau/20201216",
+    #                     models_path="/app/timeseries/multiclass_src/models/cifar-10-bal",
+    #                     models_list=models_list, 
+    #                     output_file="balanced_results.json", 
+    #                     imbalanced=False)
+
+    run_name = "best_model-v4-traintau-approx-f1-imb"
+    num_runs = 3
+    for run_number in range(num_runs):
+        models_list = []
+        for i in range(len(trained_taus)):
+            models_list.append(
+                run_name + "-" + str(trained_taus[i] + "-" + str(run_number) + ".pth"))
+
+            get_metrics(device="cuda:3", batch_size=1024, seed=11,
+                        results_path="/app/timeseries/multiclass_src/results/train_tau/20201216",
+                        models_path="/app/timeseries/multiclass_src/models/cifar-10-v2",
+                        models_list=models_list,
+                        output_file="v2_imbalanced_results.json",
+                        imbalanced=True)
