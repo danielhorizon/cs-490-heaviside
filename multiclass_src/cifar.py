@@ -5,16 +5,16 @@ import time
 import json
 import numpy as np
 import pandas as pd
+import random
+
+import torchvision
+import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
-
-from mc_metrics import get_confusion
-
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-import torchvision
-import torchvision.transforms as transforms
+
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import ToTensor
 from torchvision.utils import make_grid
@@ -23,7 +23,7 @@ from torch.utils.data import random_split, WeightedRandomSampler
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data import Dataset
-
+from mc_metrics import get_confusion
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler

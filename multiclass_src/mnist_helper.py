@@ -1,12 +1,20 @@
-import os 
+import os
 import os.path
 import gzip
 import pickle
 import numpy as np
-import random 
+import random
 import torch
+import torchvision
+
+from random import sample
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+
+from torchvision.datasets import MNIST
+from torch.utils.data.dataloader import DataLoader
+from torch.utils.data.sampler import SubsetRandomSampler
+
 
 train_num = 60000
 test_num = 10000
@@ -15,14 +23,17 @@ img_size = 784
 
 
 def loadX(fnimg):
-	f = gzip.open(fnimg, 'rb')
-	f.read(16)
-	return np.frombuffer(f.read(), dtype=np.uint8).reshape((-1, 28*28))
-    
+    f = gzip.open(fnimg, 'rb')
+    f.read(16)
+    return np.frombuffer(f.read(), dtype=np.uint8).reshape((-1, 28*28))
+
+
 def loadY(fnlabel):
-	f = gzip.open(fnlabel, 'rb')
-	f.read(8)
-	return np.frombuffer(f.read(), dtype=np.uint8)
+    f = gzip.open(fnlabel, 'rb')
+    f.read(8)
+    return np.frombuffer(f.read(), dtype=np.uint8)
+
+
 def get_idx_list(arr):
     class_nine = []
     for i in range(len(arr)):
@@ -31,6 +42,8 @@ def get_idx_list(arr):
             class_nine.append(i)
     print("Class 9: {}".format(len(class_nine)))
     return class_nine
+
+
 def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
@@ -45,7 +58,6 @@ def create_imbalance_train(images, labels, seed):
     class_count = np.unique(labels, return_counts=True)[1]
     # gets us indices of all class 9's - 5000 indices
     class_nine_idx = get_idx_list(labels)
-    print("LENGTH OF THIS CLASS:{}".format(len(class_nine_idx)))
     subset_amt = int(len(class_nine_idx) * 0.8)
 
     remove_indices = sample(class_nine_idx, subset_amt)
@@ -71,39 +83,42 @@ def create_imbalance_train(images, labels, seed):
     return imb_images, imb_labels
 
 
-def load_entire_dataset(seed):
-    train_X = loadX("/app/timeseries/multiclass_src/data/MNIST/train-images-idx3-ubyte.gz")
-    train_y = loadY("/app/timeseries/multiclass_src/data/MNIST/train-labels-idx1-ubyte.gz")
+def load_mnist_imbalanced(seed):
+    train_X = loadX(
+        "/app/timeseries/multiclass_src/data/MNIST/train-images-idx3-ubyte.gz")
+    train_y = loadY(
+        "/app/timeseries/multiclass_src/data/MNIST/train-labels-idx1-ubyte.gz")
 
-    test_X = loadX("/app/timeseries/multiclass_src/data/MNIST/t10k-images-idx3-ubyte.gz")
-    test_y = loadY("/app/timeseries/multiclass_src/data/MNIST/t10k-labels-idx1-ubyte.gz")
+    test_X = loadX(
+        "/app/timeseries/multiclass_src/data/MNIST/t10k-images-idx3-ubyte.gz")
+    test_y = loadY(
+        "/app/timeseries/multiclass_src/data/MNIST/t10k-labels-idx1-ubyte.gz")
 
-    print(train_X[0].shape)
-    # combine it all into one big dataset 
+    # combine it all into one big dataset
     imgs = np.vstack((train_X, test_X))
-    print("dataset shape: {}".format(imgs.shape))
     cls = np.hstack((train_y, test_y))
-    print("labels shape: {}".format(cls.shape))
+    print("dataset shape: {} | labels shape: {}".format(imgs.shape, cls.shape))
 
-    images = [] 
+    images = []
     # convert values to being between 0 and 1
-    for i in range(len(imgs)): 
+    for i in range(len(imgs)):
+        # -1, num channels, img_size, img_size
         images.append(imgs[i] / 255.0)
     images = np.array(images)
-    print(images[0].shape)
+    images = images.reshape([-1, 1, 28, 28])
     
-    imgs = np.array(imgs)
-    cls = np.array(cls)
-    
-    # creating imbalance in the dataset. 
+    imgs = np.array(images, dtype=float)
+    cls = np.array(cls, dtype=int)
+
+    # creating imbalance in the dataset.
     X, y = create_imbalance_train(images=imgs, labels=cls, seed=seed)
 
-    # do the splits, and imbalance 
+    # do the splits, and imbalance
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=seed)
     X_train, X_valid, y_train, y_valid = train_test_split(
         X_train, y_train, test_size=0.25, random_state=seed)  # 0.25 x 0.8 = 0.2
-    
+
     print("Shape of train: {}".format(X_train[0].shape))
     print("Shape of test: {}".format(X_test[0].shape))
     print("Shape of val: {}".format(X_valid[0].shape))
@@ -111,7 +126,7 @@ def load_entire_dataset(seed):
     print("Size of valid labels: {}".format(len(y_valid)))
     print("Size of test labels: {}".format(len(y_test)))
 
-    # then use Scaler() 
+    # then use Scaler()
     X_train = np.array(X_train)
     X_test = np.array(X_test)
     X_valid = np.array(X_valid)
@@ -124,10 +139,6 @@ def load_entire_dataset(seed):
         X_valid.reshape(-1, X_valid.shape[-1])).reshape(X_valid.shape)
     X_test = scaler.transform(
         X_test.reshape(-1, X_test.shape[-1])).reshape(X_test.shape)
-
-    print("Shape of train: {}".format(X_train[0].shape))
-    print("Shape of test: {}".format(X_test[0].shape))
-    print("Shape of val: {}".format(X_valid[0].shape))
 
     return {
         'train': {
@@ -145,5 +156,39 @@ def load_entire_dataset(seed):
     }
 
 
-if __name__ == "__main__":
-    test = load_entire_dataset(2) 
+def load_balanced_data(show=False, shuffle=True, seed=None, batch_size=None):
+    transform = transform = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(
+            (0.1307,), (0.3081,))
+    ])
+
+    # train and valid data
+    train_dataset = MNIST(root='../data', train=True,
+                          download=True, transform=transform)
+    valid_dataset = MNIST(root='../data', train=True,
+                          download=True, transform=transform)
+    # getting testing data
+    test_dataset = MNIST(root='../data', train=False,
+                         download=True, transform=transform)
+
+    num_train = len(train_dataset)
+    valid_size = 0.2
+    indices = list(range(num_train))
+    split = int(np.floor(valid_size * num_train))
+    if shuffle == True:
+        np.random.seed(seed)
+        np.random.shuffle(indices)
+
+    train_idx, valid_idx = indices[split:], indices[:split]
+    train_sampler = SubsetRandomSampler(train_idx)
+    valid_sampler = SubsetRandomSampler(valid_idx)
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=0, pin_memory=True)
+    valid_loader = DataLoader(
+        valid_dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=0, pin_memory=True)
+    test_loader = DataLoader(
+        test_dataset, batch_size=batch_size, shuffle=True,num_workers=0, pin_memory=True)
+
+    return train_loader, valid_loader, test_loader
