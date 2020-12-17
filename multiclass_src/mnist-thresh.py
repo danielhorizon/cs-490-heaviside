@@ -258,8 +258,8 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             batch_size=batch_size, seed=seed)
         best_test['imbalanced'] = True
     else:
-        train_loader, val_loader, test_loader = load_data_v2(
-            batch_size=batch_size, shuffle=True, seed=seed)
+        train_loader, val_loader, test_loader = load_balanced_data(
+            seed=seed, batch_size=batch_size)
 
     learning_rate = 0.001
     best_test['learning_rate'] = learning_rate
