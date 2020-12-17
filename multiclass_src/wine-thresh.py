@@ -325,7 +325,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
     np.random.seed(seed)
 
     # storing metrics
-    train_dxn, test_dxn, valid_dxn = [0, 0, 0], [0, 0, 0], [0, 0, 0]
+    train_dxn, test_dxn, valid_dxn = [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]
     best_test = {
         "best-epoch": 0,
         "loss": float('inf'),
@@ -791,17 +791,17 @@ if __name__ == '__main__':
 
 '''
 
-python3 wine-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-0.1" --cuda=0 --train_tau=0.1 --batch_size=1024 --patience=20 --output_file="thresh_results.json"
-python3 wine-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-0.125" --cuda=0 --train_tau=0.125 --batch_size=1024 --patience=20 --output_file="thresh_results.json"
-python3 wine-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-0.2" --cuda=0 --train_tau=0.2 --batch_size=1024 --patience=20 --output_file="thresh_results.json"
-python3 wine-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-0.3" --cuda=0 --train_tau=0.3 --batch_size=1024 --patience=20 --output_file="thresh_results.json"
-python3 wine-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-0.4" --cuda=0 --train_tau=0.4 --batch_size=1024 --patience=20 --output_file="thresh_results.json"
+python3 wine-thresh.py --epochs=5000 --loss="approx-f1" --run_name="traintau-af1-0.1" --cuda=0 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
+python3 wine-thresh.py --epochs=5000 --loss="approx-f1" --run_name="traintau-af1-0.125" --cuda=0 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
+python3 wine-thresh.py --epochs=5000 --loss="approx-f1" --run_name="traintau-af1-0.2" --cuda=0 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
+python3 wine-thresh.py --epochs=5000 --loss="approx-f1" --run_name="traintau-af1-0.3" --cuda=0 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
+python3 wine-thresh.py --epochs=5000 --loss="approx-f1" --run_name="traintau-af1-0.4" --cuda=0 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
 
-python3 wine-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-0.5" --cuda=1 --train_tau=0.5 --batch_size=1024 --patience=20 --output_file="thresh_results.json"
-python3 wine-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-0.6" --cuda=1 --train_tau=0.6 --batch_size=1024 --patience=20 --output_file="thresh_results.json"
-python3 wine-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-0.7" --cuda=2 --train_tau=0.7 --batch_size=1024 --patience=20 --output_file="thresh_results.json"
-python3 wine-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-0.8" --cuda=2 --train_tau=0.8 --batch_size=1024 --patience=20 --output_file="thresh_results.json"
-python3 wine-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-0.9" --cuda=2 --train_tau=0.9 --batch_size=1024 --patience=20 --output_file="thresh_results.json"
+python3 wine-thresh.py --epochs=5000 --loss="approx-f1" --run_name="traintau-af1-0.5" --cuda=1 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
+python3 wine-thresh.py --epochs=5000 --loss="approx-f1" --run_name="traintau-af1-0.6" --cuda=1 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
+python3 wine-thresh.py --epochs=5000 --loss="approx-f1" --run_name="traintau-af1-0.7" --cuda=2 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
+python3 wine-thresh.py --epochs=5000 --loss="approx-f1" --run_name="traintau-af1-0.8" --cuda=2 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
+python3 wine-thresh.py --epochs=5000 --loss="approx-f1" --run_name="traintau-af1-0.9" --cuda=2 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
 
 
 '''

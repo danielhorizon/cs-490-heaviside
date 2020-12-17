@@ -284,9 +284,8 @@ def train_iris(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
         "best-epoch": 0,
         "loss": float('inf'),
         "test_wt_f1_score": 0,
-        'val_wt_f1_score':float("inf"),
+        "best-class-epoch": [0, 0, 0],
         "test_accuracy": 0,
-        "val_accuracy": 0,
         "learning_rate": 0,
         "imbalanced": False,
         "loss_metric": loss_metric,
@@ -296,7 +295,7 @@ def train_iris(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
         "valid_dxn": None,
         "seed": seed,
         "batch_size": batch_size,
-        "evaluation": None,
+        "model_file_path": None,
         "patience": None
     }
 
@@ -763,17 +762,17 @@ if __name__ == '__main__':
     main()
 
 '''
-python3 iris-poc.py --epochs=10000 --loss="approx-f1" --run_name="poc-af1-0.1" --cuda=0 --train_tau=0.1 --batch_size=1024 --patience=20 --output_file="poc_results.json"
-python3 iris-poc.py --epochs=10000 --loss="approx-f1" --run_name="poc-af1-0.125" --cuda=0 --train_tau=0.125 --batch_size=1024 --patience=20 --output_file="poc_results.json"
-python3 iris-poc.py --epochs=10000 --loss="approx-f1" --run_name="poc-af1-0.2" --cuda=0 --train_tau=0.2 --batch_size=1024 --patience=20 --output_file="poc_results.json"
-python3 iris-poc.py --epochs=10000 --loss="approx-f1" --run_name="poc-af1-0.3" --cuda=0 --train_tau=0.3 --batch_size=1024 --patience=20 --output_file="poc_results.json"
-python3 iris-poc.py --epochs=10000 --loss="approx-f1" --run_name="poc-af1-0.4" --cuda=0 --train_tau=0.4 --batch_size=1024 --patience=20 --output_file="poc_results.json"
+python3 iris-poc.py --epochs=20000 --loss="approx-f1" --run_name="poc-af1-0.1" --cuda=0 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="poc_results.json"
+python3 iris-poc.py --epochs=20000 --loss="approx-f1" --run_name="poc-af1-0.125" --cuda=0 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="poc_results.json"
+python3 iris-poc.py --epochs=20000 --loss="approx-f1" --run_name="poc-af1-0.2" --cuda=0 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="poc_results.json"
+python3 iris-poc.py --epochs=20000 --loss="approx-f1" --run_name="poc-af1-0.3" --cuda=0 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="poc_results.json"
+python3 iris-poc.py --epochs=20000 --loss="approx-f1" --run_name="poc-af1-0.4" --cuda=0 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="poc_results.json"
 
-python3 iris-poc.py --epochs=10000 --loss="approx-f1" --run_name="poc-af1-0.5" --cuda=1 --train_tau=0.5 --batch_size=1024 --patience=20 --output_file="poc_results.json"
-python3 iris-poc.py --epochs=10000 --loss="approx-f1" --run_name="poc-af1-0.6" --cuda=1 --train_tau=0.6 --batch_size=1024 --patience=20 --output_file="poc_results.json"
-python3 iris-poc.py --epochs=10000 --loss="approx-f1" --run_name="poc-af1-0.7" --cuda=2 --train_tau=0.7 --batch_size=1024 --patience=20 --output_file="poc_results.json"
-python3 iris-poc.py --epochs=10000 --loss="approx-f1" --run_name="poc-af1-0.8" --cuda=2 --train_tau=0.8 --batch_size=1024 --patience=20 --output_file="poc_results.json"
-python3 iris-poc.py --epochs=10000 --loss="approx-f1" --run_name="poc-af1-0.9" --cuda=2 --train_tau=0.9 --batch_size=1024 --patience=20 --output_file="poc_results.json"
+python3 iris-poc.py --epochs=20000 --loss="approx-f1" --run_name="poc-af1-0.5" --cuda=1 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="poc_results.json"
+python3 iris-poc.py --epochs=20000 --loss="approx-f1" --run_name="poc-af1-0.6" --cuda=1 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="poc_results.json"
+python3 iris-poc.py --epochs=20000 --loss="approx-f1" --run_name="poc-af1-0.7" --cuda=2 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="poc_results.json"
+python3 iris-poc.py --epochs=20000 --loss="approx-f1" --run_name="poc-af1-0.8" --cuda=2 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="poc_results.json"
+python3 iris-poc.py --epochs=20000 --loss="approx-f1" --run_name="poc-af1-0.9" --cuda=2 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="poc_results.json"
 
 
 
