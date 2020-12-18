@@ -754,7 +754,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     ## saving model for that class, only if it hasn't hit negative patience 
                     if early_stopping_per_class[i] == False: 
                         today_date = time.strftime('%Y%m%d')
-                        model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-poc-v2",
+                        model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-poc-v3",
                                                     '{}-class-{}-best-model-{}.pth'.format(
                                                     today_date, i+1, run_name
                                                 )])
@@ -809,7 +809,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-poc-v2",
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-poc-v3",
                                 '{}-overfit-model-{}.pth'.format(
                                     time.strftime('%Y%m%d'), run_name
                                 )])
@@ -829,7 +829,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     if output_file == None:
         output_file = "testing.json"
 
-    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/poc/20201216",
+    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/poc/20201217",
                    output_file=output_file)
     return
 
@@ -887,15 +887,15 @@ if __name__ == '__main__':
 # python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
 
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.1" --cuda=1 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.125" --cuda=1 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.2" --cuda=1 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.1" --cuda=0 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.125" --cuda=0 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.2" --cuda=0 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.3" --cuda=0 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.4" --cuda=1 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.5" --cuda=2 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.6" --cuda=3 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.7" --cuda=3 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-approx-f1-imb-0.9" --cuda=0 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.5" --cuda=1 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.6" --cuda=2 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.7" --cuda=2 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 '''
