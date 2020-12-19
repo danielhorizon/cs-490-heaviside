@@ -3,6 +3,7 @@ import click
 import torch
 import time
 import json
+import random
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -31,67 +32,31 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.metrics import confusion_matrix
 from sklearn import metrics
 
-from thresh_torchconfusion import *
-from download_cifar import *
+from torchconfusion import *
+from mc_metrics import *
+from mnist_helper import load_mnist_imbalanced, load_balanced_data
 
 EPS = 1e-7
 
-'''
-# https://www.stefanfiott.com/machine-learning/cifar-10-classifier-using-cnn-in-pytorch/
-# https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
 
-Input -> Conv (ReLU) -> MaxPool -> Conv (ReLU) -> MaxPool -> 
-    FC (ReLU) -> FC (ReLU) -> FC (Softmax) -> 10 outputs 
-
-Conv: convolution layer, ReLU = activation, MaxPool = pooling layer, FC = fully connected, Softmax
-
-Input: 3x32x32 (3 channels, RGB)
-
-1st Conv: Expects 3 channels, convolves 6 filters each of size 3x5x5 
-    Padding = 0, Stride = 0, Output must be 6x28x28 because (32 - 5) + 1 = 28 
-    This layer has ((5x5x3) + 1)*6 
-
-MaxPool: 2x2 kernel, stride = 2. 
-    Drops size from 6x28x28 -> 6x14x14 
-
-2nd Conv: Expects 6 input channels, convolves 16 filters of size 6x5x5 
-    Padding = 0, Stride = 1, output becomes 16x10x10 
-    This is because (14-5) + 1 = 10. 
-    Layer has ((5x5x6) + 1)x16 = 2416 parameters
-
-1st FCL: 
-    The output from the final max pooling layer needs to be flattened so we can connect 
-    it to a FC layer. Uses ReLU for activation, and has 120 nodes. 
-    ((16x5x5) + 1) x 120 = 48120 parameters 
-
-2nd FCL: 
-    Connected to another fully connected layer with 84 nodes, using ReLU as an activation function
-    This needs (120 + 1)*84 = 10164 parameters 
-
-Output: 
-    Uses softmax and is made up of 10 nodes, one for each category in CIFAR. 
-    Requires (84 + 1)*10 = 850 parameters
-'''
-
-
+# https://nextjournal.com/gkoehler/pytorch-mnist
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
+        self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
+        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
+        self.conv2_drop = nn.Dropout2d()
+        self.fc1 = nn.Linear(320, 50)
+        self.fc2 = nn.Linear(50, 10)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 5 * 5)
+        x = F.relu(F.max_pool2d(self.conv1(x), 2))
+        x = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
+        x = x.view(-1, 320)
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = F.dropout(x, training=self.training)
+        x = self.fc2(x)
         x = self.softmax(x)
         return x
 
@@ -177,7 +142,7 @@ def set_seed(seed):
 
 
 def load_imbalanced_data(batch_size, seed):
-    data_splits = load_imb_data_v2(seed)
+    data_splits = load_mnist_imbalanced(seed=seed)
     train_set = Dataset(data_splits['train'])
     validation_set = Dataset(data_splits['val'])
     test_set = Dataset(data_splits['test'])
@@ -208,8 +173,6 @@ def record_results(results_path, best_test, output_file):
         best_test = [best_test]
         with open(file_path, "w") as outfile:
             json.dump(best_test, outfile)
-
-## compute the normal set membershp for eval, not using soft-set calculations.
 
 
 def evaluation_f1_across_thresholds(device, y_labels=None, y_preds=None, thresholds=None):
@@ -299,7 +262,7 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
     return mean_f1s, mean_f1s.mean(), precisions, recalls
 
 
-def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None, batch_size=None,
+def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, seed=None, cuda=None, batch_size=None,
                 train_tau=None, patience=None, output_file=None):
     using_gpu = False
     if torch.cuda.is_available():
@@ -323,6 +286,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     valid_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     best_test = {
+        "date": time.strftime('%Y%m%d'), 
         "best-epoch": 0,
         "loss": float('inf'),
         "test_wt_f1_score": 0,
@@ -365,7 +329,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     if run_name:
         experiment_name = run_name
         tensorboard_path = "/".join(["tensorboard",
-                                     "cifar-10-poc", experiment_name])
+                                     "mnist-poc", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -754,7 +718,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     ## saving model for that class, only if it hasn't hit negative patience 
                     if early_stopping_per_class[i] == False: 
                         today_date = time.strftime('%Y%m%d')
-                        model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-poc-v3",
+                        model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-poc",
                                                     '{}-class-{}-best-model-{}.pth'.format(
                                                     today_date, i+1, run_name
                                                 )])
@@ -809,7 +773,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-poc-v3",
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-poc",
                                 '{}-overfit-model-{}.pth'.format(
                                     time.strftime('%Y%m%d'), run_name
                                 )])
@@ -829,7 +793,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     if output_file == None:
         output_file = "testing.json"
 
-    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/poc/20201217",
+    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/poc/mnist",
                    output_file=output_file)
     return
 
@@ -858,7 +822,7 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience, outp
     seeds = [1,2,3]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
-        train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name,
+        train_mnist(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name,
                     seed=seeds[i], cuda=cuda, batch_size=int(batch_size), train_tau=train_tau, patience=patience, output_file=output_file)
 
 
@@ -873,29 +837,33 @@ if __name__ == '__main__':
 
 
 '''
-
-# python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-# python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-# python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.2" --cuda=0 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-# python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-# python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.4" --cuda=3 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-
-# python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.5" --cuda=0 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-# python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.6" --cuda=1 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-# python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.7" --cuda=3 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-# python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.8" --cuda=1 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-# python3 cifar-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+2020-12-19: 
+Running now 
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.1" --cuda=1 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.125" --cuda=1 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
 
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.1" --cuda=0 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.125" --cuda=0 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.2" --cuda=0 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.3" --cuda=0 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.4" --cuda=1 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+--- Need to run: 
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.5" --cuda=1 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.6" --cuda=2 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.7" --cuda=2 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.5" --cuda=1 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.6" --cuda=2 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.7" --cuda=2 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
+# python3 mnist-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+# python3 mnist-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+# python3 mnist-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.2" --cuda=0 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+# python3 mnist-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+# python3 mnist-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.4" --cuda=3 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
+# python3 mnist-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.5" --cuda=0 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+# python3 mnist-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.6" --cuda=1 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+# python3 mnist-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.7" --cuda=3 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+# python3 mnist-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.8" --cuda=1 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+# python3 mnist-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
 '''
