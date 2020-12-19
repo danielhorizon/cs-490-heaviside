@@ -365,7 +365,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     if run_name:
         experiment_name = run_name
         tensorboard_path = "/".join(["tensorboard",
-                                     "cifar-poc", experiment_name])
+                                     "cifar-10-poc", experiment_name])
         writer = SummaryWriter(tensorboard_path)
 
     # criterion
@@ -754,7 +754,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     ## saving model for that class, only if it hasn't hit negative patience 
                     if early_stopping_per_class[i] == False: 
                         today_date = time.strftime('%Y%m%d')
-                        model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-poc",
+                        model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-poc",
                                                     '{}-class-{}-best-model-{}.pth'.format(
                                                     today_date, i+1, run_name
                                                 )])
@@ -809,7 +809,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-poc",
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/cifar-10-poc",
                                 '{}-overfit-model-{}.pth'.format(
                                     time.strftime('%Y%m%d'), run_name
                                 )])
@@ -829,7 +829,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     if output_file == None:
         output_file = "testing.json"
 
-    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/poc/20201218",
+    record_results(best_test=best_test, results_path="/app/timeseries/multiclass_src/results/poc/20201213",
                    output_file=output_file)
     return
 
@@ -855,7 +855,9 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience, outp
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [57, 23]
     # seeds = [14, 57, 23]
-    seeds = [1,2,3]
+    # seeds = [1,2,3]
+
+    seeds = [23]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name,
@@ -882,10 +884,12 @@ python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.5" --cuda=3 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.6" --cuda=3 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.7" --cuda=2 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.8" --cuda=0 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
 
 Killed 
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.8" --cuda=0 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.9" --cuda=1 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
 
 
 Need to run: 
