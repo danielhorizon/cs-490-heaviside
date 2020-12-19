@@ -286,11 +286,9 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     valid_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     best_test = {
-        "date": time.strftime('%Y%m%d'), 
         "best-epoch": 0,
         "loss": float('inf'),
         "test_wt_f1_score": 0,
-        "best-class-epoch": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         "test_accuracy": 0,
         "learning_rate": 0,
         "imbalanced": False,
@@ -317,8 +315,8 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             batch_size=batch_size, seed=seed)
         best_test['imbalanced'] = True
     else:
-        train_loader, val_loader, test_loader = load_data_v2(
-            batch_size=batch_size, shuffle=True, seed=seed)
+        train_loader, val_loader, test_loader = load_balanced_data(
+            seed=seed, batch_size=batch_size)
 
     learning_rate = 0.001
     best_test['learning_rate'] = learning_rate
@@ -344,20 +342,19 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             device=device, threshold=threshold_tensor)
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
-   
-    ## setting patience to be an array 
-    early_stopping_per_class = [False for i in range(10)]
-    patience_classes = [int(patience) for i in range(10)]
+
+    # ----- TRAINING, TESTING, VALIDATION -----
+    early_stopping = False
+    lowest_f1_loss = None
     print("patience: {}".format(patience))
-    reset_patience = [int(patience) for i in range(10)]
+    patience = int(patience)
+    reset_patience = patience
 
     losses = []
-    best_valid_class_losses = [None for i in range(10)]
     for epoch in range(epochs):
-        # checking if all classes have been trained thoroughly
-        print("patience: {}".format(patience_classes))
-        print("reset_patience: {}".format(reset_patience))
-        if all(early_stopping_per_class):
+        ## early stopping
+        if early_stopping:
+            print("Early stopping at Epoch {}/{}".format(epoch, epochs))
             break
 
         accs, microf1s, macrof1s, wf1s = [], [], [], []
@@ -368,6 +365,23 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         class_precision = {0: [], 1: [], 2: [], 3: [],
                            4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
         class_recall = {0: [], 1: [], 2: [], 3: [],
+                        4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+
+        ss_class_tp = {0: [], 1: [], 2: [], 3: [],
+                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_fn = {0: [], 1: [], 2: [], 3: [],
+                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_fp = {0: [], 1: [], 2: [], 3: [],
+                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_tn = {0: [], 1: [], 2: [], 3: [],
+                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_pr = {0: [], 1: [], 2: [], 3: [],
+                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_re = {0: [], 1: [], 2: [], 3: [],
+                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_f1 = {0: [], 1: [], 2: [], 3: [],
+                       4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
+        ss_class_acc = {0: [], 1: [], 2: [], 3: [],
                         4: [], 5: [], 6: [], 7: [], 8: [], 9: []}
 
         if epoch == 0:
@@ -392,8 +406,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     title = "train/class-" + str(i) + "-recall"
                     writer.add_scalar(title, 0, epoch)
         else:
-            # going over in batches, adding in class-based losses
-            tr_class_losses = []
+            # going over in batches
             for i, (inputs, labels) in enumerate(train_loader):
 
                 # for class distribution - loop through and add
@@ -415,15 +428,24 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
 
-                    # train it on the threshold here, the losses don't matter (until validation)
-                    loss, batch_class_losses = criterion(y_labels=train_labels, y_preds=output)
+                    loss, hclass_tp, hclass_fn, hclass_fp, hclass_tn, hclass_pr, hclass_re, hclass_f1, hclass_acc = criterion(
+                        y_labels=train_labels, y_preds=output)
 
                 losses.append(loss)
                 loss.backward()
                 optimizer.step()
 
-                ## appending in class based losses
-                tr_class_losses.append(batch_class_losses)
+                # storing soft-set-metrics
+                if approx:
+                    for i in range(10):
+                        ss_class_tp[i].append(hclass_tp[i])
+                        ss_class_fn[i].append(hclass_fn[i])
+                        ss_class_fp[i].append(hclass_fp[i])
+                        ss_class_tn[i].append(hclass_tn[i])
+                        ss_class_pr[i].append(hclass_pr[i])
+                        ss_class_re[i].append(hclass_re[i])
+                        ss_class_f1[i].append(hclass_f1[i])
+                        ss_class_acc[i].append(hclass_acc[i])
 
                 ## check prediction, switch to evaluation
                 model.eval()
@@ -440,6 +462,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                                          y_pred=train_preds.cpu(), average="macro"))
                 wf1s.append(f1_score(y_true=labels.cpu(),
                                      y_pred=train_preds.cpu(), average="weighted"))
+
                 # precision
                 micro_prs.append(precision_score(
                     y_true=labels.cpu(), y_pred=train_preds.cpu(), average="micro"))
@@ -474,9 +497,6 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             m_weightedf1s = np.array(microf1s).mean()
             m_microf1s = np.array(microf1s).mean()
             m_macrof1s = np.array(macrof1s).mean()
-            tr_class_losses = np.array(tr_class_losses)
-            tr_class_losses = np.mean(tr_class_losses, axis=0)
-
             print("Train - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
                 epoch, m_loss, m_accs, m_weightedf1s, m_microf1s, m_macrof1s)
             )
@@ -499,7 +519,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 writer.add_scalar("train/macro-precision",
                                   np.array(macro_prs).mean(), epoch)
 
-                # adding per-class f1, precision, and recall, and losses
+                # adding per-class f1, precision, and recall
                 for i in range(10):
                     title = "train/class-" + str(i) + "-f1"
                     writer.add_scalar(title, np.array(
@@ -511,51 +531,39 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     writer.add_scalar(title, np.array(
                         class_recall[i]).mean(), epoch)
 
-                    title = "train/class-" + str(i) + "loss"
-                    writer.add_scalar(
-                        title, tr_class_losses[i], epoch)
-        
-        ## purely for tensorboard logging
-        ## this is looking at class-based train losses 
-        model.eval()
-        with torch.no_grad():
-            tau_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
-            for tau in tau_thresholds:
-                # go through all the thresholds, and test them out again.
-                tr_preds, tr_labels = [], []
-                for i, (inputs, labels) in enumerate(train_loader):
-                    # stacking onto tensors.
-                    inputs, labels = inputs.to(device), labels.to(device)
-
-                    # passing it through our finalized model.
-                    output = model(inputs)
-                    labels = torch.zeros(len(labels), 10).to(device).scatter_(
-                        1, labels.unsqueeze(1), 1.).to(device)
-
-                    pred_arr = output.detach().cpu().numpy()
-                    label_arr = labels.detach().cpu().numpy()
-
-                    # appending results.
-                    tr_preds.append(pred_arr)
-                    tr_labels.append(label_arr)
-
-                tr_preds = torch.tensor(tr_preds[0])
-                tr_labels = torch.tensor(tr_labels[0])
-
-                tr_class_f1s, tr_mean_f1, _, _ = evaluation_f1(device=device, y_labels=tr_labels, y_preds=tr_preds, threshold=tau)
-
-                ## writing out results to tensorboard
-                title = "train/mean-f1-{}".format(tau)
-                writer.add_scalar(title, tr_mean_f1, epoch)
-
-                for i in range(10):
-                    title = "train/class-" + str(i) + "-loss-{}".format(tau)
-                    writer.add_scalar(title, 1-tr_class_f1s[i], epoch)
+                    if approx:
+                        # adding in softset membership
+                        title = "train/class-" + str(i) + "-softset-" + "TP"
+                        writer.add_scalar(title, np.array(
+                            ss_class_tp[i]).mean(), epoch)
+                        title = "train/class-" + str(i) + "-softset-" + "FP"
+                        writer.add_scalar(title, np.array(
+                            ss_class_fp[i]).mean(), epoch)
+                        title = "train/class-" + str(i) + "-softset-" + "FN"
+                        writer.add_scalar(title, np.array(
+                            ss_class_fn[i]).mean(), epoch)
+                        title = "train/class-" + str(i) + "-softset-" + "TN"
+                        writer.add_scalar(title, np.array(
+                            ss_class_tn[i]).mean(), epoch)
+                        title = "train/class-" + \
+                            str(i) + "-softset-" + "precision"
+                        writer.add_scalar(title, np.array(
+                            ss_class_pr[i]).mean(), epoch)
+                        title = "train/class-" + \
+                            str(i) + "-softset-" + "recall"
+                        writer.add_scalar(title, np.array(
+                            ss_class_re[i]).mean(), epoch)
+                        title = "train/class-" + str(i) + "-softset-" + "f1"
+                        writer.add_scalar(title, np.array(
+                            ss_class_f1[i]).mean(), epoch)
+                        title = "train/class-" + str(i) + "-softset-" + "acc"
+                        writer.add_scalar(title, np.array(
+                            ss_class_acc[i]).mean(), epoch)
 
         ## test set.
         ## calculate all metrics after going through the batches.
         model.eval()
-        test_losses, test_class_losses = [], []
+        test_losses = []
         test_preds, test_labels = np.array([]), np.array([])
         with torch.no_grad():
             for i, (inputs, labels) in enumerate(test_loader):
@@ -580,26 +588,28 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     trans_labels = torch.zeros(len(labels), 10).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
-
-                    batch_test_loss, batch_test_class_losses = criterion(
+                    batch_test_loss, _, _, _, _, _, _, _, _ = criterion(
                         y_labels=trans_labels, y_preds=output)
                 else:
                     batch_test_loss = criterion(output, labels)
 
             # adding in test loss
             test_losses.append(batch_test_loss.detach().cpu().numpy())
-            test_class_losses.append(batch_test_class_losses)
-            test_class_losses = np.array(test_class_losses)
-            test_class_losses = np.mean(test_class_losses, axis=0)
 
             test_acc = accuracy_score(y_true=test_labels, y_pred=test_preds)
-            test_f1_micro = f1_score(y_true=test_labels, y_pred=test_preds, average='micro')
-            test_f1_macro = f1_score(y_true=test_labels, y_pred=test_preds, average='macro')
-            test_f1_weighted = f1_score(y_true=test_labels, y_pred=test_preds, average='weighted')
+            test_f1_micro = f1_score(
+                y_true=test_labels, y_pred=test_preds, average='micro')
+            test_f1_macro = f1_score(
+                y_true=test_labels, y_pred=test_preds, average='macro')
+            test_f1_weighted = f1_score(
+                y_true=test_labels, y_pred=test_preds, average='weighted')
 
-            test_class_f1s = f1_score(y_true=test_labels, y_pred=test_preds, average=None)
-            test_class_prs = precision_score(y_true=test_labels, y_pred=test_preds, average=None)
-            test_class_rec = recall_score(y_true=test_labels, y_pred=test_preds, average=None)
+            test_class_f1s = f1_score(
+                y_true=test_labels, y_pred=test_preds, average=None)
+            test_class_prs = precision_score(
+                y_true=test_labels, y_pred=test_preds, average=None)
+            test_class_rec = recall_score(
+                y_true=test_labels, y_pred=test_preds, average=None)
 
             # add in per-class metrics
             test_loss = np.mean(test_losses)
@@ -620,9 +630,6 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     title = "test/class-" + str(i) + "-recall"
                     writer.add_scalar(title, np.array(
                         test_class_rec[i]).mean(), epoch)
-
-                    title = "test/class-" + str(i) + "-loss"
-                    writer.add_scalar(title, test_class_losses[i], epoch)
 
                     # adding in per class training
                     # get_confusion(gt, pt, class_value=None):
@@ -650,41 +657,48 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 epoch, test_loss, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
             )
 
-        ## validation set
-        ## you can just compute normal set membership for evaluation, no need for soft-set calculations 
+        # ----- VALIDATION SET -----
         # Calculate metrics after going through all the batches
         model.eval()
+
         with torch.no_grad():
-            ## looping through every single batch.
-            eval_preds, eval_labels = [], []
+            val_preds, val_labels = np.array([]), np.array([])
+            valid_losses = []
             for i, (inputs, labels) in enumerate(val_loader):
-                # logging validation distribution 
-                labels_list = labels.numpy() 
-                for label in labels_list: 
-                    valid_dxn[label] += 1 
-                
-                # stacking onto tensors.
-                inputs, labels = inputs.to(device), labels.to(device)
+                labels_list = labels.numpy()
+                for label in labels_list:
+                    valid_dxn[label] += 1
 
-                # passing it through our finalized model.
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+
                 output = model(inputs)
-                labels = torch.zeros(len(labels), 10).to(device).scatter_(
-                    1, labels.unsqueeze(1), 1.).to(device)
+                _, predicted = torch.max(output, 1)
 
-                # appending results.
-                pred_arr = output.detach().cpu().numpy()
-                label_arr = labels.detach().cpu().numpy()
-                eval_preds.append(pred_arr)
-                eval_labels.append(label_arr)
+                # calculate metrics
+                model.eval()
+                pred_arr = predicted.cpu().numpy()
+                label_arr = labels.cpu().numpy()
+                val_labels = np.concatenate([val_labels, label_arr])
+                val_preds = np.concatenate([val_preds, pred_arr])
 
-            eval_preds = torch.tensor(eval_preds[0])
-            eval_labels = torch.tensor(eval_labels[0])
+                if approx:
+                    labels = labels.type(torch.int64)
+                    valid_labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                        1, labels.unsqueeze(1), 1.).to(device)
+                    output = output.to(device)
 
-            ## evaluating across a range of thresholds...
-            eval_class_f1s, eval_class_prs, eval_class_recs, eval_class_losses = evaluation_f1_across_thresholds(
-                device=device, y_labels=eval_labels, y_preds=eval_preds, thresholds=torch.arange(0.1, 1, 0.1))
-            
-            valid_loss = np.array(eval_class_losses).mean()
+                    eval_class_f1s, eval_class_prs, eval_class_recs, eval_class_losses = evaluation_f1_across_thresholds(
+                        device=device, y_labels=valid_labels, y_preds=output, thresholds=torch.arange(
+                            0.1, 1, 0.1))
+
+                    curr_val_loss = np.array(eval_class_losses).mean()
+                    valid_losses.append(curr_val_loss)
+                else:
+                    curr_val_loss = criterion(output, labels)
+                    valid_losses.append(curr_val_loss.detach().cpu().numpy())
+
+            valid_loss = np.mean(valid_losses)
             valid_mean_f1 = np.array(eval_class_f1s).mean()
 
             # add in per-class metrics
@@ -694,81 +708,52 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
                 # adding per-class f1, precision, and recall
                 for i in range(10):
-                    title = "val/class-" + str(i) + "-f1"                           ## logging f1 
+                    # logging f1
+                    title = "val/class-" + str(i) + "-f1"
                     writer.add_scalar(title, eval_class_f1s[i], epoch)
-                    title = "val/class-" + str(i) + "-precision"                    ## logging precision 
-                    writer.add_scalar(title, eval_class_prs[i], epoch)              
-                    title = "val/class-" + str(i) + "-recall"                       ## logging recall 
-                    writer.add_scalar(title, eval_class_recs[i], epoch)            
-                    title = "val/class-" + str(i) + "-loss"                         ## logging losses 
-                    writer.add_scalar(title, eval_class_losses[i], epoch)               
+
+                    # logging precision
+                    title = "val/class-" + \
+                        str(i) + "-precision"
+                    writer.add_scalar(title, eval_class_prs[i], epoch)
+                    # logging recall
+                    title = "val/class-" + str(i) + "-recall"
+                    writer.add_scalar(title, eval_class_recs[i], epoch)
+                    # logging losses
+                    title = "val/class-" + str(i) + "-loss"
+                    writer.add_scalar(title, eval_class_losses[i], epoch)
 
             print("Val - Epoch ({}): | Loss: {:.4f} | Mean F1: {:.4f} \n".format(
                 epoch, valid_loss, valid_mean_f1)
             )
 
-            ## adding in class_losses, and checking for early stopping here
-            for i in range(10):
-                # if the loss is less (per class), reset that class's patience 
-                if (best_valid_class_losses[i] == None) or (eval_class_losses[i] < best_valid_class_losses[i]): 
-                    if best_valid_class_losses[i] != None: 
-                        print("Class {}: Valid loss decreased {:.5f} -> {:.5f}! Resetting patience to: {}".format(
-                            i + 1, best_valid_class_losses[i], eval_class_losses[i], patience))
-                    
-                    ## saving model for that class, only if it hasn't hit negative patience 
-                    if early_stopping_per_class[i] == False: 
-                        today_date = time.strftime('%Y%m%d')
-                        model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-poc",
-                                                    '{}-class-{}-best-model-{}.pth'.format(
-                                                    today_date, i+1, run_name
-                                                )])
-                        torch.save(model, model_file_path)
+            ## checking early stopping per epoch
+            patience -= 1
+            adjust = False
+            if lowest_f1_loss is None or valid_loss < lowest_f1_loss:
+                adjust = True
+                if lowest_f1_loss != None:
+                    print("Valid loss decreased {:.5f} -> {:.5f}! Resetting patience to: {}".format(
+                        lowest_f1_loss, valid_loss, reset_patience))
 
-                    ## setting the new best loss 
-                    best_valid_class_losses[i] = eval_class_losses[i] 
-                    patience_classes[i] = reset_patience[i] 
-                else: 
-                    patience_classes[i] -= 1 
-                    ## storing values into best run json
-                    if patience_classes[i] <= 0: 
-                        early_stopping_per_class[i] = True 
-                        best_test['best-class-epoch'][i] = epoch
+                today_date = time.strftime('%Y%m%d')
+                # TODO(dlee): add in support for balanced dataset.
+                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-poc",
+                                            '{}-best_model-{}.pth'.format(
+                                                today_date, run_name
+                                            )])
+                torch.save(model, model_file_path)
+                patience = reset_patience
+                lowest_f1_loss = valid_loss
 
-        ## below code is just for tensorboard logging 
-        ## purely for tensorboard logging AT EVALUATION THRESHOLDS
-        eval_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
-        with torch.no_grad():
-            for tau in eval_thresholds:
-                # go through all the thresholds, and test them out again.
-                eval_preds, eval_labels = [], []
-                for i, (inputs, labels) in enumerate(val_loader):
-                    # stacking onto tensors.
-                    inputs, labels = inputs.to(device), labels.to(device)
+                best_test['model_file_path'] = model_file_path
 
-                    # passing it through our finalized model.
-                    output = model(inputs)
-                    labels = torch.zeros(len(labels), 10).to(device).scatter_(
-                        1, labels.unsqueeze(1), 1.).to(device)
-
-                    # appending results.
-                    pred_arr = output.detach().cpu().numpy()
-                    label_arr = labels.detach().cpu().numpy()
-                    eval_preds.append(pred_arr)
-                    eval_labels.append(label_arr)
-
-                eval_preds = torch.tensor(eval_preds[0])
-                eval_labels = torch.tensor(eval_labels[0])
-
-                eval_class_f1s, eval_mean_f1, _, _ = evaluation_f1(
-                    device=device, y_labels=eval_labels, y_preds=eval_preds, threshold=tau)
-
-                ## writing out results to tensorboard
-                title = "val/mean-f1-{}".format(tau)
-                writer.add_scalar(title, eval_mean_f1, epoch)
-
-                for i in range(10):
-                    title = "val/class-" + str(i) + "-loss-{}".format(tau)
-                    writer.add_scalar(title, eval_class_f1s[i], epoch)
+            ## if early stopping has begun, print it like this.
+            if not adjust:
+                print("Early stopping {}/{}...".format(reset_patience -
+                                                       patience, reset_patience))
+            if patience <= 0:
+                early_stopping = True
 
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
@@ -784,6 +769,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         best_test['loss'] = best_test['loss'].item()
     if torch.is_tensor(best_test['test_wt_f1_score']):
         best_test['test_wt_f1_score'] = best_test['test_wt_f1_score'].item()
+
     best_test['loss'] = round(best_test['loss'], 5)
     best_test['test_wt_f1_score'] = round(best_test['test_wt_f1_score'], 5)
     best_test['train_dxn'] = train_dxn
@@ -842,10 +828,14 @@ Running now
 python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.1" --cuda=1 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.125" --cuda=1 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.3" --cuda=3 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
+
+
 
 
 --- Need to run: 
-python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
 python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.5" --cuda=1 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.6" --cuda=2 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
