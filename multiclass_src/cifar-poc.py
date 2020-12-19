@@ -856,9 +856,9 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience, outp
     # seeds = [57, 23]
     # seeds = [14, 57, 23]
     # seeds = [1,2,3]
-    seeds = [1,2,3]
+    seeds = [2,3]
     for i in range(len(seeds)):
-        temp_name = str(run_name) + "-" + str(i)
+        temp_name = str(run_name) + "-" + str(i+1)
         train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name,
                     seed=seeds[i], cuda=cuda, batch_size=int(batch_size), train_tau=train_tau, patience=patience, output_file=output_file)
 
@@ -876,7 +876,7 @@ if __name__ == '__main__':
 '''
 In Progress:
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.1" --cuda=0 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.125" --cuda=0 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.125" --cuda=1 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.2" --cuda=0 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.4" --cuda=1 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"

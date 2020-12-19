@@ -681,7 +681,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
                 today_date = time.strftime('%Y%m%d')
                 # TODO(dlee): add in support for balanced dataset.
-                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-thresh",
+                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-thresh/balanced-runs",
                                             '{}-best_model-{}.pth'.format(
                                                 today_date, run_name
                                             )])
@@ -701,7 +701,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-thresh",
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-thresh/balanced-runs",
                                 '{}-overfit-model-{}.pth'.format(
                                     time.strftime('%Y%m%d'), run_name
                                 )])
@@ -746,9 +746,10 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience, outp
         imbalanced = True
 
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
-    # seeds = [44, 57, 23]
     # seeds = [57, 23]
-    seeds = [44]
+    # seeds = [44]
+
+    seeds = [44, 57, 23]
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i)
         train_mnist(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name,
@@ -770,18 +771,20 @@ last run;
 
 
 ----
+Running: 
+python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-reg-0.1" --cuda=3 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="reg_thresh_results.json"
+python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-reg-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="reg_thresh_results.json"
+python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-reg-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="reg_thresh_results.json"
+python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-reg-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="reg_thresh_results.json"
+python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-reg-0.4" --cuda=0 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="reg_thresh_results.json"
+python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-reg-0.5" --cuda=0 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="reg_thresh_results.json"
+python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-reg-0.6" --cuda=0 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="reg_thresh_results.json"
+python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-reg-0.7" --cuda=1 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="reg_thresh_results.json"
+python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-reg-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="reg_thresh_results.json"
+python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-reg-0.9" --cuda=3 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="reg_thresh_results.json"
 
-python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.1" --cuda=3 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
-python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.125" --cuda=3 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
-python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.2" --cuda=3 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
-python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
-python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
 
-python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.5" --cuda=2 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
-python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.6" --cuda=0 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
-python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.7" --cuda=1 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
-python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.8" --cuda=1 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
-python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --imb --run_name="traintau-approx-f1-imb-0.9" --cuda=0 --train_tau=0.9 --batch_size=1024 --patience=100 --output_file="thresh_results.json"
+Need to run: 
 
 
 
