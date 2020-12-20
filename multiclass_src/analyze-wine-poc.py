@@ -34,7 +34,6 @@ from download_cifar import *
 EPS = 1e-7
 _WHITE_WINE = "../data/winequality-white.csv"
 _RED_WINE = "../data/winequality-red.csv"
-_MODELS_PATH = "/app/timeseries/multiclass_src/models/wine-poc"
 
 
 class Model(nn.Module):

@@ -33,7 +33,6 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 EPS = 1e-7
 _WHITE_WINE = "../data/winequality-white.csv"
 _RED_WINE = "../data/winequality-red.csv"
-_MODELS_PATH = "/app/timeseries/multiclass_src/models/wine"
 
 
 class Model(nn.Module):
