@@ -385,7 +385,7 @@ def get_metrics(device, batch_size, seed, results_path, models_path, models_list
             model.eval()
 
             for tau in test_thresholds:
-                final_test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                final_test_dxn = [0, 0, 0, 0]
                 test_preds, test_labels = [], []
 
                 for i, (inputs, labels) in enumerate(test_loader):

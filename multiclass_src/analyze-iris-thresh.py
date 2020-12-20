@@ -21,6 +21,7 @@ import torch.optim as optim
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10
 from torch.utils.data.dataloader import DataLoader
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data import Dataset
@@ -31,7 +32,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 
 EPS = 1e-7
 _IRIS_DATA_PATH = "../data/iris.csv"
-_MODELS_PATH = "/app/timeseries/multiclass_src/models/iris"
+_MODELS_PATH = "/app/timeseries/multiclass_src/models/iris-thresh"
 
 
 class Model(nn.Module):
@@ -66,6 +67,19 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         return self.X[index, :], self.y[index]
 
+
+def create_loaders(data_splits, batch_size, seed):
+    dataparams = {'batch_size': batch_size, 'shuffle': True, 'num_workers': 0}
+    trainset = Dataset(data_splits['train'])
+    validationset = Dataset(data_splits['val'])
+    testset = Dataset(data_splits['test'])
+    set_seed(seed)
+    train_loader = DataLoader(trainset, **dataparams)
+    set_seed(seed)
+    val_loader = DataLoader(validationset, **dataparams)
+    set_seed(seed)
+    test_loader = DataLoader(testset, **dataparams)
+    return train_loader, val_loader, test_loader
 
 def set_seed(seed):
     torch.backends.cudnn.deterministic = True
@@ -195,10 +209,6 @@ def get_metrics(device, batch_size, seed, results_path, models_path, models_list
     data_splits = load_iris(seed=seed)
     _, _, test_loader = create_loaders(
         data_splits, batch_size=batch_size, seed=seed)
-
-    # LOAD iN MODEL
-    model = load_model(model_name)
-    model.eval()
 
     # EVALUATION
     results_json = {   
@@ -346,7 +356,7 @@ def get_metrics(device, batch_size, seed, results_path, models_path, models_list
             model.eval()
 
             for tau in test_thresholds:
-                final_test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                final_test_dxn = [0, 0, 0]
                 test_preds, test_labels = [], []
 
                 for i, (inputs, labels) in enumerate(test_loader):
@@ -361,7 +371,7 @@ def get_metrics(device, batch_size, seed, results_path, models_path, models_list
 
                     # passing it through our finalized model.
                     output = model(inputs)
-                    labels = torch.zeros(len(labels), 10).to(device).scatter_(1, labels.unsqueeze(1), 1.).to(device)
+                    labels = torch.zeros(len(labels), 3).to(device).scatter_(1, labels.unsqueeze(1), 1.).to(device)
 
                     pred_arr = output.detach().cpu().numpy()
                     label_arr = labels.detach().cpu().numpy()
@@ -404,23 +414,10 @@ if __name__ == '__main__':
     
         get_metrics(device="cuda:3", batch_size=256, seed=11,
                     results_path="/app/timeseries/multiclass_src/results/iris",
-                    models_path="/app/timeseries/multiclass_src/models/iris",
+                    models_path="/app/timeseries/multiclass_src/models/iris-thresh",
                     models_list=models_list, 
-                    output_file="thresh_results.json")
+                    output_file="thresh_agg.json")
 
-    trained_taus = ["0.1", "0.125", "0.2", "0.3","0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
-    run_name = "best_model-traintau-af1"
-    num_runs = 5
-    for run_number in range(num_runs): 
-        models_list = []
-        for i in range(len(trained_taus)):
-            models_list.append(run_name + "-" + str(trained_taus[i] + "-" + str(run_number) +  ".pth"))
-    
-        get_metrics(device="cuda:3", batch_size=1024, seed=11,
-                    results_path="/app/timeseries/multiclass_src/results/iris",
-                    models_path="/app/timeseries/multiclass_src/models/iris",
-                    models_list=models_list, 
-                    output_file="thresh_results.json")
 '''
 For each train tau: 
     - Load in each class's model (that was trained on that tau) 
