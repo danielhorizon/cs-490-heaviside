@@ -1,1 +1,1752 @@
-[{"best-epoch": 148, "loss": 0.35154, "test_wt_f1_score": 0.58867, "val_wt_f1_score": Infinity, "test_accuracy": 0.5982142857142857, "val_accuracy": 0.5983263598326359, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.3-0", "train_dxn": [9768, 124320, 194028, 95756], "test_dxn": [5364, 41273, 57067, 29800], "valid_dxn": [3278, 28310, 50213, 25032], "seed": 1, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.3-0.pth"}, {"best-epoch": 139, "loss": 0.3862, "test_wt_f1_score": 0.58811, "val_wt_f1_score": Infinity, "test_accuracy": 0.5993303571428571, "val_accuracy": 0.5718270571827058, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.4-0", "train_dxn": [9174, 116760, 182229, 89933], "test_dxn": [5040, 38780, 53620, 28000], "valid_dxn": [3080, 26600, 47180, 23520], "seed": 1, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.4-0.pth"}, {"best-epoch": 158, "loss": 0.40284, "test_wt_f1_score": 0.58457, "val_wt_f1_score": Infinity, "test_accuracy": 0.5915178571428571, "val_accuracy": 0.5746164574616457, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.5-0", "train_dxn": [10428, 132720, 207138, 102226], "test_dxn": [5724, 44043, 60897, 31800], "valid_dxn": [3498, 30210, 53583, 26712], "seed": 1, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.5-0.pth"}, {"best-epoch": 148, "loss": 0.41786, "test_wt_f1_score": 0.5857, "val_wt_f1_score": Infinity, "test_accuracy": 0.5892857142857143, "val_accuracy": 0.5634588563458857, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.6-0", "train_dxn": [9768, 124320, 194028, 95756], "test_dxn": [5364, 41273, 57067, 29800], "valid_dxn": [3278, 28310, 50213, 25032], "seed": 1, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.6-0.pth"}, {"best-epoch": 207, "loss": 0.32841, "test_wt_f1_score": 0.5962, "val_wt_f1_score": Infinity, "test_accuracy": 0.6116071428571429, "val_accuracy": 0.592747559274756, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.2-0", "train_dxn": [13662, 173880, 271377, 133929], "test_dxn": [7488, 57616, 79664, 41600], "valid_dxn": [4576, 39520, 70096, 34944], "seed": 1, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.2-0.pth"}, {"best-epoch": 246, "loss": 0.32803, "test_wt_f1_score": 0.60962, "val_wt_f1_score": Infinity, "test_accuracy": 0.6238839285714286, "val_accuracy": 0.6136680613668062, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.125-0", "train_dxn": [16236, 206640, 322506, 159162], "test_dxn": [8892, 68419, 94601, 49400], "valid_dxn": [5434, 46930, 83239, 41496], "seed": 1, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.125-0.pth"}, {"best-epoch": 123, "loss": 0.3635, "test_wt_f1_score": 0.60853, "val_wt_f1_score": Infinity, "test_accuracy": 0.6171875, "val_accuracy": 0.5801952580195258, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.3-1", "train_dxn": [8610, 100614, 162237, 80811], "test_dxn": [3844, 34720, 47616, 24924], "valid_dxn": [2852, 25916, 40672, 19468], "seed": 2, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.3-1.pth"}, {"best-epoch": 308, "loss": 0.32711, "test_wt_f1_score": 0.61877, "val_wt_f1_score": Infinity, "test_accuracy": 0.6350446428571429, "val_accuracy": 0.6150627615062761, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.1-0", "train_dxn": [20328, 258720, 403788, 199276], "test_dxn": [11124, 85593, 118347, 61800], "valid_dxn": [6798, 58710, 104133, 51912], "seed": 1, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.1-0.pth"}, {"best-epoch": 160, "loss": 0.38732, "test_wt_f1_score": 0.60576, "val_wt_f1_score": Infinity, "test_accuracy": 0.6127232142857143, "val_accuracy": 0.5871687587168759, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.4-1", "train_dxn": [11200, 130880, 211040, 105120], "test_dxn": [4991, 45080, 61824, 32361], "valid_dxn": [3703, 33649, 52808, 25277], "seed": 2, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.4-1.pth"}, {"best-epoch": 123, "loss": 0.36188, "test_wt_f1_score": 0.61521, "val_wt_f1_score": Infinity, "test_accuracy": 0.6261160714285714, "val_accuracy": 0.5913528591352859, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.2-1", "train_dxn": [8610, 100614, 162237, 80811], "test_dxn": [3844, 34720, 47616, 24924], "valid_dxn": [2852, 25916, 40672, 19468], "seed": 2, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.2-1.pth"}, {"best-epoch": 159, "loss": 0.41044, "test_wt_f1_score": 0.59444, "val_wt_f1_score": Infinity, "test_accuracy": 0.6026785714285714, "val_accuracy": 0.5718270571827058, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.6-1", "train_dxn": [11130, 130062, 209721, 104463], "test_dxn": [4960, 44800, 61440, 32160], "valid_dxn": [3680, 33440, 52480, 25120], "seed": 2, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.6-1.pth"}, {"best-epoch": 168, "loss": 0.41214, "test_wt_f1_score": 0.59433, "val_wt_f1_score": Infinity, "test_accuracy": 0.6026785714285714, "val_accuracy": 0.5704323570432357, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.5-1", "train_dxn": [11760, 137424, 221592, 110376], "test_dxn": [5239, 47320, 64896, 33969], "valid_dxn": [3887, 35321, 55432, 26533], "seed": 2, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.5-1.pth"}, {"best-epoch": 166, "loss": 0.36324, "test_wt_f1_score": 0.61743, "val_wt_f1_score": Infinity, "test_accuracy": 0.6272321428571429, "val_accuracy": 0.5857740585774058, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.125-1", "train_dxn": [11620, 135788, 218954, 109062], "test_dxn": [5177, 46760, 64128, 33567], "valid_dxn": [3841, 34903, 54776, 26219], "seed": 2, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.125-1.pth"}, {"best-epoch": 148, "loss": 0.35085, "test_wt_f1_score": 0.61096, "val_wt_f1_score": Infinity, "test_accuracy": 0.6194196428571429, "val_accuracy": 0.6290097629009763, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.3-2", "train_dxn": [12728, 122988, 194324, 93832], "test_dxn": [3129, 39336, 59898, 31141], "valid_dxn": [2533, 31588, 47084, 25628], "seed": 3, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.3-2.pth"}, {"best-epoch": 359, "loss": 0.44688, "test_wt_f1_score": 0.56896, "val_wt_f1_score": Infinity, "test_accuracy": 0.5580357142857143, "val_accuracy": 0.5313807531380753, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.9-0", "train_dxn": [23694, 301560, 470649, 232273], "test_dxn": [12960, 99720, 137880, 72000], "valid_dxn": [7920, 68400, 121320, 60480], "seed": 1, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.9-0.pth"}, {"best-epoch": 138, "loss": 0.39293, "test_wt_f1_score": 0.58794, "val_wt_f1_score": Infinity, "test_accuracy": 0.5948660714285714, "val_accuracy": 0.6150627615062761, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.4-2", "train_dxn": [11868, 114678, 181194, 87492], "test_dxn": [2919, 36696, 55878, 29051], "valid_dxn": [2363, 29468, 43924, 23908], "seed": 3, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.4-2.pth"}, {"best-epoch": 181, "loss": 0.36723, "test_wt_f1_score": 0.61924, "val_wt_f1_score": Infinity, "test_accuracy": 0.6328125, "val_accuracy": 0.592747559274756, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.1-1", "train_dxn": [12670, 148058, 238739, 118917], "test_dxn": [5642, 50960, 69888, 36582], "valid_dxn": [4186, 38038, 59696, 28574], "seed": 2, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.1-1.pth"}, {"best-epoch": 172, "loss": 0.34046, "test_wt_f1_score": 0.62161, "val_wt_f1_score": Infinity, "test_accuracy": 0.6272321428571429, "val_accuracy": 0.6387726638772664, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.2-2", "train_dxn": [14792, 142932, 225836, 109048], "test_dxn": [3633, 45672, 69546, 36157], "valid_dxn": [2941, 36676, 54668, 29756], "seed": 3, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.2-2.pth"}, {"best-epoch": 189, "loss": 0.42196, "test_wt_f1_score": 0.57803, "val_wt_f1_score": Infinity, "test_accuracy": 0.5848214285714286, "val_accuracy": 0.6122733612273361, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.6-2", "train_dxn": [16254, 157059, 248157, 119826], "test_dxn": [3990, 50160, 76380, 39710], "valid_dxn": [3230, 40280, 60040, 32680], "seed": 3, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.6-2.pth"}, {"best-epoch": 186, "loss": 0.41331, "test_wt_f1_score": 0.57423, "val_wt_f1_score": Infinity, "test_accuracy": 0.578125, "val_accuracy": 0.6080892608089261, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.5-2", "train_dxn": [15996, 154566, 244218, 117924], "test_dxn": [3927, 49368, 75174, 39083], "valid_dxn": [3179, 39644, 59092, 32164], "seed": 3, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.5-2.pth"}, {"best-epoch": 190, "loss": 0.35469, "test_wt_f1_score": 0.61196, "val_wt_f1_score": Infinity, "test_accuracy": 0.6205357142857143, "val_accuracy": 0.6387726638772664, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.125-2", "train_dxn": [16340, 157890, 249470, 120460], "test_dxn": [4011, 50424, 76782, 39919], "valid_dxn": [3247, 40492, 60356, 32852], "seed": 3, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.125-2.pth"}, {"best-epoch": 189, "loss": 0.34496, "test_wt_f1_score": 0.63678, "val_wt_f1_score": Infinity, "test_accuracy": 0.6428571428571429, "val_accuracy": 0.6471408647140865, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.3-3", "train_dxn": [14742, 161406, 245511, 119637], "test_dxn": [4940, 45600, 78090, 41610], "valid_dxn": [3800, 40470, 60990, 30970], "seed": 4, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.3-3.pth"}, {"best-epoch": 191, "loss": 0.37737, "test_wt_f1_score": 0.62795, "val_wt_f1_score": Infinity, "test_accuracy": 0.6339285714285714, "val_accuracy": 0.6331938633193863, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.4-3", "train_dxn": [14898, 163114, 248109, 120903], "test_dxn": [4992, 46080, 78912, 42048], "valid_dxn": [3840, 40896, 61632, 31296], "seed": 4, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.4-3.pth"}, {"best-epoch": 132, "loss": 0.43831, "test_wt_f1_score": 0.59992, "val_wt_f1_score": Infinity, "test_accuracy": 0.6060267857142857, "val_accuracy": 0.5829846582984658, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.6-3", "train_dxn": [10296, 112728, 171468, 83556], "test_dxn": [3458, 31920, 54663, 29127], "valid_dxn": [2660, 28329, 42693, 21679], "seed": 4, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.6-3.pth"}, {"best-epoch": 140, "loss": 0.42423, "test_wt_f1_score": 0.61027, "val_wt_f1_score": Infinity, "test_accuracy": 0.6171875, "val_accuracy": 0.592747559274756, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.5-3", "train_dxn": [10920, 119560, 181860, 88620], "test_dxn": [3666, 33840, 57951, 30879], "valid_dxn": [2820, 30033, 45261, 22983], "seed": 4, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.5-3.pth"}, {"best-epoch": 161, "loss": 0.33646, "test_wt_f1_score": 0.65425, "val_wt_f1_score": Infinity, "test_accuracy": 0.6595982142857143, "val_accuracy": 0.6401673640167364, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.2-3", "train_dxn": [12558, 137494, 209139, 101913], "test_dxn": [4212, 38880, 66582, 35478], "valid_dxn": [3240, 34506, 52002, 26406], "seed": 4, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.2-3.pth"}, {"best-epoch": 601, "loss": 0.38703, "test_wt_f1_score": 0.58145, "val_wt_f1_score": Infinity, "test_accuracy": 0.5703125, "val_accuracy": 0.5411436541143654, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.8-0", "train_dxn": [39666, 504840, 787911, 388847], "test_dxn": [21672, 166754, 230566, 120400], "valid_dxn": [13244, 114380, 202874, 101136], "seed": 1, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.8-0.pth"}, {"best-epoch": 213, "loss": 0.34596, "test_wt_f1_score": 0.62389, "val_wt_f1_score": Infinity, "test_accuracy": 0.6328125, "val_accuracy": 0.6541143654114365, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.1-2", "train_dxn": [18318, 177003, 279669, 135042], "test_dxn": [4494, 56496, 86028, 44726], "valid_dxn": [3638, 45368, 67624, 36808], "seed": 3, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.1-2.pth"}, {"best-epoch": 649, "loss": 0.39256, "test_wt_f1_score": 0.58691, "val_wt_f1_score": Infinity, "test_accuracy": 0.5792410714285714, "val_accuracy": 0.5536959553695955, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.7-0", "train_dxn": [42834, 545160, 850839, 419903], "test_dxn": [23400, 180050, 248950, 130000], "valid_dxn": [14300, 123500, 219050, 109200], "seed": 1, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.7-0.pth"}, {"best-epoch": 158, "loss": 0.3507, "test_wt_f1_score": 0.62345, "val_wt_f1_score": Infinity, "test_accuracy": 0.6372767857142857, "val_accuracy": 0.6206415620641562, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.3-4", "train_dxn": [11376, 134142, 203978, 103016], "test_dxn": [5088, 40227, 65985, 31164], "valid_dxn": [3180, 32595, 51675, 26553], "seed": 5, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.3-4.pth"}, {"best-epoch": 261, "loss": 0.33098, "test_wt_f1_score": 0.64147, "val_wt_f1_score": Infinity, "test_accuracy": 0.6506696428571429, "val_accuracy": 0.6555090655509066, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.125-3", "train_dxn": [20358, 222894, 339039, 165213], "test_dxn": [6812, 62880, 107682, 57378], "valid_dxn": [5240, 55806, 84102, 42706], "seed": 4, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.125-3.pth"}, {"best-epoch": 172, "loss": 0.34374, "test_wt_f1_score": 0.63307, "val_wt_f1_score": Infinity, "test_accuracy": 0.6473214285714286, "val_accuracy": 0.6304044630404463, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.2-4", "train_dxn": [12384, 146028, 222052, 112144], "test_dxn": [5536, 43769, 71795, 33908], "valid_dxn": [3460, 35465, 56225, 28891], "seed": 5, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.2-4.pth"}, {"best-epoch": 197, "loss": 0.3832, "test_wt_f1_score": 0.61044, "val_wt_f1_score": Infinity, "test_accuracy": 0.6205357142857143, "val_accuracy": 0.603905160390516, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.4-4", "train_dxn": [14184, 167253, 254327, 128444], "test_dxn": [6336, 50094, 82170, 38808], "valid_dxn": [3960, 40590, 64350, 33066], "seed": 5, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.4-4.pth"}, {"best-epoch": 398, "loss": 0.43814, "test_wt_f1_score": 0.58196, "val_wt_f1_score": Infinity, "test_accuracy": 0.5770089285714286, "val_accuracy": 0.5676429567642957, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.9-1", "train_dxn": [27860, 325564, 524962, 261486], "test_dxn": [12369, 111720, 153216, 80199], "valid_dxn": [9177, 83391, 130872, 62643], "seed": 2, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.9-1.pth"}, {"best-epoch": 214, "loss": 0.41048, "test_wt_f1_score": 0.59963, "val_wt_f1_score": Infinity, "test_accuracy": 0.6060267857142857, "val_accuracy": 0.5913528591352859, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.6-4", "train_dxn": [15408, 181686, 276274, 139528], "test_dxn": [6880, 54395, 89225, 42140], "valid_dxn": [4300, 44075, 69875, 35905], "seed": 5, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.6-4.pth"}, {"best-epoch": 223, "loss": 0.38661, "test_wt_f1_score": 0.61015, "val_wt_f1_score": Infinity, "test_accuracy": 0.6194196428571429, "val_accuracy": 0.6052998605299861, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.5-4", "train_dxn": [16056, 189327, 287893, 145396], "test_dxn": [7168, 56672, 92960, 43904], "valid_dxn": [4480, 45920, 72800, 37408], "seed": 5, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.5-4.pth"}, {"best-epoch": 242, "loss": 0.3518, "test_wt_f1_score": 0.64294, "val_wt_f1_score": Infinity, "test_accuracy": 0.6517857142857143, "val_accuracy": 0.6638772663877266, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.1-3", "train_dxn": [18876, 206668, 314358, 153186], "test_dxn": [6318, 58320, 99873, 53217], "valid_dxn": [4860, 51759, 78003, 39609], "seed": 4, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.1-3.pth"}, {"best-epoch": 170, "loss": 0.4302, "test_wt_f1_score": 0.57062, "val_wt_f1_score": Infinity, "test_accuracy": 0.5691964285714286, "val_accuracy": 0.5634588563458857, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.7-1", "train_dxn": [11900, 139060, 224230, 111690], "test_dxn": [5301, 47880, 65664, 34371], "valid_dxn": [3933, 35739, 56088, 26847], "seed": 2, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.7-1.pth"}, {"best-epoch": 254, "loss": 0.33568, "test_wt_f1_score": 0.63486, "val_wt_f1_score": Infinity, "test_accuracy": 0.6484375, "val_accuracy": 0.6443514644351465, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.125-4", "train_dxn": [18288, 215646, 327914, 165608], "test_dxn": [8160, 64515, 105825, 49980], "valid_dxn": [5100, 52275, 82875, 42585], "seed": 5, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.125-4.pth"}, {"best-epoch": 247, "loss": 0.34663, "test_wt_f1_score": 0.6333, "val_wt_f1_score": Infinity, "test_accuracy": 0.6473214285714286, "val_accuracy": 0.6387726638772664, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.1-4", "train_dxn": [17784, 209703, 318877, 161044], "test_dxn": [7936, 62744, 102920, 48608], "valid_dxn": [4960, 50840, 80600, 41416], "seed": 5, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.1-4.pth"}, {"best-epoch": 343, "loss": 0.45042, "test_wt_f1_score": 0.58179, "val_wt_f1_score": Infinity, "test_accuracy": 0.5758928571428571, "val_accuracy": 0.601115760111576, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.9-2", "train_dxn": [29498, 285033, 450359, 217462], "test_dxn": [7224, 90816, 138288, 71896], "valid_dxn": [5848, 72928, 108704, 59168], "seed": 3, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.9-2.pth"}, {"best-epoch": 514, "loss": 0.39938, "test_wt_f1_score": 0.59943, "val_wt_f1_score": Infinity, "test_accuracy": 0.5993303571428571, "val_accuracy": 0.5746164574616457, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.8-1", "train_dxn": [35980, 420452, 677966, 337698], "test_dxn": [15965, 144200, 197760, 103515], "valid_dxn": [11845, 107635, 168920, 80855], "seed": 2, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.8-1.pth"}, {"best-epoch": 200, "loss": 0.44749, "test_wt_f1_score": 0.57806, "val_wt_f1_score": Infinity, "test_accuracy": 0.5803571428571429, "val_accuracy": 0.599721059972106, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.8-2", "train_dxn": [17200, 166200, 262600, 126800], "test_dxn": [4221, 53064, 80802, 42009], "valid_dxn": [3417, 42612, 63516, 34572], "seed": 3, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.8-2.pth"}, {"best-epoch": 500, "loss": 0.42722, "test_wt_f1_score": 0.5455, "val_wt_f1_score": Infinity, "test_accuracy": 0.5479910714285714, "val_accuracy": 0.5774058577405857, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.7-2", "train_dxn": [43000, 415500, 656500, 317000], "test_dxn": [10521, 132264, 201402, 104709], "valid_dxn": [8517, 106212, 158316, 86172], "seed": 3, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.7-2.pth"}, {"best-epoch": 310, "loss": 0.45188, "test_wt_f1_score": 0.61962, "val_wt_f1_score": Infinity, "test_accuracy": 0.6183035714285714, "val_accuracy": 0.5885634588563459, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.9-3", "train_dxn": [24180, 264740, 402690, 196230], "test_dxn": [8086, 74640, 127821, 68109], "valid_dxn": [6220, 66243, 99831, 50693], "seed": 4, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.9-3.pth"}, {"best-epoch": 192, "loss": 0.45502, "test_wt_f1_score": 0.60933, "val_wt_f1_score": Infinity, "test_accuracy": 0.6037946428571429, "val_accuracy": 0.592747559274756, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.8-3", "train_dxn": [14976, 163968, 249408, 121536], "test_dxn": [5018, 46320, 79323, 42267], "valid_dxn": [3860, 41109, 61953, 31459], "seed": 4, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.8-3.pth"}, {"best-epoch": 237, "loss": 0.42135, "test_wt_f1_score": 0.61905, "val_wt_f1_score": Infinity, "test_accuracy": 0.6261160714285714, "val_accuracy": 0.602510460251046, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.7-3", "train_dxn": [18486, 202398, 307863, 150021], "test_dxn": [6188, 57120, 97818, 52122], "valid_dxn": [4760, 50694, 76398, 38794], "seed": 4, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.7-3.pth"}, {"best-epoch": 352, "loss": 0.46814, "test_wt_f1_score": 0.57496, "val_wt_f1_score": Infinity, "test_accuracy": 0.5502232142857143, "val_accuracy": 0.5146443514644351, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.9-4", "train_dxn": [25344, 298848, 454432, 229504], "test_dxn": [11296, 89309, 146495, 69188], "valid_dxn": [7060, 72365, 114725, 58951], "seed": 5, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.9-4.pth"}, {"best-epoch": 345, "loss": 0.43257, "test_wt_f1_score": 0.57412, "val_wt_f1_score": Infinity, "test_accuracy": 0.5535714285714286, "val_accuracy": 0.5369595536959554, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.8-4", "train_dxn": [24840, 292905, 445395, 224940], "test_dxn": [11072, 87538, 143590, 67816], "valid_dxn": [6920, 70930, 112450, 57782], "seed": 5, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.8-4.pth"}, {"best-epoch": 480, "loss": 0.41733, "test_wt_f1_score": 0.57409, "val_wt_f1_score": Infinity, "test_accuracy": 0.5647321428571429, "val_accuracy": 0.5481171548117155, "learning_rate": 0.001, "imbalanced": false, "loss_metric": "approx-f1", "run_name": "traintau-af1-0.7-4", "train_dxn": [34560, 407520, 619680, 312960], "test_dxn": [15392, 121693, 199615, 94276], "valid_dxn": [9620, 98605, 156325, 80327], "seed": 5, "batch_size": 1024, "evaluation": null, "patience": "100", "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.7-4.pth"}]
+[
+    {
+        "best-epoch": 148,
+        "loss": 0.35154,
+        "test_wt_f1_score": 0.58867,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5982142857142857,
+        "val_accuracy": 0.5983263598326359,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.3-0",
+        "train_dxn": [
+            9768,
+            124320,
+            194028,
+            95756
+        ],
+        "test_dxn": [
+            5364,
+            41273,
+            57067,
+            29800
+        ],
+        "valid_dxn": [
+            3278,
+            28310,
+            50213,
+            25032
+        ],
+        "seed": 1,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.3-0.pth"
+    },
+    {
+        "best-epoch": 139,
+        "loss": 0.3862,
+        "test_wt_f1_score": 0.58811,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5993303571428571,
+        "val_accuracy": 0.5718270571827058,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.4-0",
+        "train_dxn": [
+            9174,
+            116760,
+            182229,
+            89933
+        ],
+        "test_dxn": [
+            5040,
+            38780,
+            53620,
+            28000
+        ],
+        "valid_dxn": [
+            3080,
+            26600,
+            47180,
+            23520
+        ],
+        "seed": 1,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.4-0.pth"
+    },
+    {
+        "best-epoch": 158,
+        "loss": 0.40284,
+        "test_wt_f1_score": 0.58457,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5915178571428571,
+        "val_accuracy": 0.5746164574616457,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.5-0",
+        "train_dxn": [
+            10428,
+            132720,
+            207138,
+            102226
+        ],
+        "test_dxn": [
+            5724,
+            44043,
+            60897,
+            31800
+        ],
+        "valid_dxn": [
+            3498,
+            30210,
+            53583,
+            26712
+        ],
+        "seed": 1,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.5-0.pth"
+    },
+    {
+        "best-epoch": 148,
+        "loss": 0.41786,
+        "test_wt_f1_score": 0.5857,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5892857142857143,
+        "val_accuracy": 0.5634588563458857,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.6-0",
+        "train_dxn": [
+            9768,
+            124320,
+            194028,
+            95756
+        ],
+        "test_dxn": [
+            5364,
+            41273,
+            57067,
+            29800
+        ],
+        "valid_dxn": [
+            3278,
+            28310,
+            50213,
+            25032
+        ],
+        "seed": 1,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.6-0.pth"
+    },
+    {
+        "best-epoch": 207,
+        "loss": 0.32841,
+        "test_wt_f1_score": 0.5962,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6116071428571429,
+        "val_accuracy": 0.592747559274756,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.2-0",
+        "train_dxn": [
+            13662,
+            173880,
+            271377,
+            133929
+        ],
+        "test_dxn": [
+            7488,
+            57616,
+            79664,
+            41600
+        ],
+        "valid_dxn": [
+            4576,
+            39520,
+            70096,
+            34944
+        ],
+        "seed": 1,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.2-0.pth"
+    },
+    {
+        "best-epoch": 246,
+        "loss": 0.32803,
+        "test_wt_f1_score": 0.60962,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6238839285714286,
+        "val_accuracy": 0.6136680613668062,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.125-0",
+        "train_dxn": [
+            16236,
+            206640,
+            322506,
+            159162
+        ],
+        "test_dxn": [
+            8892,
+            68419,
+            94601,
+            49400
+        ],
+        "valid_dxn": [
+            5434,
+            46930,
+            83239,
+            41496
+        ],
+        "seed": 1,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.125-0.pth"
+    },
+    {
+        "best-epoch": 123,
+        "loss": 0.3635,
+        "test_wt_f1_score": 0.60853,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6171875,
+        "val_accuracy": 0.5801952580195258,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.3-1",
+        "train_dxn": [
+            8610,
+            100614,
+            162237,
+            80811
+        ],
+        "test_dxn": [
+            3844,
+            34720,
+            47616,
+            24924
+        ],
+        "valid_dxn": [
+            2852,
+            25916,
+            40672,
+            19468
+        ],
+        "seed": 2,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.3-1.pth"
+    },
+    {
+        "best-epoch": 308,
+        "loss": 0.32711,
+        "test_wt_f1_score": 0.61877,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6350446428571429,
+        "val_accuracy": 0.6150627615062761,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.1-0",
+        "train_dxn": [
+            20328,
+            258720,
+            403788,
+            199276
+        ],
+        "test_dxn": [
+            11124,
+            85593,
+            118347,
+            61800
+        ],
+        "valid_dxn": [
+            6798,
+            58710,
+            104133,
+            51912
+        ],
+        "seed": 1,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.1-0.pth"
+    },
+    {
+        "best-epoch": 160,
+        "loss": 0.38732,
+        "test_wt_f1_score": 0.60576,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6127232142857143,
+        "val_accuracy": 0.5871687587168759,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.4-1",
+        "train_dxn": [
+            11200,
+            130880,
+            211040,
+            105120
+        ],
+        "test_dxn": [
+            4991,
+            45080,
+            61824,
+            32361
+        ],
+        "valid_dxn": [
+            3703,
+            33649,
+            52808,
+            25277
+        ],
+        "seed": 2,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.4-1.pth"
+    },
+    {
+        "best-epoch": 123,
+        "loss": 0.36188,
+        "test_wt_f1_score": 0.61521,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6261160714285714,
+        "val_accuracy": 0.5913528591352859,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.2-1",
+        "train_dxn": [
+            8610,
+            100614,
+            162237,
+            80811
+        ],
+        "test_dxn": [
+            3844,
+            34720,
+            47616,
+            24924
+        ],
+        "valid_dxn": [
+            2852,
+            25916,
+            40672,
+            19468
+        ],
+        "seed": 2,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.2-1.pth"
+    },
+    {
+        "best-epoch": 159,
+        "loss": 0.41044,
+        "test_wt_f1_score": 0.59444,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6026785714285714,
+        "val_accuracy": 0.5718270571827058,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.6-1",
+        "train_dxn": [
+            11130,
+            130062,
+            209721,
+            104463
+        ],
+        "test_dxn": [
+            4960,
+            44800,
+            61440,
+            32160
+        ],
+        "valid_dxn": [
+            3680,
+            33440,
+            52480,
+            25120
+        ],
+        "seed": 2,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.6-1.pth"
+    },
+    {
+        "best-epoch": 168,
+        "loss": 0.41214,
+        "test_wt_f1_score": 0.59433,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6026785714285714,
+        "val_accuracy": 0.5704323570432357,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.5-1",
+        "train_dxn": [
+            11760,
+            137424,
+            221592,
+            110376
+        ],
+        "test_dxn": [
+            5239,
+            47320,
+            64896,
+            33969
+        ],
+        "valid_dxn": [
+            3887,
+            35321,
+            55432,
+            26533
+        ],
+        "seed": 2,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.5-1.pth"
+    },
+    {
+        "best-epoch": 166,
+        "loss": 0.36324,
+        "test_wt_f1_score": 0.61743,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6272321428571429,
+        "val_accuracy": 0.5857740585774058,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.125-1",
+        "train_dxn": [
+            11620,
+            135788,
+            218954,
+            109062
+        ],
+        "test_dxn": [
+            5177,
+            46760,
+            64128,
+            33567
+        ],
+        "valid_dxn": [
+            3841,
+            34903,
+            54776,
+            26219
+        ],
+        "seed": 2,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.125-1.pth"
+    },
+    {
+        "best-epoch": 148,
+        "loss": 0.35085,
+        "test_wt_f1_score": 0.61096,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6194196428571429,
+        "val_accuracy": 0.6290097629009763,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.3-2",
+        "train_dxn": [
+            12728,
+            122988,
+            194324,
+            93832
+        ],
+        "test_dxn": [
+            3129,
+            39336,
+            59898,
+            31141
+        ],
+        "valid_dxn": [
+            2533,
+            31588,
+            47084,
+            25628
+        ],
+        "seed": 3,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.3-2.pth"
+    },
+    {
+        "best-epoch": 359,
+        "loss": 0.44688,
+        "test_wt_f1_score": 0.56896,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5580357142857143,
+        "val_accuracy": 0.5313807531380753,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.9-0",
+        "train_dxn": [
+            23694,
+            301560,
+            470649,
+            232273
+        ],
+        "test_dxn": [
+            12960,
+            99720,
+            137880,
+            72000
+        ],
+        "valid_dxn": [
+            7920,
+            68400,
+            121320,
+            60480
+        ],
+        "seed": 1,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.9-0.pth"
+    },
+    {
+        "best-epoch": 138,
+        "loss": 0.39293,
+        "test_wt_f1_score": 0.58794,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5948660714285714,
+        "val_accuracy": 0.6150627615062761,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.4-2",
+        "train_dxn": [
+            11868,
+            114678,
+            181194,
+            87492
+        ],
+        "test_dxn": [
+            2919,
+            36696,
+            55878,
+            29051
+        ],
+        "valid_dxn": [
+            2363,
+            29468,
+            43924,
+            23908
+        ],
+        "seed": 3,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.4-2.pth"
+    },
+    {
+        "best-epoch": 181,
+        "loss": 0.36723,
+        "test_wt_f1_score": 0.61924,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6328125,
+        "val_accuracy": 0.592747559274756,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.1-1",
+        "train_dxn": [
+            12670,
+            148058,
+            238739,
+            118917
+        ],
+        "test_dxn": [
+            5642,
+            50960,
+            69888,
+            36582
+        ],
+        "valid_dxn": [
+            4186,
+            38038,
+            59696,
+            28574
+        ],
+        "seed": 2,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.1-1.pth"
+    },
+    {
+        "best-epoch": 172,
+        "loss": 0.34046,
+        "test_wt_f1_score": 0.62161,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6272321428571429,
+        "val_accuracy": 0.6387726638772664,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.2-2",
+        "train_dxn": [
+            14792,
+            142932,
+            225836,
+            109048
+        ],
+        "test_dxn": [
+            3633,
+            45672,
+            69546,
+            36157
+        ],
+        "valid_dxn": [
+            2941,
+            36676,
+            54668,
+            29756
+        ],
+        "seed": 3,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.2-2.pth"
+    },
+    {
+        "best-epoch": 189,
+        "loss": 0.42196,
+        "test_wt_f1_score": 0.57803,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5848214285714286,
+        "val_accuracy": 0.6122733612273361,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.6-2",
+        "train_dxn": [
+            16254,
+            157059,
+            248157,
+            119826
+        ],
+        "test_dxn": [
+            3990,
+            50160,
+            76380,
+            39710
+        ],
+        "valid_dxn": [
+            3230,
+            40280,
+            60040,
+            32680
+        ],
+        "seed": 3,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.6-2.pth"
+    },
+    {
+        "best-epoch": 186,
+        "loss": 0.41331,
+        "test_wt_f1_score": 0.57423,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.578125,
+        "val_accuracy": 0.6080892608089261,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.5-2",
+        "train_dxn": [
+            15996,
+            154566,
+            244218,
+            117924
+        ],
+        "test_dxn": [
+            3927,
+            49368,
+            75174,
+            39083
+        ],
+        "valid_dxn": [
+            3179,
+            39644,
+            59092,
+            32164
+        ],
+        "seed": 3,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.5-2.pth"
+    },
+    {
+        "best-epoch": 190,
+        "loss": 0.35469,
+        "test_wt_f1_score": 0.61196,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6205357142857143,
+        "val_accuracy": 0.6387726638772664,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.125-2",
+        "train_dxn": [
+            16340,
+            157890,
+            249470,
+            120460
+        ],
+        "test_dxn": [
+            4011,
+            50424,
+            76782,
+            39919
+        ],
+        "valid_dxn": [
+            3247,
+            40492,
+            60356,
+            32852
+        ],
+        "seed": 3,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.125-2.pth"
+    },
+    {
+        "best-epoch": 189,
+        "loss": 0.34496,
+        "test_wt_f1_score": 0.63678,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6428571428571429,
+        "val_accuracy": 0.6471408647140865,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.3-3",
+        "train_dxn": [
+            14742,
+            161406,
+            245511,
+            119637
+        ],
+        "test_dxn": [
+            4940,
+            45600,
+            78090,
+            41610
+        ],
+        "valid_dxn": [
+            3800,
+            40470,
+            60990,
+            30970
+        ],
+        "seed": 4,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.3-3.pth"
+    },
+    {
+        "best-epoch": 191,
+        "loss": 0.37737,
+        "test_wt_f1_score": 0.62795,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6339285714285714,
+        "val_accuracy": 0.6331938633193863,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.4-3",
+        "train_dxn": [
+            14898,
+            163114,
+            248109,
+            120903
+        ],
+        "test_dxn": [
+            4992,
+            46080,
+            78912,
+            42048
+        ],
+        "valid_dxn": [
+            3840,
+            40896,
+            61632,
+            31296
+        ],
+        "seed": 4,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.4-3.pth"
+    },
+    {
+        "best-epoch": 132,
+        "loss": 0.43831,
+        "test_wt_f1_score": 0.59992,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6060267857142857,
+        "val_accuracy": 0.5829846582984658,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.6-3",
+        "train_dxn": [
+            10296,
+            112728,
+            171468,
+            83556
+        ],
+        "test_dxn": [
+            3458,
+            31920,
+            54663,
+            29127
+        ],
+        "valid_dxn": [
+            2660,
+            28329,
+            42693,
+            21679
+        ],
+        "seed": 4,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.6-3.pth"
+    },
+    {
+        "best-epoch": 140,
+        "loss": 0.42423,
+        "test_wt_f1_score": 0.61027,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6171875,
+        "val_accuracy": 0.592747559274756,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.5-3",
+        "train_dxn": [
+            10920,
+            119560,
+            181860,
+            88620
+        ],
+        "test_dxn": [
+            3666,
+            33840,
+            57951,
+            30879
+        ],
+        "valid_dxn": [
+            2820,
+            30033,
+            45261,
+            22983
+        ],
+        "seed": 4,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.5-3.pth"
+    },
+    {
+        "best-epoch": 161,
+        "loss": 0.33646,
+        "test_wt_f1_score": 0.65425,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6595982142857143,
+        "val_accuracy": 0.6401673640167364,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.2-3",
+        "train_dxn": [
+            12558,
+            137494,
+            209139,
+            101913
+        ],
+        "test_dxn": [
+            4212,
+            38880,
+            66582,
+            35478
+        ],
+        "valid_dxn": [
+            3240,
+            34506,
+            52002,
+            26406
+        ],
+        "seed": 4,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.2-3.pth"
+    },
+    {
+        "best-epoch": 601,
+        "loss": 0.38703,
+        "test_wt_f1_score": 0.58145,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5703125,
+        "val_accuracy": 0.5411436541143654,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.8-0",
+        "train_dxn": [
+            39666,
+            504840,
+            787911,
+            388847
+        ],
+        "test_dxn": [
+            21672,
+            166754,
+            230566,
+            120400
+        ],
+        "valid_dxn": [
+            13244,
+            114380,
+            202874,
+            101136
+        ],
+        "seed": 1,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.8-0.pth"
+    },
+    {
+        "best-epoch": 213,
+        "loss": 0.34596,
+        "test_wt_f1_score": 0.62389,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6328125,
+        "val_accuracy": 0.6541143654114365,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.1-2",
+        "train_dxn": [
+            18318,
+            177003,
+            279669,
+            135042
+        ],
+        "test_dxn": [
+            4494,
+            56496,
+            86028,
+            44726
+        ],
+        "valid_dxn": [
+            3638,
+            45368,
+            67624,
+            36808
+        ],
+        "seed": 3,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.1-2.pth"
+    },
+    {
+        "best-epoch": 649,
+        "loss": 0.39256,
+        "test_wt_f1_score": 0.58691,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5792410714285714,
+        "val_accuracy": 0.5536959553695955,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.7-0",
+        "train_dxn": [
+            42834,
+            545160,
+            850839,
+            419903
+        ],
+        "test_dxn": [
+            23400,
+            180050,
+            248950,
+            130000
+        ],
+        "valid_dxn": [
+            14300,
+            123500,
+            219050,
+            109200
+        ],
+        "seed": 1,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.7-0.pth"
+    },
+    {
+        "best-epoch": 158,
+        "loss": 0.3507,
+        "test_wt_f1_score": 0.62345,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6372767857142857,
+        "val_accuracy": 0.6206415620641562,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.3-4",
+        "train_dxn": [
+            11376,
+            134142,
+            203978,
+            103016
+        ],
+        "test_dxn": [
+            5088,
+            40227,
+            65985,
+            31164
+        ],
+        "valid_dxn": [
+            3180,
+            32595,
+            51675,
+            26553
+        ],
+        "seed": 5,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.3-4.pth"
+    },
+    {
+        "best-epoch": 261,
+        "loss": 0.33098,
+        "test_wt_f1_score": 0.64147,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6506696428571429,
+        "val_accuracy": 0.6555090655509066,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.125-3",
+        "train_dxn": [
+            20358,
+            222894,
+            339039,
+            165213
+        ],
+        "test_dxn": [
+            6812,
+            62880,
+            107682,
+            57378
+        ],
+        "valid_dxn": [
+            5240,
+            55806,
+            84102,
+            42706
+        ],
+        "seed": 4,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.125-3.pth"
+    },
+    {
+        "best-epoch": 172,
+        "loss": 0.34374,
+        "test_wt_f1_score": 0.63307,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6473214285714286,
+        "val_accuracy": 0.6304044630404463,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.2-4",
+        "train_dxn": [
+            12384,
+            146028,
+            222052,
+            112144
+        ],
+        "test_dxn": [
+            5536,
+            43769,
+            71795,
+            33908
+        ],
+        "valid_dxn": [
+            3460,
+            35465,
+            56225,
+            28891
+        ],
+        "seed": 5,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.2-4.pth"
+    },
+    {
+        "best-epoch": 197,
+        "loss": 0.3832,
+        "test_wt_f1_score": 0.61044,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6205357142857143,
+        "val_accuracy": 0.603905160390516,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.4-4",
+        "train_dxn": [
+            14184,
+            167253,
+            254327,
+            128444
+        ],
+        "test_dxn": [
+            6336,
+            50094,
+            82170,
+            38808
+        ],
+        "valid_dxn": [
+            3960,
+            40590,
+            64350,
+            33066
+        ],
+        "seed": 5,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.4-4.pth"
+    },
+    {
+        "best-epoch": 398,
+        "loss": 0.43814,
+        "test_wt_f1_score": 0.58196,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5770089285714286,
+        "val_accuracy": 0.5676429567642957,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.9-1",
+        "train_dxn": [
+            27860,
+            325564,
+            524962,
+            261486
+        ],
+        "test_dxn": [
+            12369,
+            111720,
+            153216,
+            80199
+        ],
+        "valid_dxn": [
+            9177,
+            83391,
+            130872,
+            62643
+        ],
+        "seed": 2,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.9-1.pth"
+    },
+    {
+        "best-epoch": 214,
+        "loss": 0.41048,
+        "test_wt_f1_score": 0.59963,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6060267857142857,
+        "val_accuracy": 0.5913528591352859,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.6-4",
+        "train_dxn": [
+            15408,
+            181686,
+            276274,
+            139528
+        ],
+        "test_dxn": [
+            6880,
+            54395,
+            89225,
+            42140
+        ],
+        "valid_dxn": [
+            4300,
+            44075,
+            69875,
+            35905
+        ],
+        "seed": 5,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.6-4.pth"
+    },
+    {
+        "best-epoch": 223,
+        "loss": 0.38661,
+        "test_wt_f1_score": 0.61015,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6194196428571429,
+        "val_accuracy": 0.6052998605299861,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.5-4",
+        "train_dxn": [
+            16056,
+            189327,
+            287893,
+            145396
+        ],
+        "test_dxn": [
+            7168,
+            56672,
+            92960,
+            43904
+        ],
+        "valid_dxn": [
+            4480,
+            45920,
+            72800,
+            37408
+        ],
+        "seed": 5,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.5-4.pth"
+    },
+    {
+        "best-epoch": 242,
+        "loss": 0.3518,
+        "test_wt_f1_score": 0.64294,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6517857142857143,
+        "val_accuracy": 0.6638772663877266,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.1-3",
+        "train_dxn": [
+            18876,
+            206668,
+            314358,
+            153186
+        ],
+        "test_dxn": [
+            6318,
+            58320,
+            99873,
+            53217
+        ],
+        "valid_dxn": [
+            4860,
+            51759,
+            78003,
+            39609
+        ],
+        "seed": 4,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.1-3.pth"
+    },
+    {
+        "best-epoch": 170,
+        "loss": 0.4302,
+        "test_wt_f1_score": 0.57062,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5691964285714286,
+        "val_accuracy": 0.5634588563458857,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.7-1",
+        "train_dxn": [
+            11900,
+            139060,
+            224230,
+            111690
+        ],
+        "test_dxn": [
+            5301,
+            47880,
+            65664,
+            34371
+        ],
+        "valid_dxn": [
+            3933,
+            35739,
+            56088,
+            26847
+        ],
+        "seed": 2,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.7-1.pth"
+    },
+    {
+        "best-epoch": 254,
+        "loss": 0.33568,
+        "test_wt_f1_score": 0.63486,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6484375,
+        "val_accuracy": 0.6443514644351465,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.125-4",
+        "train_dxn": [
+            18288,
+            215646,
+            327914,
+            165608
+        ],
+        "test_dxn": [
+            8160,
+            64515,
+            105825,
+            49980
+        ],
+        "valid_dxn": [
+            5100,
+            52275,
+            82875,
+            42585
+        ],
+        "seed": 5,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.125-4.pth"
+    },
+    {
+        "best-epoch": 247,
+        "loss": 0.34663,
+        "test_wt_f1_score": 0.6333,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6473214285714286,
+        "val_accuracy": 0.6387726638772664,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.1-4",
+        "train_dxn": [
+            17784,
+            209703,
+            318877,
+            161044
+        ],
+        "test_dxn": [
+            7936,
+            62744,
+            102920,
+            48608
+        ],
+        "valid_dxn": [
+            4960,
+            50840,
+            80600,
+            41416
+        ],
+        "seed": 5,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.1-4.pth"
+    },
+    {
+        "best-epoch": 343,
+        "loss": 0.45042,
+        "test_wt_f1_score": 0.58179,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5758928571428571,
+        "val_accuracy": 0.601115760111576,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.9-2",
+        "train_dxn": [
+            29498,
+            285033,
+            450359,
+            217462
+        ],
+        "test_dxn": [
+            7224,
+            90816,
+            138288,
+            71896
+        ],
+        "valid_dxn": [
+            5848,
+            72928,
+            108704,
+            59168
+        ],
+        "seed": 3,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.9-2.pth"
+    },
+    {
+        "best-epoch": 514,
+        "loss": 0.39938,
+        "test_wt_f1_score": 0.59943,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5993303571428571,
+        "val_accuracy": 0.5746164574616457,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.8-1",
+        "train_dxn": [
+            35980,
+            420452,
+            677966,
+            337698
+        ],
+        "test_dxn": [
+            15965,
+            144200,
+            197760,
+            103515
+        ],
+        "valid_dxn": [
+            11845,
+            107635,
+            168920,
+            80855
+        ],
+        "seed": 2,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.8-1.pth"
+    },
+    {
+        "best-epoch": 200,
+        "loss": 0.44749,
+        "test_wt_f1_score": 0.57806,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5803571428571429,
+        "val_accuracy": 0.599721059972106,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.8-2",
+        "train_dxn": [
+            17200,
+            166200,
+            262600,
+            126800
+        ],
+        "test_dxn": [
+            4221,
+            53064,
+            80802,
+            42009
+        ],
+        "valid_dxn": [
+            3417,
+            42612,
+            63516,
+            34572
+        ],
+        "seed": 3,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.8-2.pth"
+    },
+    {
+        "best-epoch": 500,
+        "loss": 0.42722,
+        "test_wt_f1_score": 0.5455,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5479910714285714,
+        "val_accuracy": 0.5774058577405857,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.7-2",
+        "train_dxn": [
+            43000,
+            415500,
+            656500,
+            317000
+        ],
+        "test_dxn": [
+            10521,
+            132264,
+            201402,
+            104709
+        ],
+        "valid_dxn": [
+            8517,
+            106212,
+            158316,
+            86172
+        ],
+        "seed": 3,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.7-2.pth"
+    },
+    {
+        "best-epoch": 310,
+        "loss": 0.45188,
+        "test_wt_f1_score": 0.61962,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6183035714285714,
+        "val_accuracy": 0.5885634588563459,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.9-3",
+        "train_dxn": [
+            24180,
+            264740,
+            402690,
+            196230
+        ],
+        "test_dxn": [
+            8086,
+            74640,
+            127821,
+            68109
+        ],
+        "valid_dxn": [
+            6220,
+            66243,
+            99831,
+            50693
+        ],
+        "seed": 4,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.9-3.pth"
+    },
+    {
+        "best-epoch": 192,
+        "loss": 0.45502,
+        "test_wt_f1_score": 0.60933,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6037946428571429,
+        "val_accuracy": 0.592747559274756,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.8-3",
+        "train_dxn": [
+            14976,
+            163968,
+            249408,
+            121536
+        ],
+        "test_dxn": [
+            5018,
+            46320,
+            79323,
+            42267
+        ],
+        "valid_dxn": [
+            3860,
+            41109,
+            61953,
+            31459
+        ],
+        "seed": 4,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.8-3.pth"
+    },
+    {
+        "best-epoch": 237,
+        "loss": 0.42135,
+        "test_wt_f1_score": 0.61905,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.6261160714285714,
+        "val_accuracy": 0.602510460251046,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.7-3",
+        "train_dxn": [
+            18486,
+            202398,
+            307863,
+            150021
+        ],
+        "test_dxn": [
+            6188,
+            57120,
+            97818,
+            52122
+        ],
+        "valid_dxn": [
+            4760,
+            50694,
+            76398,
+            38794
+        ],
+        "seed": 4,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.7-3.pth"
+    },
+    {
+        "best-epoch": 352,
+        "loss": 0.46814,
+        "test_wt_f1_score": 0.57496,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5502232142857143,
+        "val_accuracy": 0.5146443514644351,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.9-4",
+        "train_dxn": [
+            25344,
+            298848,
+            454432,
+            229504
+        ],
+        "test_dxn": [
+            11296,
+            89309,
+            146495,
+            69188
+        ],
+        "valid_dxn": [
+            7060,
+            72365,
+            114725,
+            58951
+        ],
+        "seed": 5,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.9-4.pth"
+    },
+    {
+        "best-epoch": 345,
+        "loss": 0.43257,
+        "test_wt_f1_score": 0.57412,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5535714285714286,
+        "val_accuracy": 0.5369595536959554,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.8-4",
+        "train_dxn": [
+            24840,
+            292905,
+            445395,
+            224940
+        ],
+        "test_dxn": [
+            11072,
+            87538,
+            143590,
+            67816
+        ],
+        "valid_dxn": [
+            6920,
+            70930,
+            112450,
+            57782
+        ],
+        "seed": 5,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.8-4.pth"
+    },
+    {
+        "best-epoch": 480,
+        "loss": 0.41733,
+        "test_wt_f1_score": 0.57409,
+        "val_wt_f1_score": Infinity,
+        "test_accuracy": 0.5647321428571429,
+        "val_accuracy": 0.5481171548117155,
+        "learning_rate": 0.001,
+        "imbalanced": false,
+        "loss_metric": "approx-f1",
+        "run_name": "traintau-af1-0.7-4",
+        "train_dxn": [
+            34560,
+            407520,
+            619680,
+            312960
+        ],
+        "test_dxn": [
+            15392,
+            121693,
+            199615,
+            94276
+        ],
+        "valid_dxn": [
+            9620,
+            98605,
+            156325,
+            80327
+        ],
+        "seed": 5,
+        "batch_size": 1024,
+        "evaluation": null,
+        "patience": "100",
+        "model_file_path": "/app/timeseries/multiclass_src/models/wine/20201217-best_model-traintau-af1-0.7-4.pth"
+    }
+]

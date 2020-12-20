@@ -21,6 +21,7 @@ import torch.optim as optim
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10
 from torch.utils.data.dataloader import DataLoader
+from sklearn.model_selection import train_test_split
 from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data import Dataset
 
@@ -29,6 +30,9 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 
 
 EPS = 1e-7
+_IRIS_DATA_PATH = "../data/iris.csv"
+_MODELS_PATH = "/app/timeseries/multiclass_src/models/iris"
+
 
 class Model(nn.Module):
     # http://airccse.org/journal/ijsc/papers/2112ijsc07.pdf
@@ -49,7 +53,6 @@ class Model(nn.Module):
         x = self.fc3(x)
         x = self.softmax(x)
         return x
-
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -186,14 +189,16 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
     return mean_f1s, mean_f1s.mean(), precisions, recalls
 
 
-
 def get_metrics(device, batch_size, seed, results_path, models_path, models_list, output_file):
-    # LOAD IN TEST LOADER 
-    if imbalanced:
-        _, _, test_loader  = get_test_loader(batch_size=batch_size, seed=seed)
-    else: 
-        _, _, test_loader = load_data_v2(batch_size=batch_size, seed=seed)
+    # LOAD IN TEST LOADER
+    set_seed(seed)
+    data_splits = load_iris(seed=seed)
+    _, _, test_loader = create_loaders(
+        data_splits, batch_size=batch_size, seed=seed)
 
+    # LOAD iN MODEL
+    model = load_model(model_name)
+    model.eval()
 
     # EVALUATION
     results_json = {   
@@ -390,34 +395,32 @@ def get_metrics(device, batch_size, seed, results_path, models_path, models_list
 if __name__ == '__main__':
     trained_taus = ["0.1", "0.125", "0.2", "0.3","0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
 
-    run_name = "20201215-best_model-traintau-approx-f1-reg"
-    num_runs = 3
+    run_name = "best_model-traintau-af1"
+    num_runs = 5
+    for run_number in range(num_runs): 
+        models_list = []
+        for i in range(len(trained_taus)):
+            models_list.append(run_name + "-" + str(trained_taus[i] + "-" + str(run_number) +  ".pth"))
+    
+        get_metrics(device="cuda:3", batch_size=256, seed=11,
+                    results_path="/app/timeseries/multiclass_src/results/iris",
+                    models_path="/app/timeseries/multiclass_src/models/iris",
+                    models_list=models_list, 
+                    output_file="thresh_results.json")
+
+    trained_taus = ["0.1", "0.125", "0.2", "0.3","0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
+    run_name = "best_model-traintau-af1"
+    num_runs = 5
     for run_number in range(num_runs): 
         models_list = []
         for i in range(len(trained_taus)):
             models_list.append(run_name + "-" + str(trained_taus[i] + "-" + str(run_number) +  ".pth"))
     
         get_metrics(device="cuda:3", batch_size=1024, seed=11,
-                    results_path="/app/timeseries/multiclass_src/results/train_tau/20201216",
-                    models_path="/app/timeseries/multiclass_src/models/cifar-10-bal",
+                    results_path="/app/timeseries/multiclass_src/results/iris",
+                    models_path="/app/timeseries/multiclass_src/models/iris",
                     models_list=models_list, 
-                    output_file="balanced_results.json", 
-                    imbalanced=False)
-
-    run_name = "best_model-v4-traintau-approx-f1-imb"
-    num_runs = 3
-    for run_number in range(num_runs):
-        models_list = []
-        for i in range(len(trained_taus)):
-            models_list.append(
-                run_name + "-" + str(trained_taus[i] + "-" + str(run_number) + ".pth"))
-
-        get_metrics(device="cuda:3", batch_size=1024, seed=11,
-                    results_path="/app/timeseries/multiclass_src/results/train_tau/20201216",
-                    models_path="/app/timeseries/multiclass_src/models/cifar-10-v2",
-                    models_list=models_list,
-                    output_file="v2_imbalanced_results.json",
-                    imbalanced=True)
+                    output_file="thresh_results.json")
 '''
 For each train tau: 
     - Load in each class's model (that was trained on that tau) 

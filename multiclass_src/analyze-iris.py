@@ -200,7 +200,7 @@ def get_metrics(device, model_name, batch_size, seed, output_file):
     # LOAD IN TEST LOADER
     set_seed(seed)
     data_splits = load_iris(seed=seed)
-    train_loader, val_loader, test_loader = create_loaders(data_splits, batch_size=batch_size, seed=seed)
+    _, _, test_loader = create_loaders(data_splits, batch_size=batch_size, seed=seed)
 
 
     # LOAD iN MODEL
