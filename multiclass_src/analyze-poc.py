@@ -1921,11 +1921,17 @@ def process_results():
 
 if __name__ == '__main__':
     trained_taus = ["0.1", "0.125", "0.2", "0.3","0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
-    for i in range(3): 
-        get_metrics(device="cuda:3", batch_size=1024, seed=11,
+    # for i in range(3): 
+    #     get_metrics(device="cuda:3", batch_size=1024, seed=11,
+    #                         results_path="/app/timeseries/multiclass_src/results/poc/cifar/",
+    #                         models_path="/app/timeseries/multiclass_src/models/cifar-poc",
+    #                         output_file="poc_results.json",
+    #                         imbalanced=True, 
+    #                         run_number=i)
+
+    get_metrics(device="cuda:3", batch_size=1024, seed=11,
                             results_path="/app/timeseries/multiclass_src/results/poc/cifar/",
-                            models_path="/app/timeseries/multiclass_src/models/cifar-10-poc",
+                            models_path="/app/timeseries/multiclass_src/models/cifar-poc",
                             output_file="poc_results.json",
                             imbalanced=True, 
-                            run_number=i)
-
+                            run_number=2)
