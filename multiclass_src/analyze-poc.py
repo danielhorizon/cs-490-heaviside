@@ -109,7 +109,7 @@ def get_test_loader(batch_size, seed):
     test_set = Dataset(data_splits['test'])
 
     data_params = {'batch_size': batch_size, 'shuffle': True,
-                   'num_workers': 1, 'worker_init_fn': np.random.seed(seed)}
+                   'num_workers': 0, 'worker_init_fn': np.random.seed(seed)}
     set_seed(seed)
     train_loader = DataLoader(train_set, **data_params)
     set_seed(seed)
@@ -207,7 +207,7 @@ def load_data_v2(shuffle=True, batch_size=None, seed=None):
     return train_loader, valid_loader, test_loader
 
 
-def get_metrics(device, batch_size, seed, results_path, models_path, output_file, imbalanced):
+def get_metrics(device, batch_size, seed, results_path, models_path, output_file, imbalanced, run_number):
     # LOAD IN TEST LOADER 
     if imbalanced:
         _, _, test_loader  = get_test_loader(batch_size=batch_size, seed=seed)
@@ -1701,7 +1701,7 @@ def get_metrics(device, batch_size, seed, results_path, models_path, output_file
             for i in range(1,11): 
                 # load in the model 
                 print("LOADING IN Train Tau: {}, Class {}".format(trained_taus[x], i))
-                model_name = "20201214-class-{}-best-model-poc-approx-f1-imb-{}-2.pth".format(i, trained_taus[x])
+                model_name = "class-{}-best-model-poc-af1-imb-{}-{}.pth".format(i, trained_taus[x], run_number)
                 model = load_model(models_path, model_name)
                 model.eval()
                 
@@ -1738,10 +1738,6 @@ def get_metrics(device, batch_size, seed, results_path, models_path, output_file
                     temp_json[trained_taus[x]][str(tau)][str(
                         i)]['class_recalls'] = recalls.numpy().tolist()
     
-    ## recording results
-    record_results(best_test=temp_json,
-                   results_path=results_path,
-                   output_file="temp.json")
 
     ## need to process results 
     for i in range(len(trained_taus)):
@@ -1925,10 +1921,11 @@ def process_results():
 
 if __name__ == '__main__':
     trained_taus = ["0.1", "0.125", "0.2", "0.3","0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
-    get_metrics(device="cuda:3", batch_size=1024, seed=11,
-                        results_path="/app/timeseries/multiclass_src/results/poc/",
-                        models_path="/app/timeseries/multiclass_src/models/cifar-10-poc",
-                        output_file="poc_results_2.json",
-                        imbalanced=True)
+    for i in range(3): 
+        get_metrics(device="cuda:3", batch_size=1024, seed=11,
+                            results_path="/app/timeseries/multiclass_src/results/poc/cifar/",
+                            models_path="/app/timeseries/multiclass_src/models/cifar-10-poc",
+                            output_file="poc_results.json",
+                            imbalanced=True, 
+                            run_number=i)
 
-    # process_results()
