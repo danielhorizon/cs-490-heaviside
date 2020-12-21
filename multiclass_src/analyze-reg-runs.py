@@ -273,37 +273,32 @@ def get_metrics(device, model_name, batch_size, seed, output_file):
 
 if __name__ == '__main__':
     approx_f1_models = [
-        "20201215-best_model-1024-approx-f1-reg-0.pth", 
-        "20201215-best_model-1024-approx-f1-reg-1.pth", 
-        "20201215-best_model-1024-approx-f1-reg-2.pth", 
+        "best_model-1024-approx-f1-reg-0.pth", 
+        "best_model-1024-approx-f1-reg-1.pth", 
+        "best_model-1024-approx-f1-reg-2.pth", 
     ]
     for approx_f1_model in approx_f1_models:
         get_metrics(device="cuda:3", model_name=approx_f1_model,
                     batch_size=1024, seed=11, output_file="20201215_af1_reg.json")
 
     ce_models = [
-        "20201215-best_model-1024-baseline-ce-reg-0.pth",
-        "20201215-best_model-1024-baseline-ce-reg-1.pth",
-        "20201215-best_model-1024-baseline-ce-reg-2.pth",
+        "best_model-1024-baseline-ce-reg-0.pth",
+        "best_model-1024-baseline-ce-reg-1.pth",
+        "best_model-1024-baseline-ce-reg-2.pth",
     ]
     for ce_model in ce_models:
         get_metrics(device="cuda:3", model_name=ce_model,
                     batch_size=1024, seed=11, output_file="20201215_ce_reg.json")
 
-    # search_tau_models = [
-    #     "20201211-best_model-v3-searchtau-e5-1024-0.pth", 
-    #     "20201211-best_model-v3-searchtau-e5-1024-1.pth", 
-    #     "20201211-best_model-v3-searchtau-e5-1024-2.pth"
-    # ]
-    # for stau_model in search_tau_models:
-    #     get_metrics(device="cuda:3", model_name=stau_model,
-    #                 batch_size=1024, seed=11, output_file="20201208_e5_agg_results.json")
 
-    # search_tau_models = [
-    #     "20201211-best_model-v2-searchtau-e10-1024-0.pth",
-    #     "20201211-best_model-v2-searchtau-e10-1024-1.pth",
-    #     "20201211-best_model-v2-searchtau-e10-1024-2.pth"
-    # ]
-    # for stau_model in search_tau_models:
-    #     get_metrics(device="cuda:3", model_name=stau_model,
-    #                 batch_size=1024, seed=11, output_file="20201208_e10_agg_results.json")
+    #     ce_models = [
+    #         "model-1024-approx-f1-reg-0.pth",
+    #         "model-1024-approx-f1-reg-1.pth",
+    #         "model-1024-approx-f1-reg-2.pth"
+    #     ]
+    # get_metrics(device="cuda:0", batch_size=1024, seed=1,
+    #             results_path="/app/timeseries/multiclass_src/results/mnist",
+    #             models_path="/app/timeseries/multiclass_src/models/mnist",
+    #             models_list=ce_models,
+    #             output_file="20201220-mnist-reg-results.json",
+    #             imbalanced=False)

@@ -397,7 +397,6 @@ def get_metrics(device, batch_size, seed, results_path, models_path, models_list
 
                 results_json[trained_taus[x]][tau]['class_f1s'] = class_f1s.numpy().tolist() 
                 results_json[trained_taus[x]][tau]['mean_f1'] = mean_f1.item()
-                results_json[trained_taus[x]][tau]['eval_dxn'] = final_test_dxn
                 results_json[trained_taus[x]][tau]['class_precisions'] = precisions.numpy().tolist()
                 results_json[trained_taus[x]][tau]['class_recalls'] = recalls.numpy().tolist()
 
@@ -410,34 +409,34 @@ def get_metrics(device, batch_size, seed, results_path, models_path, models_list
 if __name__ == '__main__':
     trained_taus = ["0.1", "0.125", "0.2", "0.3","0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
 
-    run_name = "20201215-best_model-traintau-approx-f1-reg"
+    run_name = "best_model-traintau-approx-f1-reg"
     num_runs = 3
     for run_number in range(num_runs): 
         models_list = []
         for i in range(len(trained_taus)):
             models_list.append(run_name + "-" + str(trained_taus[i] + "-" + str(run_number) +  ".pth"))
     
-        get_metrics(device="cuda:3", batch_size=1024, seed=11,
+        get_metrics(device="cuda:3", batch_size=1024, seed=1,
                     results_path="/app/timeseries/multiclass_src/results/train_tau/20201216",
                     models_path="/app/timeseries/multiclass_src/models/cifar-10-bal",
                     models_list=models_list, 
-                    output_file="balanced_results.json", 
+                    output_file="bal-results.json", 
                     imbalanced=False)
 
-    run_name = "best_model-v4-traintau-approx-f1-imb"
-    num_runs = 3
-    for run_number in range(num_runs):
-        models_list = []
-        for i in range(len(trained_taus)):
-            models_list.append(
-                run_name + "-" + str(trained_taus[i] + "-" + str(run_number) + ".pth"))
+    # run_name = "best_model-v4-traintau-approx-f1-imb"
+    # num_runs = 3
+    # for run_number in range(num_runs):
+    #     models_list = []
+    #     for i in range(len(trained_taus)):
+    #         models_list.append(
+    #             run_name + "-" + str(trained_taus[i] + "-" + str(run_number) + ".pth"))
 
-        get_metrics(device="cuda:3", batch_size=1024, seed=11,
-                    results_path="/app/timeseries/multiclass_src/results/train_tau/20201216",
-                    models_path="/app/timeseries/multiclass_src/models/cifar-10-v2",
-                    models_list=models_list,
-                    output_file="v2_imbalanced_results.json",
-                    imbalanced=True)
+    #     get_metrics(device="cuda:3", batch_size=1024, seed=11,
+    #                 results_path="/app/timeseries/multiclass_src/results/train_tau/20201216",
+    #                 models_path="/app/timeseries/multiclass_src/models/cifar-10-v2",
+    #                 models_list=models_list,
+    #                 output_file="v2_imbalanced_results.json",
+    #                 imbalanced=True)
 '''
 For each train tau: 
     - Load in each class's model (that was trained on that tau) 

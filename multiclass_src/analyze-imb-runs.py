@@ -24,7 +24,6 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from download_cifar import *
 
 
-_MODELS_PATH = "/app/timeseries/multiclass_src/models/cifar-10-v3"
 EPS = 1e-7
 
 
@@ -89,13 +88,12 @@ def set_seed(seed):
     random.seed(seed)
 
 
-def load_model(model_name):
-    model_path = "/".join([_MODELS_PATH, model_name])
+def load_model(models_path, model_name):
+    model_path = "/".join([models_path, model_name])
 
     model = Net()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     model = torch.load(model_path).to("cuda:3")
-    model.eval()
     return model
 
 
@@ -155,16 +153,10 @@ def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
     return mean_f1s, mean_f1s.mean(), precisions, recalls
 
 
-
-def get_metrics(device, model_name, batch_size, seed, output_file):
+def get_metrics(device, batch_size, seed, results_path, models_path, models_list, output_file, imbalanced):
     # LOAD IN TEST LOADER
     _, _, test_loader = get_test_loader(batch_size=batch_size, seed=seed)
 
-    # LOAD iN MODEL
-    model = load_model(model_name)
-
-    # EVALUATION
-    model.eval()
     test_thresholds = [0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9]
 
     eval_json = {
@@ -182,71 +174,62 @@ def get_metrics(device, model_name, batch_size, seed, output_file):
     }
 
     with torch.no_grad():
-        for tau in test_thresholds:
-            # go through all the thresholds, and test them out again.
-            final_test_dxn = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-            test_preds, test_labels = [], []
-            for i, (inputs, labels) in enumerate(test_loader):
-                # updating distribution of labels.
-                labels_list = labels.numpy()
-                for label in labels_list:
-                    final_test_dxn[label] += 1
-
-                # stacking onto tensors.
-                inputs = inputs.to(device)
-                labels = labels.to(device)
-
-                # passing it through our finalized model.
-                output = model(inputs)
-                labels = torch.zeros(len(labels), 10).to(device).scatter_(
-                    1, labels.unsqueeze(1), 1.).to(device)
-
-                pred_arr = output.detach().cpu().numpy()
-                label_arr = labels.detach().cpu().numpy()
-
-                # appending results.
-                test_preds.append(pred_arr)
-                test_labels.append(label_arr)
-
-            test_preds = torch.tensor(test_preds[0])
-            test_labels = torch.tensor(test_labels[0])
-
-            class_f1s, mean_f1, precisions, recalls = evaluation_f1(
-                device=device, y_labels=test_labels, y_preds=test_preds, threshold=tau)
+        for x in range(len(models_list)): 
+            print("Loading in model: {}".format(models_list[x]))
+            model = load_model(models_path, models_list[x])
+            model.eval()
             
-            print(class_f1s)
+            for tau in test_thresholds:
+                # go through all the thresholds, and test them out again.
+                for i, (inputs, labels) in enumerate(test_loader):
+                    # stacking onto tensors.
+                    inputs = inputs.to(device)
+                    labels = labels.to(device)
 
-            tau = str(tau)
-            eval_json[tau]['class_f1s'] = class_f1s.numpy().tolist()
-            eval_json[tau]['mean_f1'] = mean_f1.item()
-            eval_json[tau]['eval_dxn'] = final_test_dxn
-            eval_json[tau]['class_precisions'] = precisions.numpy().tolist()
-            eval_json[tau]['class_recalls'] = recalls.numpy().tolist()
-    eval_json['run_name'] = model_name
+                    # passing it through our finalized model.
+                    output = model(inputs)
+                    labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                        1, labels.unsqueeze(1), 1.).to(device)
+
+                    pred_arr = output.detach().cpu().numpy()
+                    label_arr = labels.detach().cpu().numpy()
+
+                    # appending results.
+                    test_preds.append(pred_arr)
+                    test_labels.append(label_arr)
+
+                test_preds = torch.tensor(test_preds[0])
+                test_labels = torch.tensor(test_labels[0])
+
+                class_f1s, mean_f1, precisions, recalls = evaluation_f1(
+                    device=device, y_labels=test_labels, y_preds=test_preds, threshold=tau)
+                
+                print(class_f1s)
+
+                tau = str(tau)
+                eval_json[tau]['class_f1s'] = class_f1s.numpy().tolist()
+                eval_json[tau]['mean_f1'] = mean_f1.item()
+                eval_json[tau]['class_precisions'] = precisions.numpy().tolist()
+                eval_json[tau]['class_recalls'] = recalls.numpy().tolist()
     record_results(best_test=eval_json,
-                   results_path="/app/timeseries/multiclass_src/results/new_runs", 
+                   results_path=results_path, 
                    output_file=output_file)
     return eval_json
 
 
 if __name__ == '__main__':
     approx_f1_models = [
-        "20201213-best_model-1024-approx-f1-imb-0.pth", 
-        "20201213-best_model-1024-approx-f1-imb-1.pth", 
-        "20201213-best_model-1024-approx-f1-imb-2.pth", 
+        "model-1024-approx-f1-imb-0.pth",
+        "model-1024-approx-f1-imb-1.pth",
+        "model-1024-approx-f1-imb-2.pth",
     ]
-    for approx_f1_model in approx_f1_models:
-        get_metrics(device="cuda:3", model_name=approx_f1_model,
-                    batch_size=1024, seed=11, output_file="20201213_af1_imb.json")
+    get_metrics(device="cuda:0", batch_size=1024, seed=1,
+                results_path="/app/timeseries/multiclass_src/results/mnist",
+                models_path="/app/timeseries/multiclass_src/models/mnist",
+                models_list=approx_f1_models,
+                output_file="20201220-mnist-imb-results.json",
+                imbalanced=False)
 
-    ce_models = [
-        "20201213-best_model-1024-baseline-ce-imb-0.pth",
-        "20201213-best_model-1024-baseline-ce-imb-1.pth",
-        "20201213-best_model-1024-baseline-ce-imb-2.pth",
-    ]
-    for ce_model in ce_models:
-        get_metrics(device="cuda:3", model_name=ce_model,
-                    batch_size=1024, seed=11, output_file="20201213_ce_imb.json")
 
     # search_tau_models = [
     #     "20201211-best_model-v3-searchtau-e5-1024-0.pth", 
