@@ -73,65 +73,6 @@ class Dataset(torch.utils.data.Dataset):
         return self.X[index, :], self.y[index]
 
 
-# https://gist.github.com/kevinzakka/d33bf8d6c7f06a9d8c76d97a7879f5cb
-def load_data_v2(shuffle=True, batch_size=None, seed=None):
-    torch.manual_seed(seed)
-
-    normalize = transforms.Normalize(
-        mean=[0.4914, 0.4822, 0.4465],
-        std=[0.2023, 0.1994, 0.2010],
-    )
-
-    # define transforms for validation and train.
-    valid_transform = transforms.Compose([
-        transforms.ToTensor(),
-        normalize,
-    ])
-    train_transform = transforms.Compose([
-        transforms.ToTensor(),
-        normalize,
-    ])
-
-    # loading in dataset.
-    train_dataset = CIFAR10(train=True, download=True,
-                            root="../data", transform=train_transform)
-    valid_dataset = CIFAR10(train=True, download=True,
-                            root="../data", transform=valid_transform)
-    # need to transform the test according to the train.
-    test_dataset = CIFAR10(train=False, download=True,
-                           root="../data", transform=train_transform)
-
-    print("Train Size: {}, Test Size: {}, Valid Size: {}".format(
-        len(train_dataset), len(test_dataset), len(valid_dataset)))
-
-    # spliiting into validation/train/test.
-    num_train = len(train_dataset)
-    indices = list(range(num_train))
-    valid_size = 0.10
-    split = int(np.floor(valid_size * num_train))
-    if shuffle:
-        np.random.shuffle(indices)
-
-    train_idx, valid_idx = indices[split:], indices[:split]
-    print("Train Size:{} Valid Size: {}".format(len(train_idx), len(valid_idx)))
-    train_sampler = SubsetRandomSampler(train_idx)
-    valid_sampler = SubsetRandomSampler(valid_idx)
-
-    train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, sampler=train_sampler,
-        num_workers=0, pin_memory=True,
-    )
-    valid_loader = DataLoader(
-        valid_dataset, batch_size=batch_size, sampler=valid_sampler,
-        num_workers=0, pin_memory=True,
-    )
-    test_loader = DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=True,
-        num_workers=0, pin_memory=True,
-    )
-    return train_loader, valid_loader, test_loader
-
-
 def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
@@ -737,8 +678,8 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         lowest_f1_loss, valid_loss, reset_patience))
 
                 today_date = time.strftime('%Y%m%d')
-                # TODO(dlee): add in support for balanced dataset.
-                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-poc",
+
+                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-poc/balanced",
                                             '{}-best_model-{}.pth'.format(
                                                 today_date, run_name
                                             )])
@@ -758,7 +699,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-poc",
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-poc/balanced",
                                 '{}-overfit-model-{}.pth'.format(
                                     time.strftime('%Y%m%d'), run_name
                                 )])
@@ -823,25 +764,25 @@ if __name__ == '__main__':
 
 
 '''
-2020-12-19: 
 Running now 
-python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.1" --cuda=1 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.125" --cuda=1 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.2" --cuda=2 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.3" --cuda=3 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.5" --cuda=0 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.6" --cuda=1 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.7" --cuda=2 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
-python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --imb --run_name="poc-af1-imb-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --run_name="poc-af1-reg-0.1" --cuda=0 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="reg_raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --run_name="poc-af1-reg-0.125" --cuda=1 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="reg_raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --run_name="poc-af1-reg-0.2" --cuda=1 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="reg_raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --run_name="poc-af1-reg-0.3" --cuda=1 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="reg_raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --run_name="poc-af1-reg-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --run_name="poc-af1-reg-0.5" --cuda=0 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --run_name="poc-af1-reg-0.6" --cuda=3 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --run_name="poc-af1-reg-0.7" --cuda=1 --train_tau=0.7 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 mnist-poc.py --epochs=2000 --loss="approx-f1" --run_name="poc-af1-reg-0.8" --cuda=3 --train_tau=0.8 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+
+
+Need to run: 
 
 
 
 
 
 --- Need to run: 
-
-
 # python3 mnist-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.1" --cuda=2 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 # python3 mnist-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.125" --cuda=2 --train_tau=0.125 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 # python3 mnist-poc.py --epochs=2000 --loss="ce" --imb --run_name="poc-baseline-ce-imb-0.2" --cuda=0 --train_tau=0.2 --batch_size=1024 --patience=100 --output_file="raw_results.json"
