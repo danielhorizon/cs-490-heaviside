@@ -957,7 +957,6 @@ def get_metrics(device, batch_size, seed, results_path, models_path, output_file
                     class_f1s, mean_f1, precisions, recalls = evaluation_f1(device=device, y_labels=test_labels, y_preds=test_preds, threshold=tau)
 
                     tau = str(tau)
-                    # train taus -> class -> 
                     temp_json[trained_taus[x]][str(tau)][str(i)]['class_f1s'] = class_f1s.numpy().tolist()
                     temp_json[trained_taus[x]][str(tau)][str(i)]['mean_f1'] = mean_f1.item()
                     temp_json[trained_taus[x]][str(tau)][str(i)]['class_precisions'] = precisions.numpy().tolist()
