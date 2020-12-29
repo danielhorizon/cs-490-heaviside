@@ -441,7 +441,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
 
                 ## if we're doing approx
                 else:
-                    train_labels = torch.zeros(len(labels), 4).to(device).scatter_(
+                    train_labels = torch.zeros(len(labels), len(output[0])).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output=output.to(device)
                     loss, _, _, _, _, _, _, _, _ = criterion(y_labels=train_labels, y_preds=output)
@@ -560,7 +560,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
                 labels = labels.type(torch.int64)
                 if approx:
                     
-                    trans_labels = torch.zeros(len(labels), 4).to(device).scatter_(
+                    trans_labels = torch.zeros(len(labels), len(output[0])).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
                     batch_test_loss, _, _, _, _, _, _, _, _ = criterion(y_labels=trans_labels, y_preds=output)
@@ -643,7 +643,8 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
                 # valid loss if APPROX
                 labels = labels.type(torch.int64)
                 if approx:
-                    valid_labels = torch.zeros(len(labels), 4).to(device).scatter_(1, labels.unsqueeze(1), 1.).to(device)
+                    valid_labels = torch.zeros(len(labels), len(output[0])).to(
+                        device).scatter_(1, labels.unsqueeze(1), 1.).to(device)
 
                     output = output.to(device)
                     batch_val_loss, _, _, _, _, _, _, _, _ = criterion(

@@ -398,11 +398,14 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
                 if not approx:
                     loss = criterion(output, labels)
 
+                
                 ## if we're doing approx
                 else:
-                    train_labels = torch.zeros(len(labels), 4).to(device).scatter_(
+                    train_labels = torch.zeros(len(labels), len(output[0])).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output=output.to(device)
+                    # print("output length:{}".format(len(output[0])))
+                    # print("output:{}".format(output))
                     loss = criterion(y_labels=train_labels, y_preds=output)
 
                 losses.append(loss)
@@ -519,7 +522,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
                 labels = labels.type(torch.int64)
                 if approx:
                     
-                    trans_labels = torch.zeros(len(labels), 4).to(device).scatter_(
+                    trans_labels = torch.zeros(len(labels), len(output[0]) ).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
                     batch_test_loss = criterion(
@@ -603,7 +606,8 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
                 # valid loss if APPROX
                 labels = labels.type(torch.int64)
                 if approx:
-                    valid_labels = torch.zeros(len(labels), 4).to(device).scatter_(1, labels.unsqueeze(1), 1.).to(device)
+                    valid_labels = torch.zeros(len(labels), len(output[0])).to(
+                        device).scatter_(1, labels.unsqueeze(1), 1.).to(device)
 
                     output = output.to(device)
                     batch_val_loss = criterion(y_labels=valid_labels, y_preds=output)
@@ -748,6 +752,9 @@ if __name__ == '__main__':
     main()
 
 '''
+
+python3 wine.py --loss="approx-f1" --epochs=5000 --batch_size=256 --run_name="test" --cuda=2 --output_file="test.json" --patience=50
+
 python3 wine.py --loss="approx-f1" --epochs=5000 --batch_size=256 --run_name="256-approx-f1" --cuda=1 --output_file="20201214_rawresults.json" --patience=50
 python3 wine.py --loss="ce" --epochs=5000 --batch_size=256 --run_name="256-baseline-ce" --cuda=1 --output_file="20201214_rawresults.json" --patience=50
 

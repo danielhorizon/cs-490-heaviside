@@ -396,7 +396,7 @@ def train_iris(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
 
                 ## if we're doing approx
                 else:
-                    train_labels = torch.zeros(len(labels), 3).to(device).scatter_(
+                    train_labels = torch.zeros(len(labels), len(output[0])).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output=output.to(device)
                     loss, batch_class_losses = criterion(
@@ -509,7 +509,7 @@ def train_iris(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
                     # passing it through our finalized model.
                     output = model(inputs)
                     labels = labels.type(torch.int64)
-                    labels = torch.zeros(len(labels), 3).to(device).scatter_(
+                    labels = torch.zeros(len(labels), len(output[0])).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
 
                     pred_arr = output.detach().cpu().numpy()
@@ -556,7 +556,7 @@ def train_iris(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
 
                 labels = labels.type(torch.int64)
                 if approx:
-                    trans_labels = torch.zeros(len(labels), 3).to(device).scatter_(
+                    trans_labels = torch.zeros(len(labels), len(output[0])).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
 
@@ -632,7 +632,7 @@ def train_iris(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
                 # passing it through our finalized model.
                 output = model(inputs)
                 labels = labels.type(torch.int64)
-                labels = torch.zeros(len(labels), 3).to(device).scatter_(
+                labels = torch.zeros(len(labels), len(output[0])).to(device).scatter_(
                     1, labels.unsqueeze(1), 1.).to(device)
 
                 # appending results.

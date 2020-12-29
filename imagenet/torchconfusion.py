@@ -76,11 +76,13 @@ def l_tp(gt, pt, thresh, agg='sum'):
     #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (inverter = true)
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
 
-    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
-                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
-    pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
-    
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device='cuda'),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device='cuda'), thresh)).to('cuda')
+    gt_t = torch.reshape(torch.repeat_interleave(
+        gt, thresh.shape[0]), (-1, thresh.shape[0])).to('cuda')
+    pt_t = torch.reshape(torch.repeat_interleave(
+        pt, thresh.shape[0]), (-1, thresh.shape[0])).to('cuda')
+
     condition = (gt_t == 0) & (pt_t >= thresh)
     xs = torch.where(condition, 1-pt_t, pt_t)
     thresholds = torch.where(condition, 1-thresh, thresh)
@@ -93,11 +95,13 @@ def l_fn(gt, pt, thresh, agg='sum'):
     #  fn: (gt == 1 and pt == 0) -> closer to 1 -> (inverter = true)
     #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (inverter = true)
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
-    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
-                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device='cuda'),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device='cuda'), thresh))
 
-    gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
-    pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
+    gt_t = torch.reshape(torch.repeat_interleave(
+        gt, thresh.shape[0]), (-1, thresh.shape[0])).to('cuda')
+    pt_t = torch.reshape(torch.repeat_interleave(
+        pt, thresh.shape[0]), (-1, thresh.shape[0])).to('cuda')
 
     condition = (gt_t == 0) & (pt_t < thresh)
     xs = torch.where(condition, pt_t, 1-pt_t)
@@ -111,10 +115,13 @@ def l_fp(gt, pt, thresh, agg='sum'):
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (inverter = false)
     #  fp: (gt == 0 and pt == 1) -> closer to 1 -> (inverter = false)
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
-    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
-                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
-    pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device='cuda'),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device='cuda'), thresh))
+
+    gt_t = torch.reshape(torch.repeat_interleave(
+        gt, thresh.shape[0]), (-1, thresh.shape[0])).to('cuda')
+    pt_t = torch.reshape(torch.repeat_interleave(
+        pt, thresh.shape[0]), (-1, thresh.shape[0])).to('cuda')
 
     condition = (gt_t == 1) & (pt_t >= thresh)
     xs = torch.where(condition, 1-pt_t, pt_t)
@@ -128,10 +135,12 @@ def l_tn(gt, pt, thresh, agg='sum'):
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (invert = false)
     #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (invert = true)
     #  tn: (gt == 0 and pt == 0) -> closer to 1 -> (invert = true)
-    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
-                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0]))
-    pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0]))
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device='cuda'),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device='cuda'), thresh))
+    gt_t = torch.reshape(torch.repeat_interleave(
+        gt, thresh.shape[0]), (-1, thresh.shape[0])).to('cuda')
+    pt_t = torch.reshape(torch.repeat_interleave(
+        pt, thresh.shape[0]), (-1, thresh.shape[0])).to('cuda')
 
     condition = (gt_t == 1) & (pt_t < thresh)
     xs = torch.where(condition, pt_t, 1-pt_t)
@@ -149,7 +158,7 @@ def confusion(gt, pt, thresholds, agg='sum'):
     return tp, fn, fp, tn
 
 
-def mean_f1_approx_loss_on(device, threshold, y_labels=None, y_preds=None):
+def thresh_mean_f1_approx_loss_on(device, threshold, y_labels=None, y_preds=None):
     ''' Mean of Heaviside Approx F1 
     F1 across the classes is evenly weighted, hence Macro F1 
 
@@ -164,47 +173,26 @@ def mean_f1_approx_loss_on(device, threshold, y_labels=None, y_preds=None):
 
         classes = len(y_labels[0])
         mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
-        class_tp = [0]*classes
-        class_fn = [0]*classes
-        class_fp = [0]*classes
-        class_tn = [0]*classes
-        class_pr = [0]*classes
-        class_re = [0]*classes
-        class_f1 = [0]*classes
-        class_acc = [0]*classes
 
         for i in range(classes):
             gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
             pt_list = y_preds[:, i].to(device)
             thresholds = threshold.to(device)
-            
+
             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
-            
-            # print("TP:{}".format(tp))
+
             precision = tp/(tp+fp+EPS)
             recall = tp/(tp+fn+EPS)
             temp_f1 = torch.mean(2 * (precision * recall) /
                                  (precision + recall + EPS))
             mean_f1s[i] = temp_f1
 
-            # geting the average across all thresholds.
-            # holds array of just the raw values.
-            class_tp[i] = tp.mean().detach().item()
-            class_fn[i] = fn.mean().detach().item()
-            class_fp[i] = fp.mean().detach().item()
-            class_tn[i] = tn.mean().detach().item()
-            class_pr[i] = precision.mean().detach().item()
-            class_re[i] = recall.mean().detach().item()
-            class_f1[i] = temp_f1.detach().item()
-            class_acc[i] = torch.mean(
-                (tp + tn) / (tp + tn + fp + fn)).mean().detach().item()
-
         loss = 1 - mean_f1s.mean()
-        return loss, class_tp, class_fn, class_fp, class_tn, class_pr, class_re, class_f1, class_acc
+        return loss
     return loss
 
 
-def st_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
+def mean_f1_approx_loss_on(args_gpu, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
     ''' Mean of Heaviside Approx F1 
     F1 across the classes is evenly weighted, hence Macro F1 
 
@@ -212,26 +200,25 @@ def st_mean_f1_approx_loss_on(device, y_labels=None, y_preds=None):
         y_labels: one-hot encoded label, i.e. 2 -> [0, 0, 1] 
         y_preds: softmaxed predictions
     '''
-
+    # print("device: {}".format(device))
+    thresholds = thresholds.cuda(args_gpu)
+    
     def loss(y_labels, y_preds):
-        y_labels = y_labels.to(device)
-        y_preds = y_preds.to(device)
-
         classes = len(y_labels[0])
-        mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
+        # mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
+        mean_f1s = torch.zeros(classes, dtype=torch.float32).cuda(args_gpu)
+
         for i in range(classes):
-            gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
-            pt_list = y_preds[:, i].to(device)
-            thresholds = threshold.to(device)
+            gt_list = torch.Tensor([x[i] for x in y_labels])
+            pt_list = y_preds[:, i]  
 
+            thresholds = torch.arange(0.1, 1, 0.1).cuda(args_gpu)
             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
-
             precision = tp/(tp+fp+EPS)
             recall = tp/(tp+fn+EPS)
             temp_f1 = torch.mean(2 * (precision * recall) /
                                  (precision + recall + EPS))
             mean_f1s[i] = temp_f1
-
 
         loss = 1 - mean_f1s.mean()
         return loss

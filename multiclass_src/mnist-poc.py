@@ -365,7 +365,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                 if not approx:
                     loss = criterion(output, labels)
                 else:
-                    train_labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                    train_labels = torch.zeros(len(labels), len(output[0])).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
 
@@ -526,7 +526,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
                 if approx:
                     labels = labels.type(torch.int64)
-                    trans_labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                    trans_labels = torch.zeros(len(labels), len(output[0])).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
                     batch_test_loss, _, _, _, _, _, _, _, _ = criterion(
@@ -625,7 +625,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
                 if approx:
                     labels = labels.type(torch.int64)
-                    valid_labels = torch.zeros(len(labels), 10).to(device).scatter_(
+                    valid_labels = torch.zeros(len(labels), len(output[0])).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
 
