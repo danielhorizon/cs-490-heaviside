@@ -192,7 +192,7 @@ def thresh_mean_f1_approx_loss_on(device, threshold, y_labels=None, y_preds=None
     return loss
 
 
-def mean_f1_approx_loss_on(args_gpu, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
+def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1)):
     ''' Mean of Heaviside Approx F1 
     F1 across the classes is evenly weighted, hence Macro F1 
 
@@ -200,19 +200,17 @@ def mean_f1_approx_loss_on(args_gpu, y_labels=None, y_preds=None, thresholds=tor
         y_labels: one-hot encoded label, i.e. 2 -> [0, 0, 1] 
         y_preds: softmaxed predictions
     '''
-    # print("device: {}".format(device))
-    thresholds = thresholds.cuda(args_gpu)
+    thresholds = thresholds.to(device)
     
     def loss(y_labels, y_preds):
         classes = len(y_labels[0])
-        # mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
-        mean_f1s = torch.zeros(classes, dtype=torch.float32).cuda(args_gpu)
+        mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
 
         for i in range(classes):
             gt_list = torch.Tensor([x[i] for x in y_labels])
-            pt_list = y_preds[:, i]  
+            pt_list = y_preds[:, i]
 
-            thresholds = torch.arange(0.1, 1, 0.1).cuda(args_gpu)
+            thresholds = torch.arange(0.1, 1, 0.1).to(device)
             tp, fn, fp, tn = confusion(gt_list, pt_list, thresholds)
             precision = tp/(tp+fp+EPS)
             recall = tp/(tp+fn+EPS)
@@ -221,5 +219,6 @@ def mean_f1_approx_loss_on(args_gpu, y_labels=None, y_preds=None, thresholds=tor
             mean_f1s[i] = temp_f1
 
         loss = 1 - mean_f1s.mean()
+        print("Calculated Batch Loss: {}".format(loss))
         return loss
     return loss

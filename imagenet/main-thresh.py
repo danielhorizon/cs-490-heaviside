@@ -18,6 +18,8 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
+from torchconfusion import mean_f1_approx_loss_on
+
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
                      and callable(models.__dict__[name]))
@@ -36,6 +38,8 @@ parser.add_argument('--epochs', default=90, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
+
+# alexnet is 128, but for the sake of speed, we'll be sticking to 256. 
 parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N',
                     help='mini-batch size (default: 256), this is the total '
@@ -171,7 +175,8 @@ def main_worker(gpu, ngpus_per_node, args):
             model = torch.nn.DataParallel(model).cuda()
 
     # define loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss().cuda(args.gpu)
+    # print("ARGS GPU:{}".format(args.gpu))
+    criterion = mean_f1_approx_loss_on(device=args.gpu, thresholds=torch.arange(0.1, 1, 0.1))
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
@@ -292,8 +297,11 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             target = target.cuda(args.gpu, non_blocking=True)
 
         # compute output
-        output = model(images)
-        loss = criterion(output, target)
+        output = model(images).cuda(args.gpu, non_blocking=True)
+        target_labels = torch.zeros(len(target), len(output[0])).cuda(args.gpu, non_blocking=True).scatter_(
+            1, target.unsqueeze(1), 1.).cuda(args.gpu, non_blocking=True)
+
+        loss = criterion(y_preds=output, y_labels=target_labels)
 
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
@@ -336,8 +344,10 @@ def validate(val_loader, model, criterion, args):
                 target = target.cuda(args.gpu, non_blocking=True)
 
             # compute output
-            output = model(images)
-            loss = criterion(output, target)
+            output = model(images).cuda(args.gpu, non_blocking=True)
+            target_labels = torch.zeros(len(target), len(output[0])).cuda(args.gpu, non_blocking=True).scatter_(
+                1, target.unsqueeze(1), 1.).cuda(args.gpu, non_blocking=True)
+            loss = criterion(y_preds=output, y_labels=target_labels)
 
             # measure accuracy and record loss
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
@@ -440,4 +450,4 @@ if __name__ == '__main__':
 
     # python main.py -a alexnet --lr 0.01  /data/imagenet/2012 
 
-    # python main.py -a alexnet --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+    # python main-af1.py -a alexnet --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data

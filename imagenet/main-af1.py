@@ -175,8 +175,8 @@ def main_worker(gpu, ngpus_per_node, args):
             model = torch.nn.DataParallel(model).cuda()
 
     # define loss function (criterion) and optimizer
-    print("ARGS GPU:{}".format(args.gpu))
-    criterion = mean_f1_approx_loss_on(args_gpu=args.gpu, thresholds=torch.arange(0.1, 1, 0.1))
+    # print("ARGS GPU:{}".format(args.gpu))
+    criterion = mean_f1_approx_loss_on(device=args.gpu, thresholds=torch.arange(0.1, 1, 0.1))
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
