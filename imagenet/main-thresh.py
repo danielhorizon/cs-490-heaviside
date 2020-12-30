@@ -18,7 +18,7 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
-from torchconfusion import mean_f1_approx_loss_on
+from torchconfusion import mean_f1_approx_loss_on, thresh_mean_f1_approx_loss_on
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -39,7 +39,10 @@ parser.add_argument('--epochs', default=90, type=int, metavar='N',
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 
-# alexnet is 128, but for the sake of speed, we'll be sticking to 256. 
+## ADDING THRESHOLDING ARGUMENT 
+# alexnet is 128, but for the sake of speed, we'll be sticking to 256.
+parser.add_argument('--thresh', type=float, 
+                    help='threshold for training')
 parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N',
                     help='mini-batch size (default: 256), this is the total '
@@ -52,6 +55,8 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)',
                     dest='weight_decay')
+
+########
 parser.add_argument('-p', '--print-freq', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
@@ -175,8 +180,10 @@ def main_worker(gpu, ngpus_per_node, args):
             model = torch.nn.DataParallel(model).cuda()
 
     # define loss function (criterion) and optimizer
-    # print("ARGS GPU:{}".format(args.gpu))
-    criterion = mean_f1_approx_loss_on(device=args.gpu, thresholds=torch.arange(0.1, 1, 0.1))
+    train_threshold = float(args.thresh)
+    print("TRAIN THRESHOLD: {}".format(train_threshold))
+    threshold_tensor = torch.Tensor([train_threshold]).cuda(args.gpu)
+    criterion = thresh_mean_f1_approx_loss_on(device=args.gpu, threshold=threshold_tensor)
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
@@ -263,13 +270,14 @@ def main_worker(gpu, ngpus_per_node, args):
 
         if not args.multiprocessing_distributed or (args.multiprocessing_distributed
                                                     and args.rank % ngpus_per_node == 0):
+            
             save_checkpoint({
                 'epoch': epoch + 1,
                 'arch': args.arch,
                 'state_dict': model.state_dict(),
                 'best_acc1': best_acc1,
                 'optimizer': optimizer.state_dict(),
-            }, is_best)
+            }, is_best, threshold=args.thresh)
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args):
@@ -369,10 +377,12 @@ def validate(val_loader, model, criterion, args):
     return top1.avg
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
-    torch.save(state, filename)
+def save_checkpoint(state, is_best, threshold, filename='checkpoint.pth.tar'):
+    fname = str(threshold) + '-' + filename
+    torch.save(state, fname)
     if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+        best_name = str(threshold) + '-' + 'model_best.pth.tar'
+        shutil.copyfile(fname, best_name)
 
 
 class AverageMeter(object):
@@ -451,3 +461,19 @@ if __name__ == '__main__':
     # python main.py -a alexnet --lr 0.01  /data/imagenet/2012 
 
     # python main-af1.py -a alexnet --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+
+    # python main-thresh.py -a alexnet --thresh 0.1 --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+
+
+# running now: 
+'''
+Ports: 7013, 9998, 3334, 4443, 7776
+python main-thresh.py -a alexnet --thresh 0.1 --dist-url "tcp://0.0.0.0:9998/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+python main-thresh.py -a alexnet --thresh 0.125 --dist-url "tcp://0.0.0.0:3334/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+
+AF1 -> on 7013 
+
+Need to run: 
+python main-thresh.py -a alexnet --thresh 0.9 --dist-url "tcp://0.0.0.0:4443/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+
+'''
