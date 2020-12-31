@@ -173,7 +173,7 @@ def thresh_mean_f1_approx_loss_on(device, threshold, y_labels=None, y_preds=None
 
         classes = len(y_labels[0])
         mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
-
+        x = 0 
         for i in range(classes):
             gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
             pt_list = y_preds[:, i].to(device)
@@ -186,7 +186,12 @@ def thresh_mean_f1_approx_loss_on(device, threshold, y_labels=None, y_preds=None
             temp_f1 = torch.mean(2 * (precision * recall) /
                                  (precision + recall + EPS))
             mean_f1s[i] = temp_f1
-
+            x += 1 
+            if x % 500 == 0: 
+                print("Class: {}".format(i))
+                print("Batch - TP: {}, FN: {}, FP: {}, TN:{}".format(tp, fn, tp, tn))
+                print("Batch - PR: {}, RE: {}, F1: {}".format(precision, recall, temp_f1))
+        print("Mean F1:{}".format(mean_f1s.mean()))
         loss = 1 - mean_f1s.mean()
         return loss
     return loss
