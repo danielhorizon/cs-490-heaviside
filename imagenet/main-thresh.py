@@ -513,9 +513,7 @@ if __name__ == '__main__':
 Ports: 7013, 9998, 3334, 4443, 7776
 python main-thresh.py --thresh 0.1 --dist-url "tcp://0.0.0.0:9998/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
 python main-thresh.py --thresh 0.125 --dist-url "tcp://0.0.0.0:7776/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
-python main-thresh.py --thresh 0.2 --dist-url "tcp://0.0.0.0:3334/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
-
-
+python main-thresh.py --thresh 0.2 --dist-url "tcp://0.0.0.0:4443/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
 
 
 
