@@ -7,7 +7,7 @@ import warnings
 
 import torch
 import torch.nn as nn
-import torch.nn.parallel
+# import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 import torch.optim
@@ -176,6 +176,7 @@ def main_worker(gpu, ngpus_per_node, args):
     else:
         print("=> using alexnet") 
         model = AlexNet()
+        print(model.state_dict())
 
     if not torch.cuda.is_available():
         print('using CPU, this will be slow')
@@ -217,6 +218,7 @@ def main_worker(gpu, ngpus_per_node, args):
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
+    print(optimizer.state_dict())
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -301,7 +303,7 @@ def main_worker(gpu, ngpus_per_node, args):
                                                     and args.rank % ngpus_per_node == 0):
             save_checkpoint({
                 'epoch': epoch + 1,
-                'arch': args.arch,
+                # 'arch': args.arch,
                 'state_dict': model.state_dict(),
                 'best_acc1': best_acc1,
                 'optimizer': optimizer.state_dict(),

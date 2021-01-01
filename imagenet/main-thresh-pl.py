@@ -229,7 +229,6 @@ def main_worker(gpu, ngpus_per_node, args):
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
-    print(optimizer.state_dict())
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -315,7 +314,7 @@ def main_worker(gpu, ngpus_per_node, args):
             
             save_checkpoint({
                 'epoch': epoch + 1,
-                # 'arch': args.arch,
+                'arch': args.arch,
                 'state_dict': model.state_dict(),
                 'best_acc1': best_acc1,
                 'optimizer': optimizer.state_dict(),
