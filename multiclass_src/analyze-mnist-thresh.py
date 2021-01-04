@@ -33,8 +33,6 @@ from mnist_helper import load_mnist_imbalanced, load_balanced_data
 EPS = 1e-7
 
 # https://nextjournal.com/gkoehler/pytorch-mnist
-
-
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -54,6 +52,7 @@ class Net(nn.Module):
         x = self.fc2(x)
         x = self.softmax(x)
         return x
+
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -99,7 +98,7 @@ def load_model(models_path, model_name):
     
     model = Net()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
-    model = torch.load(model_path).to("cuda:3")
+    model = torch.load(model_path).to("cuda:1")
     return model
 
 
@@ -346,19 +345,19 @@ def get_metrics(device, batch_size, seed, results_path, models_path, models_list
 if __name__ == '__main__':
     trained_taus = ["0.1", "0.125", "0.2", "0.3","0.4", "0.5", "0.6", "0.7", "0.8", "0.9"]
 
-    run_name = "best_model-traintau-approx-f1-imb"
+    run_name = "best_model-traintau-af1-reg"
     num_runs = 3
     for run_number in range(num_runs): 
         models_list = []
         for i in range(len(trained_taus)):
             models_list.append(run_name + "-" + str(trained_taus[i] + "-" + str(run_number) +  ".pth"))
     
-        get_metrics(device="cuda:3", batch_size=1024, seed=1,
+        get_metrics(device="cuda:1", batch_size=1024, seed=1,
                     results_path="/app/timeseries/multiclass_src/results/mnist",
-                    models_path="/app/timeseries/multiclass_src/models/mnist-thresh",
+                    models_path="/app/timeseries/multiclass_src/models/mnist-thresh/balanced-runs",
                     models_list=models_list, 
-                    output_file="20201220-af1-train-tau-imb.json", 
-                    imbalanced=True)
+                    output_file="20201220-af1-train-tau-bal.json", 
+                    imbalanced=False)
 
 
 '''

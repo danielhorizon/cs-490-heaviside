@@ -202,10 +202,11 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch
     return loss
 
 '''
+Ports: 7013, 9998, 3334, 4443, 7776
+
 0: 
 python main-af1.py --gpu 0 /app/timeseries/imagenet/data
 python main-thresh.py --thresh 0.2 --gpu 0 /app/timeseries/imagenet/data
-
 
 1: 
 python main-thresh.py --thresh 0.3 --gpu 1 /app/timeseries/imagenet/data
