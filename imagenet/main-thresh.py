@@ -19,11 +19,7 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 
 
-
 from torchconfusion import mean_f1_approx_loss_on, thresh_mean_f1_approx_loss_on
-
-import flamegraph
-flamegraph.start_profile_thread(fd=open("./perf.log", "w"))
 
 class AlexNet(nn.Module):
     def __init__(self, num_classes: int = 1000) -> None:
@@ -72,11 +68,7 @@ model_names = sorted(name for name in models.__dict__
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
-# parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
-#                     choices=model_names,
-#                     help='model architecture: ' +
-#                     ' | '.join(model_names) +
-#                     ' (default: resnet18)')
+
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
@@ -342,11 +334,9 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
     end = time.time()
     
-    fg_start = 0 
     for i, (images, target) in enumerate(train_loader):
-        if fg_start == 1: 
-            break
-        # measure data loading time
+        # if i == 3: 
+        #     break
         data_time.update(time.time() - end)
 
         if args.gpu is not None:
@@ -356,8 +346,6 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
         # compute output
         output = model(images).cuda(args.gpu, non_blocking=True)
-        # print("output: {}".format(output[0]))
-        # print("output sum: {}".format(output[0].sum()))
         target_labels = torch.zeros(len(target), len(output[0])).cuda(args.gpu, non_blocking=True).scatter_(
             1, target.unsqueeze(1), 1.).cuda(args.gpu, non_blocking=True)
 
@@ -381,7 +369,6 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         if i % args.print_freq == 0:
             progress.display(i)
         
-        fg_start += 1 
 
 
 def validate(val_loader, model, criterion, args):
@@ -399,10 +386,10 @@ def validate(val_loader, model, criterion, args):
 
     with torch.no_grad():
         end = time.time()
-        fg_start = 0
+        
         for i, (images, target) in enumerate(val_loader):
-            if fg_start == 1: 
-                break
+            # if i == 3: 
+            #     break
             if args.gpu is not None:
                 images = images.cuda(args.gpu, non_blocking=True)
             if torch.cuda.is_available():
@@ -426,7 +413,7 @@ def validate(val_loader, model, criterion, args):
 
             if i % args.print_freq == 0:
                 progress.display(i)
-            fg_start += 1 
+            # fg_start += 1 
 
         # TODO: this should also be done with the ProgressMeter
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
@@ -510,6 +497,7 @@ def accuracy(output, target, topk=(1,)):
 
 
 if __name__ == '__main__':
+    # flamegraph.start_profile_thread(fd=open("./perf.log", "w"))
     main()
 
     # Use 0.01 as the initial learning rate for AlexNet or VGG:
