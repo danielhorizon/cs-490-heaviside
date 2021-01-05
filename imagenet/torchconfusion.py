@@ -225,4 +225,7 @@ python main-thresh.py --thresh 0.7 --gpu 0 /app/timeseries/imagenet/data
 python main-thresh.py --thresh 0.8 --gpu 1 /app/timeseries/imagenet/data
 python main-thresh.py --thresh 0.9 --gpu 2 /app/timeseries/imagenet/data
 python main-thresh.py --thresh 0.05 --gpu 3 /app/timeseries/imagenet/data
+
+
+FlameGraph your pytorch impelemntation 
 '''

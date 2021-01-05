@@ -33,6 +33,10 @@ from torchconfusion import *
 from download_cifar import *
 
 
+import flamegraph
+flamegraph.start_profile_thread(fd=open("./perf.log", "w"))
+
+
 '''
 # https://www.stefanfiott.com/machine-learning/cifar-10-classifier-using-cnn-in-pytorch/
 # https://pytorch.org/tutorials/beginner/blitz/cifar10_tutorial.html
@@ -746,7 +750,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                                             '{}-best_model-{}.pth'.format(
                                                 today_date, run_name
                                             )])
-                torch.save(model, model_file_path)
+                # torch.save(model, model_file_path)
                 patience = reset_patience
                 lowest_f1_loss = valid_loss
 
@@ -799,6 +803,7 @@ def train_cifar(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 @click.option("--patience", required=True)
 @click.option("--output_file", required=True)
 def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience, output_file):
+# def run():
     # check if forcing imbalance
     print(run_name)
     print("Running on cuda: {}".format(cuda))
@@ -809,6 +814,18 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience, outp
     # seeds = [1, 45, 92, 34, 15, 20, 150, 792, 3, 81]
     # seeds = [44, 57, 23]
     seeds = [57, 23]
+    
+    # THIS IS JUST FOR FLAME 
+    # loss = 'approx-f1'
+    # epochs= 2000
+    # batch_size=1024 
+    # imb=False
+    # run_name='test'
+    # cuda=2
+    # train_tau=0.2
+    # patience=100
+    # output_file="asdf.json"
+
     for i in range(len(seeds)):
         temp_name = str(run_name) + "-" + str(i+1)
         train_cifar(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name, 
@@ -865,7 +882,7 @@ python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traint
 
 
 
-python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.3" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
+python3 cifar_thresh.py --epochs=2000 --loss="approx-f1" --run_name="test" --cuda=2 --train_tau=0.3 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.4" --cuda=2 --train_tau=0.4 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.5" --cuda=2 --train_tau=0.5 --batch_size=1024 --patience=100 --output_file="raw_results.json"
 python3 cifar_threshtrain.py --epochs=2000 --loss="approx-f1" --run_name="traintau-approx-f1-reg-0.6" --cuda=3 --train_tau=0.6 --batch_size=1024 --patience=100 --output_file="raw_results.json"
