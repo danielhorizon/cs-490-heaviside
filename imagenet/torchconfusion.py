@@ -67,7 +67,7 @@ def l_tp(device, gt, pt, thresh, approx=None):
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
     # thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
     #                      torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    
+
     gt_t = torch.reshape(torch.repeat_interleave(gt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
     pt_t = torch.reshape(torch.repeat_interleave(pt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
     condition = (gt_t == 0) & (pt_t >= thresh)
@@ -154,7 +154,7 @@ def thresh_mean_f1_approx_loss_on(device, threshold, y_labels=None, y_preds=None
         mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
         x = 0 
         for i in range(classes):
-            gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
+            gt_list = y_labels[:, i].to(device)
             pt_list = y_preds[:, i].to(device)
             thresholds = threshold.to(device)
 
