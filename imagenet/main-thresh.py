@@ -18,6 +18,8 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
+from fast_tensor_data_loader import FastTensorDataLoader
+
 
 from torchconfusion import mean_f1_approx_loss_on, thresh_mean_f1_approx_loss_on
 
@@ -69,7 +71,7 @@ parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 
-parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
+parser.add_argument('-j', '--workers', default=2, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
                     help='number of total epochs to run')
@@ -271,6 +273,19 @@ def main_worker(gpu, ngpus_per_node, args):
             train_dataset)
     else:
         train_sampler = None
+
+    # train_loader = FastTensorDataLoader(
+    #     train_dataset, batch_size=args.batch_size, shuffle=(
+    #         train_sampler is None))
+
+    # val_loader = FastTensorDataLoader(
+    #     datasets.ImageFolder(valdir, transforms.Compose([
+    #         transforms.Resize(256),
+    #         transforms.CenterCrop(224),
+    #         transforms.ToTensor(),
+    #         normalize,
+    #     ])),
+    #     batch_size=args.batch_size, shuffle=False)
 
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(

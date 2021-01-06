@@ -22,7 +22,7 @@ from torchconfusion import mean_f1_approx_loss_on
 
 
 class AlexNet(nn.Module):
-    def __init__(self, num_classes: int = 1000) -> None:
+    def __init__(self):
         super(AlexNet, self).__init__()
         self.features = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
@@ -47,11 +47,11 @@ class AlexNet(nn.Module):
             nn.Dropout(),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=True),
-            nn.Linear(4096, num_classes),
+            nn.Linear(4096, 1000),          # because there are 1000 classes 
         )
         self.softmax = nn.Softmax(dim=1)                # NEW ADDITIION
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x):
         x = self.features(x)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
