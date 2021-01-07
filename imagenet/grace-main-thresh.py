@@ -18,6 +18,51 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
+from fast_tensor_data_loader import FastTensorDataLoader
+
+
+from torchconfusion import mean_f1_approx_loss_on, thresh_mean_f1_approx_loss_on
+
+class AlexNet(nn.Module):
+    def __init__(self, num_classes: int = 1000) -> None:
+        super(AlexNet, self).__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2),
+            nn.Conv2d(64, 192, kernel_size=5, padding=2),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2),
+            nn.Conv2d(192, 384, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(384, 256, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2),
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((6, 6))
+        self.classifier = nn.Sequential(
+            nn.Dropout(),
+            nn.Linear(256 * 6 * 6, 4096),
+            nn.ReLU(inplace=True),
+            nn.Dropout(),
+            nn.Linear(4096, 4096),
+            nn.ReLU(inplace=True),
+            nn.Linear(4096, num_classes),
+        )
+        self.softmax = nn.Softmax(dim=1)                # NEW ADDITIION
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.features(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        x = self.softmax(x)                             # NEW ADDITION
+        return x
+
+
+
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
                      and callable(models.__dict__[name]))
@@ -25,19 +70,18 @@ model_names = sorted(name for name in models.__dict__
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
-parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
-                    choices=model_names,
-                    help='model architecture: ' +
-                    ' | '.join(model_names) +
-                    ' (default: resnet18)')
-parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
+
+parser.add_argument('-j', '--workers', default=2, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 
-# alexnet batch size = 128 
+## ADDING THRESHOLDING ARGUMENT 
+# alexnet is 128, but for the sake of speed, we'll be sticking to 256.
+parser.add_argument('--thresh', type=float, 
+                    help='threshold for training')
 parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N',
                     help='mini-batch size (default: 256), this is the total '
@@ -50,6 +94,8 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
                     metavar='W', help='weight decay (default: 1e-4)',
                     dest='weight_decay')
+
+########
 parser.add_argument('-p', '--print-freq', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
@@ -136,8 +182,8 @@ def main_worker(gpu, ngpus_per_node, args):
         print("=> using pre-trained model '{}'".format(args.arch))
         model = models.__dict__[args.arch](pretrained=True)
     else:
-        print("=> creating model '{}'".format(args.arch))
-        model = models.__dict__[args.arch]()
+        print("=> loading in custom alexnet")
+        model = AlexNet()
 
     if not torch.cuda.is_available():
         print('using CPU, this will be slow')
@@ -160,6 +206,7 @@ def main_worker(gpu, ngpus_per_node, args):
             model.cuda()
             # DistributedDataParallel will divide and allocate batch_size to all
             # available GPUs if device_ids are not set
+            print("=> distributing models")
             model = torch.nn.parallel.DistributedDataParallel(model)
     elif args.gpu is not None:
         torch.cuda.set_device(args.gpu)
@@ -173,11 +220,14 @@ def main_worker(gpu, ngpus_per_node, args):
             model = torch.nn.DataParallel(model).cuda()
 
     # define loss function (criterion) and optimizer
-    criterion = nn.CrossEntropyLoss().cuda(args.gpu)
+    train_threshold = float(args.thresh)
+    threshold_tensor = torch.Tensor([train_threshold]).cuda(args.gpu)
+    criterion = thresh_mean_f1_approx_loss_on(device=args.gpu, threshold=threshold_tensor)
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
+    print(optimizer.state_dict())
 
     # optionally resume from a checkpoint
     if args.resume:
@@ -224,6 +274,19 @@ def main_worker(gpu, ngpus_per_node, args):
     else:
         train_sampler = None
 
+    # train_loader = FastTensorDataLoader(
+    #     train_dataset, batch_size=args.batch_size, shuffle=(
+    #         train_sampler is None))
+
+    # val_loader = FastTensorDataLoader(
+    #     datasets.ImageFolder(valdir, transforms.Compose([
+    #         transforms.Resize(256),
+    #         transforms.CenterCrop(224),
+    #         transforms.ToTensor(),
+    #         normalize,
+    #     ])),
+    #     batch_size=args.batch_size, shuffle=False)
+
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(
             train_sampler is None),
@@ -260,13 +323,14 @@ def main_worker(gpu, ngpus_per_node, args):
 
         if not args.multiprocessing_distributed or (args.multiprocessing_distributed
                                                     and args.rank % ngpus_per_node == 0):
+            
             save_checkpoint({
                 'epoch': epoch + 1,
-                'arch': args.arch,
+                # 'arch': args.arch,
                 'state_dict': model.state_dict(),
                 'best_acc1': best_acc1,
                 'optimizer': optimizer.state_dict(),
-            }, is_best)
+            }, is_best, threshold=args.thresh)
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args):
@@ -284,9 +348,10 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     model.train()
 
     end = time.time()
+    
     for i, (images, target) in enumerate(train_loader):
-
-        # measure data loading time
+        # if i == 3: 
+        #     break
         data_time.update(time.time() - end)
 
         if args.gpu is not None:
@@ -295,8 +360,11 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
             target = target.cuda(args.gpu, non_blocking=True)
 
         # compute output
-        output = model(images)
-        loss = criterion(output, target)
+        output = model(images).cuda(args.gpu, non_blocking=True)
+        target_labels = torch.zeros(len(target), len(output[0])).cuda(args.gpu, non_blocking=True).scatter_(
+            1, target.unsqueeze(1), 1.).cuda(args.gpu, non_blocking=True)
+
+        loss = criterion(y_preds=output, y_labels=target_labels)
 
         # measure accuracy and record loss
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
@@ -311,11 +379,11 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
         # measure elapsed time
         batch_time.update(time.time() - end)
-        print("time for this batch:{}".format(time.time() - end))
         end = time.time()
 
         if i % args.print_freq == 0:
             progress.display(i)
+        
 
 
 def validate(val_loader, model, criterion, args):
@@ -333,15 +401,20 @@ def validate(val_loader, model, criterion, args):
 
     with torch.no_grad():
         end = time.time()
+        
         for i, (images, target) in enumerate(val_loader):
+            # if i == 3: 
+            #     break
             if args.gpu is not None:
                 images = images.cuda(args.gpu, non_blocking=True)
             if torch.cuda.is_available():
                 target = target.cuda(args.gpu, non_blocking=True)
 
             # compute output
-            output = model(images)
-            loss = criterion(output, target)
+            output = model(images).cuda(args.gpu, non_blocking=True)
+            target_labels = torch.zeros(len(target), len(output[0])).cuda(args.gpu, non_blocking=True).scatter_(
+                1, target.unsqueeze(1), 1.).cuda(args.gpu, non_blocking=True)
+            loss = criterion(y_preds=output, y_labels=target_labels)
 
             # measure accuracy and record loss
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
@@ -355,6 +428,7 @@ def validate(val_loader, model, criterion, args):
 
             if i % args.print_freq == 0:
                 progress.display(i)
+            # fg_start += 1 
 
         # TODO: this should also be done with the ProgressMeter
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
@@ -363,10 +437,12 @@ def validate(val_loader, model, criterion, args):
     return top1.avg
 
 
-def save_checkpoint(state, is_best, filename='testcheckpoint.pth.tar'):
-    torch.save(state, filename)
+def save_checkpoint(state, is_best, threshold, filename='checkpoint.pth.tar'):
+    fname = str(threshold) + '-' + filename
+    torch.save(state, fname)
     if is_best:
-        shutil.copyfile(filename, 'testmodel_best.pth.tar')
+        best_name = str(threshold) + '-' + 'model_best.pth.tar'
+        shutil.copyfile(fname, best_name)
 
 
 class AverageMeter(object):
@@ -436,6 +512,7 @@ def accuracy(output, target, topk=(1,)):
 
 
 if __name__ == '__main__':
+    # flamegraph.start_profile_thread(fd=open("./perf.log", "w"))
     main()
 
     # Use 0.01 as the initial learning rate for AlexNet or VGG:
@@ -444,4 +521,24 @@ if __name__ == '__main__':
 
     # python main.py -a alexnet --lr 0.01  /data/imagenet/2012 
 
-    # python main.py -a alexnet --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+    # python main-af1.py -a alexnet --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+
+    # python main-thresh.py -a alexnet --thresh 0.1 --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+
+
+# running now: 
+'''
+Ports: 7013, 9998, 3334, 4443, 7776
+python main-thresh.py --thresh 0.1 --dist-url "tcp://0.0.0.0:9998/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+python main-thresh.py --thresh 0.125 --dist-url "tcp://0.0.0.0:7776/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+python main-thresh.py --thresh 0.2 --dist-url "tcp://0.0.0.0:4443/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+
+
+
+AF1 -> on 7013 
+
+Need to run: 
+python main-thresh.py --thresh 0.3 --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+python main-thresh.py --thresh 0.9 --dist-url "tcp://0.0.0.0:4443/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
+
+'''

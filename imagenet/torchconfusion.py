@@ -1,4 +1,5 @@
 import torch 
+import time 
 
 EPS = 1e-7
 
@@ -119,6 +120,7 @@ def l_tn(device, gt, pt, thresh, approx=None):
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (invert = false)
     #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (invert = true)
     #  tn: (gt == 0 and pt == 0) -> closer to 1 -> (invert = true)
+    
     thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
                          torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
 
@@ -133,10 +135,12 @@ def l_tn(device, gt, pt, thresh, approx=None):
 
 
 def confusion(device, gt, pt, thresholds, approx=None):
+    # start = time.time() 
     tp = l_tp(device, gt, pt, thresholds, approx)
     fn = l_fn(device, gt, pt, thresholds, approx)
     fp = l_fp(device, gt, pt, thresholds, approx)
     tn = l_tn(device, gt, pt, thresholds, approx)
+    # print("confusion time:{}".format(time.time() - start))
     return tp, fn, fp, tn
 
 
@@ -192,6 +196,7 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch
             y_labels: one-hot encoded label, i.e. 2 -> [0, 0, 1]
             y_preds: softmaxed predictions
         """
+        start = time.time() 
         classes = len(y_labels[0])
         mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
 
@@ -200,14 +205,17 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch
             pt_list = y_preds[:, i].to(device)
 
             thresholds = torch.arange(0.1, 1, 0.1).to(device)
+            mid = time.time() 
             tp, fn, fp, tn = confusion(
                 device, gt_list, pt_list, thresholds, approx)
+            # print("WITHIN LOOP: after getting confusion metrics:{}".format(mid-time.time()))
             precision = tp/(tp+fp+EPS)
             recall = tp/(tp+fn+EPS)
             temp_f1 = torch.mean(2 * (precision * recall) /
                                  (precision + recall + EPS))
             mean_f1s[i] = temp_f1
 
+        print("after one loop: {}".format(time.time() - start))
         loss = 1 - mean_f1s.mean()
         return loss
     return loss
