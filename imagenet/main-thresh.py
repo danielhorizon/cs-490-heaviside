@@ -18,8 +18,6 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
-from fast_tensor_data_loader import FastTensorDataLoader
-
 
 from torchconfusion import mean_f1_approx_loss_on, thresh_mean_f1_approx_loss_on
 
