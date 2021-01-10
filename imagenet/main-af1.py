@@ -68,7 +68,7 @@ parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 
-parser.add_argument('-j', '--workers', default=0, type=int, metavar='N',
+parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
                     help='number of total epochs to run')
@@ -482,19 +482,8 @@ def accuracy(output, target, topk=(1,)):
 if __name__ == '__main__':
     main()
 
-    # Use 0.01 as the initial learning rate for AlexNet or VGG:
-    # python main.py -a alexnet --lr 0.01 [imagenet-folder with train and val folders]
-    # data folders = /data/imagenet/2012
-
-    # python main.py -a alexnet --lr 0.01  /data/imagenet/2012 
-
-    # python main-af1.py -a alexnet --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
-
 
 '''
 python main-af1.py --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
 
-
-
-python main-af1.py --gpu 0 /app/timeseries/imagenet/data
 '''

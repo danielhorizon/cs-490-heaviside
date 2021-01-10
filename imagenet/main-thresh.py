@@ -69,7 +69,7 @@ parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 
-parser.add_argument('-j', '--workers', default=2, type=int, metavar='N',
+parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
                     help='number of total epochs to run')
@@ -532,6 +532,8 @@ python main-thresh.py --thresh 0.125 --dist-url "tcp://0.0.0.0:7776/" --dist-bac
 python main-thresh.py --thresh 0.2 --dist-url "tcp://0.0.0.0:4443/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
 
 
+
+python main-thresh.py --thresh 0.1 --gpu 3 /app/timeseries/imagenet/data
 
 AF1 -> on 7013 
 

@@ -270,8 +270,7 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch
         y_labels = y_labels.to(device)
         y_preds = y_preds.to(device)
 
-        tp, fn, fp, tn = confusion_adj(
-            device, y_labels, y_preds, thresholds, approx)
+        tp, fn, fp, tn = confusion_adj(device, y_labels, y_preds, thresholds, approx)
         precision = tp/(tp+fp+EPS)
         recall = tp/(tp+fn+EPS)
         temp_f1 = torch.mean(2 * (precision * recall) /
@@ -281,82 +280,6 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch
         return loss
     return loss
 
-
-def xmean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1), approx=linear_approx()):
-    thresholds = thresholds.to(device)
-
-    def loss(y_labels, y_preds):
-        """
-        Approximate F1:
-            - Linear interpolated Heaviside function
-            - Harmonic mean of precision and recall
-            - Mean over a range of thresholds
-        Args:
-            y_labels: one-hot encoded label, i.e. 2 -> [0, 0, 1]
-            y_preds: softmaxed predictions
-        """
-        classes = len(y_labels[0])
-        mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
-
-        y_labels = y_labels.to(device)
-        y_preds = y_preds.to(device)
-        thresholds = torch.Tensor([0.5, 0.6]).to(device)
-        # thresholds = torch.arange(0.1, 1, 0.1).to(device)
-        # tp_list = []
-        # fp_list = []
-        # fn_list = []
-        # tn_list = []
-        # for i in range(classes):
-        #     # print("RUNNING FOR CLASS {}".format(i))
-        #     gt_list = y_labels[:, i]
-        #     pt_list = y_preds[:, i]
-
-        #     tp, fn, fp, tn = confusion(device, gt_list, pt_list, thresholds, approx, class_val=i)
-        #     # if i == 0:
-        #     #     tp, fn, fp, tn = confusion(device, gt_list, pt_list, thresholds, approx)
-        #         # print("OLD TP: {}".format(tp))
-        #     precision = tp/(tp+fp+EPS)
-        #     recall = tp/(tp+fn+EPS)
-        #     '''
-        #     Each TP that is returned is 1 x 2 -> 2 is number of thresholds.
-        #     '''
-        #     temp_f1 = torch.mean(2 * (precision * recall) /
-        #                          (precision + recall + EPS))
-
-        #     # tensor(0.5000, device='cuda:0', grad_fn=<MeanBackward0>)
-        #     mean_f1s[i] = temp_f1
-        #     tp_list.append(tp.detach().cpu().tolist())
-        #     fn_list.append(fn.detach().cpu().tolist())
-        #     tn_list.append(tn.detach().cpu().tolist())
-        #     fp_list.append(fp.detach().cpu().tolist())
-
-        # print("TP LIST:{}".format(torch.Tensor(tp_list)))
-        # print("FN LIST:{}".format(torch.Tensor(fn_list)))
-        # print("TN LIST:{}".format(torch.Tensor(tn_list)))
-        # print("FP LIST:{}".format(torch.Tensor(fp_list)))
-        # trying other method
-        tp, fn, fp, tn = confusion_adj(
-            device, y_labels, y_preds, thresholds, approx)
-        # print("New TP List:{}".format(tp))
-        # print("New FN List:{}".format(fn))
-        # print("New TN List:{}".format(tn))
-        # print("New FP List:{}".format(fp))
-
-        precision = tp/(tp+fp+EPS)
-        recall = tp/(tp+fn+EPS)
-        # print("New Prec: {}".format(precision))
-        # print("New Recall: {}".format(recall))
-
-        temp_f1 = torch.mean(2 * (precision * recall) /
-                             (precision + recall + EPS), axis=1)
-        # print("New Mean f1: {}".format(temp_f1))
-        # print("New Loss:{}".format(1-temp_f1.mean()))
-        # loss = 1 - mean_f1s.mean()
-        loss = 1 - temp_f1.mean()
-        # print("OG Mean F1: {}".format(mean_f1s))
-        # print("OG LOSS: {}".format(loss))
-        return loss
-    return loss
 
 
 def thresh_mean_f1_approx_loss_on(device, threshold, y_labels=None, y_preds=None, approx=linear_approx()):
@@ -373,27 +296,52 @@ def thresh_mean_f1_approx_loss_on(device, threshold, y_labels=None, y_preds=None
         y_preds = y_preds.to(device)
 
         classes = len(y_labels[0])
-        mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
-        x = 0
-        for i in range(classes):
-            gt_list = y_labels[:, i].to(device)
-            pt_list = y_preds[:, i].to(device)
-            thresholds = threshold.to(device)
+        thresholds = threshold.to(device)
 
-            tp, fn, fp, tn = confusion(
-                device, gt_list, pt_list, thresholds, approx)
+        # New Method 
+        tp, fn, fp, tn = confusion_adj(
+            device, y_labels, y_preds, thresholds, approx)
+        precision = tp/(tp+fp+EPS)
+        recall = tp/(tp+fn+EPS)
+        temp_f1 = torch.mean(2 * (precision * recall) /
+                             (precision + recall + EPS), axis=1)
+        loss = 1 - temp_f1.mean()
 
-            precision = tp/(tp+fp+EPS)
-            recall = tp/(tp+fn+EPS)
-            temp_f1 = torch.mean(2 * (precision * recall) /
-                                 (precision + recall + EPS))
-            mean_f1s[i] = temp_f1
-            if x % 1000 == 0:
-                print("Batch - TP: {:.3f}, FN: {:.3f}, FP: {:.3f}, TN:{:.3f}, PR: {:.3f}, RE: {:.3f}, F1: {:.3f}".format(
-                    tp.item(), fn.item(), tp.item(), tn.item(), precision.item(), recall.item(), temp_f1))
-            x += 1
+        # print("New Loss: {}".format(loss))
 
-        loss = 1 - mean_f1s.mean()
+        # Legacy Method 
+        # mean_f1s = torch.zeros(classes, dtype=torch.float32).to(device)
+        # x = 0
+        # for i in range(classes):
+        #     gt_list = y_labels[:, i].to(device)
+        #     pt_list = y_preds[:, i].to(device)
+
+        #     tp, fn, fp, tn = confusion(
+        #         device, gt_list, pt_list, thresholds, approx)
+
+        #     precision = tp/(tp+fp+EPS)
+        #     recall = tp/(tp+fn+EPS)
+        #     temp_f1 = torch.mean(2 * (precision * recall) /
+        #                          (precision + recall + EPS))
+        #     mean_f1s[i] = temp_f1
+        #     if x % 1000 == 0:
+        #         print("Batch - TP: {:.3f}, FN: {:.3f}, FP: {:.3f}, TN:{:.3f}, PR: {:.3f}, RE: {:.3f}, F1: {:.3f}".format(
+        #             tp.item(), fn.item(), tp.item(), tn.item(), precision.item(), recall.item(), temp_f1))
+        #     x += 1
+
+        # loss = 1 - mean_f1s.mean()
+        # print("OG Loss: {}".format(loss))
         return loss
     return loss
 
+'''
+Current runs (1/9/2020)
+- python main-af1.py --gpu 0 /app/timeseries/imagenet/data
+- python main-thresh.py --thresh 0.1 --gpu 1 /app/timeseries/imagenet/data
+- python main-thresh.py --thresh 0.125 --gpu 2 /app/timeseries/imagenet/data
+- python main-thresh.py --thresh 0.2 --gpu 3 /app/timeseries/imagenet/data
+
+Still have to run: 
+- 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9. 
+- Taking pre-trained Alexnet and fine-tuning it using this.
+'''
