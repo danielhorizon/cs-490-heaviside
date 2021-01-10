@@ -18,7 +18,7 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
-from torchconfusion import mean_f1_approx_loss_on, xmean_f1_approx_loss_on
+from torchconfusion import mean_f1_approx_loss_on
 
 
 class AlexNet(nn.Module):

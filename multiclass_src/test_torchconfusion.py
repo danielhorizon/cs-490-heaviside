@@ -39,33 +39,10 @@ def heaviside_sum(xs, thresholds, approx=None):
         thresholds.shape: [batchsize, thresholds]
         approx: linear_approx or approximation function to use
         '''
-    print("Old Xs Shape: {}".format(xs.shape))
     return torch.sum(approx(xs, thresholds).cuda(), axis=0)
 
 
-
-def l_tp(device, gt, pt, thresh, approx=None):
-    # output closer to 1 if a true positive, else closer to 0
-    #  tp: (gt == 1 and pt == 1) -> closer to 1 -> (inverter = false)
-    #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (inverter = false)
-    #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (inverter = true)
-    #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
-    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
-                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-
-    gt_t = torch.reshape(torch.repeat_interleave(
-        gt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
-    pt_t = torch.reshape(torch.repeat_interleave(
-        pt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
-    condition = (gt_t == 0) & (pt_t >= thresh)
-    xs = torch.where(condition, 1-pt_t, pt_t).to(device)
-    # print("Old Xs shape:{}".format(xs.shape))
-    # print(xs)
-    thresholds = torch.where(condition, 1-thresh, thresh).to(device)
-    return heaviside_sum(xs, thresholds, approx)
-
-
-def l_fn(device, gt, pt, thresh, approx=None):
+def l_fn(device, gt, pt, thresh, approx=None, class_val=None):
     # output closer to 1 if a false negative, else closer to 0
     #  tp: (gt == 1 and pt == 1) -> closer to 0 -> (inverter = true)
     #  fn: (gt == 1 and pt == 0) -> closer to 1 -> (inverter = true)
@@ -85,7 +62,7 @@ def l_fn(device, gt, pt, thresh, approx=None):
     return heaviside_sum(xs, thresholds, approx)
 
 
-def l_fp(device, gt, pt, thresh, approx=None):
+def l_fp(device, gt, pt, thresh, approx=None, class_val=None):
     # output closer to 1 if a false positive, else closer to 0
     #  tp: (gt == 1 and pt == 1) -> closer to 0 -> (inverter = true)
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (inverter = false)
@@ -93,20 +70,20 @@ def l_fp(device, gt, pt, thresh, approx=None):
     #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
     # thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
     #                      torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    print("--- old pt: {}".format(pt))
+    # if class_val == 0: 
+    #     print("--- old pt: {}".format(pt))
     gt_t = torch.reshape(torch.repeat_interleave(
         gt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
-    
+
     pt_t = torch.reshape(torch.repeat_interleave(
         pt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
-    print("--- old pt_t: {}".format(pt_t))
+
     condition = (gt_t == 1) & (pt_t >= thresh)
     xs = torch.where(condition, 1-pt_t, pt_t).to(device)
     thresholds = torch.where(condition, 1-thresh, thresh).to(device)
     return heaviside_sum(xs, thresholds, approx)
 
-
-def l_tn(device, gt, pt, thresh, approx=None):
+def l_tn(device, gt, pt, thresh, approx=None, class_val=None):
     # output closer to 1 if a true negative, else closer to 0
     #  tp: (gt == 1 and pt == 1) -> closer to 0 -> (invert = true)
     #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (invert = false)
@@ -115,75 +92,14 @@ def l_tn(device, gt, pt, thresh, approx=None):
     
     thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
                          torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    # print(thresh.shape) 
-    # thresh = length = 9 
-    # gt shape --> batch size 
-    # pt shape --> batch size 
     gt_t = torch.reshape(torch.repeat_interleave(
         gt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
-    # print(gt_t.shape)
     pt_t = torch.reshape(torch.repeat_interleave(
         pt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
-    # print(pt_t.shape)
     condition = (gt_t == 1) & (pt_t < thresh)
     xs = torch.where(condition, pt_t, 1-pt_t).to(device)
-    
     thresholds = torch.where(condition, thresh, 1-thresh).to(device)
     return heaviside_sum(xs, thresholds, approx)
-
-
-def confusion(device, gt, pt, thresholds, approx=None):
-    tp = l_tp(device, gt, pt, thresholds, approx)
-    fn = l_fn(device, gt, pt, thresholds, approx)
-    fp = l_fp(device, gt, pt, thresholds, approx)
-    tn = l_tn(device, gt, pt, thresholds, approx)
-    print("old TP: {}".format(tp))
-    return tp, fn, fp, tn
-
-
-def heaviside_sum_adj(xs, thresholds, approx=None):
-    ''' xs.shape: [batchsize, thresholds]
-        thresholds.shape: [batchsize, thresholds]
-        approx: linear_approx or approximation function to use
-        '''
-    # axis = 0 was summing over all rows (i.e. for each column)
-    print("New Xs shape: {}".format(xs.shape))
-    return torch.sum(approx(xs, thresholds).cuda(), axis=0)
-
-def l_tp_adj(device, gt, pt, thresh, approx=None):
-    # output closer to 1 if a true positive, else closer to 0
-    #  tp: (gt == 1 and pt == 1) -> closer to 1 -> (inverter = false)
-    #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (inverter = false)
-    #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (inverter = true)
-    #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
-    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
-                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    n_classes = gt.shape[1]
-    gt_t = torch.reshape(
-        torch.repeat_interleave(gt, thresh.shape[0]),
-        (-1, thresh.shape[0], n_classes)).to(device)
-
-    pt_t = torch.reshape(
-        torch.repeat_interleave(
-            pt, thresh.shape[0]
-        ),
-        (-1, thresh.shape[0], n_classes),
-    ).to(device)
-    # print(pt_t.shape)
-
-    thresh = torch.reshape(
-        torch.repeat_interleave(thresh, n_classes),
-        (thresh.shape[0], n_classes)
-    )
-
-    # gt_t = torch.reshape(torch.repeat_interleave(
-    #     gt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
-    # pt_t = torch.reshape(torch.repeat_interleave(
-    #     pt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
-    condition = (gt_t == 0) & (pt_t >= thresh)
-    xs = torch.where(condition, 1-pt_t, pt_t).to(device)
-    thresholds = torch.where(condition, 1-thresh, thresh).to(device)
-    return heaviside_sum_adj(xs, thresholds, approx)
 
 
 def l_fn_adj(device, gt, pt, thresh, approx=None):
@@ -200,22 +116,17 @@ def l_fn_adj(device, gt, pt, thresh, approx=None):
     # pt_t = torch.reshape(torch.repeat_interleave(
     #     pt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
     n_classes = gt.shape[1]
+
     gt_t = torch.reshape(
         torch.repeat_interleave(gt, thresh.shape[0]),
-        (-1, thresh.shape[0], n_classes)).to(device)
+        (-1, n_classes, thresh.shape[0])
+    ).to(device)
 
     pt_t = torch.reshape(
-        torch.repeat_interleave(
-            pt, thresh.shape[0]
-        ),
-        (-1, thresh.shape[0], n_classes),
+        torch.repeat_interleave(pt, thresh.shape[0]),
+        # batch size x num_class x num_thresholds
+        (-1, n_classes, thresh.shape[0])
     ).to(device)
-    # print(pt_t.shape)
-
-    thresh = torch.reshape(
-        torch.repeat_interleave(thresh, n_classes),
-        (thresh.shape[0], n_classes)
-    )
     condition = (gt_t == 0) & (pt_t < thresh)
     xs = torch.where(condition, pt_t, 1-pt_t).to(device)
     # print("NEW XS: {}".format(xs[:, 0, :].shape))
@@ -240,48 +151,37 @@ def l_fp_adj(device, gt, pt, thresh, approx=None):
     #     pt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
     n_classes = gt.shape[1]
 
-    
-        
         # num thresholds x num classes
-    print("--thresh shape: {}".format(thresh.shape)) 
+    # print("--thresh shape: {}".format(thresh.shape))
 
-    # print("GT SHAPE: {}".format(gt.shape)) 
-    print("--- new pt: {}".format(pt[:, 0]))
+    # print("GT SHAPE: {}".format(gt.shape))
+    # print(pt)
+    # print("--- new pt: {}".format(pt[:, 0]))
 
     '''
-    gt -> batch size * num_classes  
-    pt -> batch size x num_classes 
-    
+    gt -> batch size * num_classes  (8 x 10)
+    pt -> batch size x num_classes  (8 x 10)
+
     gt_t -> (batch_size x num_classes) x num_thresh
     pt_t -> (batch_size x num_classes) x num_thresh
 
-    after modifying thresh: 
+    after modifying thresh:
     thresh -> num_thresh x num_classes
     '''
-    
+
     gt_t = torch.reshape(
         torch.repeat_interleave(gt, thresh.shape[0]),
-        (-1, thresh.shape[0], n_classes)
-        ).to(device)
-    
-    print(torch.repeat_interleave(pt, thresh.shape[0]))
+        (-1, n_classes, thresh.shape[0])
+    ).to(device)
+
     pt_t = torch.reshape(
-        torch.repeat_interleave(pt, thresh.shape[0]), 
-        (thresh.shape[0], n_classes, -1,),
-        ).to(device)
-
-    print("ADJUSTED: {}".format( pt_t[:, :, 0]))
-    
-
-    thresh = torch.reshape(
-        torch.repeat_interleave(thresh, n_classes),
-        (thresh.shape[0], n_classes))
-    print("Threshold shape: {}".format(thresh.shape))
-    
+        torch.repeat_interleave(pt, thresh.shape[0]),
+        # batch size x num_class x num_thresholds
+        (-1, n_classes, thresh.shape[0])
+    ).to(device)
     condition = (gt_t == 1) & (pt_t >= thresh)
     xs = torch.where(condition, 1-pt_t, pt_t).to(device)
-    print("Adj Xs shape:{}".format(xs.shape))
-    # print(xs)
+
     thresholds = torch.where(condition, 1-thresh, thresh).to(device)
     return heaviside_sum_adj(xs, thresholds, approx)
 
@@ -295,49 +195,115 @@ def l_tn_adj(device, gt, pt, thresh, approx=None):
 
     thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
                          torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
-    
+
     n_classes = gt.shape[1]
     # thresh = length = 9
-    
+
     # gt shape --> batch size
     # pt shape --> batch size
     # print("Gt shape: {}".format(gt.shape))
-    
+
     gt_t = torch.reshape(
-        torch.repeat_interleave(gt, thresh.shape[0]), 
-        (-1, thresh.shape[0], n_classes)).to(device)
-    
+        torch.repeat_interleave(gt, thresh.shape[0]),
+        (-1, n_classes, thresh.shape[0])
+    ).to(device)
+
     pt_t = torch.reshape(
-        torch.repeat_interleave(
-            pt, thresh.shape[0]
-        ), 
-        (-1, thresh.shape[0], n_classes), 
-        ).to(device)
-    # print(pt_t.shape)
-    
-    thresh = torch.reshape(
-        torch.repeat_interleave(thresh, n_classes),
-        (thresh.shape[0], n_classes)
-    )
+        torch.repeat_interleave(pt, thresh.shape[0]),
+        # batch size x num_class x num_thresholds
+        (-1, n_classes, thresh.shape[0])
+    ).to(device)
+
     condition = (gt_t == 1) & (pt_t < thresh)
     xs = torch.where(condition, pt_t, 1-pt_t).to(device)
     # print("XS shape:{}".format(xs.shape))
     thresholds = torch.where(condition, thresh, 1-thresh).to(device)
     x = heaviside_sum(xs, thresholds, approx)
-    print("L_TN shape: {}".format(x.shape))
+    # print("L_TN shape: {}".format(x.shape))
     # print(x)
     return x
 
 
+def l_tp(device, gt, pt, thresh, approx=None, class_val=None):
+    # output closer to 1 if a true positive, else closer to 0
+    #  tp: (gt == 1 and pt == 1) -> closer to 1 -> (inverter = false)
+    #  fn: (gt == 1 and pt == 0) -> closer to 0 -> (inverter = false)
+    #  fp: (gt == 0 and pt == 1) -> closer to 0 -> (inverter = true)
+    #  tn: (gt == 0 and pt == 0) -> closer to 0 -> (inverter = false)
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
+
+    gt_t = torch.reshape(torch.repeat_interleave(
+        gt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
+    pt_t = torch.reshape(torch.repeat_interleave(
+        pt, thresh.shape[0]), (-1, thresh.shape[0])).to(device)
+    condition = (gt_t == 0) & (pt_t >= thresh)
+    xs = torch.where(condition, 1-pt_t, pt_t).to(device)
+    thresholds = torch.where(condition, 1-thresh, thresh).to(device)
+
+    # print("pt shape: {}".format(pt.shape))              # 8
+    # print("pt_t shape: {}".format(pt_t.shape))          # 8 x 2
+    # print("xs shape: {}".format(xs.shape))              # 8 x 2
+    # # 8 x 2 (batch_size x n_thresh)
+    # print("thresh shape: {}".format(thresholds.shape))
+    # x = heaviside_sum(xs, thresholds, approx)
+    # print("heaviside shape: {}".format(x.shape))        # 2 (n_thresh)
+    # if class_val == 0:
+    #     print("OG Xs: {}".format(xs))
+    #     print("Thresholds: {}".format(thresholds))
+    return heaviside_sum(xs, thresholds, approx)
+
+
+def confusion(device, gt, pt, thresholds, approx=None, class_val=None):
+    tp = l_tp(device, gt, pt, thresholds, approx, class_val)
+    fn = l_fn(device, gt, pt, thresholds, approx, class_val)
+    fp = l_fp(device, gt, pt, thresholds, approx, class_val)
+    tn = l_tn(device, gt, pt, thresholds, approx, class_val)
+
+    return tp, fn, fp, tn
+
+
+def heaviside_sum_adj(xs, thresholds, approx=None):
+    ''' xs.shape: [batchsize, thresholds]
+        thresholds.shape: [batchsize, thresholds]
+        approx: linear_approx or approximation function to use
+        '''
+    return torch.sum(approx(xs, thresholds).cuda(), axis=0)
+
+
+def l_tp_adj(device, gt, pt, thresh, approx=None):
+    # replacing the thresholds
+    thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
+                         torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh))
+
+    n_classes = gt.shape[1]
+    # print("n classes:{}".format(n_classes))
+
+    gt_t = torch.reshape(
+        torch.repeat_interleave(gt, thresh.shape[0]),
+        (-1, n_classes, thresh.shape[0])
+    ).to(device)
+
+    pt_t = torch.reshape(
+        torch.repeat_interleave(pt, thresh.shape[0]),
+        # batch size x num_class x num_thresholds
+        (-1, n_classes, thresh.shape[0])
+    ).to(device)
+
+    condition = (gt_t == 0) & (pt_t >= thresh)
+    xs = torch.where(condition, 1-pt_t, pt_t).to(device)
+    # print("New Xs: {}".format(xs[0, :, :]))
+    thresholds = torch.where(condition, 1-thresh, thresh).to(device)
+    # print("New Thresh: {}".format(thresholds[0,:,:]))
+    return heaviside_sum_adj(xs, thresholds, approx)
 
 def confusion_adj(device, gt, pt, thresholds, approx=None):
     tp = l_tp_adj(device, gt, pt, thresholds, approx)
     fn = l_fn_adj(device, gt, pt, thresholds, approx)
     fp = l_fp_adj(device, gt, pt, thresholds, approx)
     tn = l_tn_adj(device, gt, pt, thresholds, approx)
-    print("new TP: {}".format(tp[:,0]))
+    # print("new tp: {}".format(tp))
     return tp, fn, fp, tn
-
 
 
 def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1), approx=linear_approx()):
@@ -401,10 +367,6 @@ def mean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch
     return loss
 
 
-
-
-
-
 def xmean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torch.arange(0.1, 1, 0.1), approx=linear_approx()):
     thresholds = thresholds.to(device)
 
@@ -425,36 +387,57 @@ def xmean_f1_approx_loss_on(device, y_labels=None, y_preds=None, thresholds=torc
         y_preds = y_preds.to(device)
         thresholds = torch.Tensor([0.5, 0.6]).to(device)
         # thresholds = torch.arange(0.1, 1, 0.1).to(device)
-        for i in range(classes):
-            print("RUNNING FOR CLASS {}".format(i))
-            gt_list = y_labels[:, i]
-            pt_list = y_preds[:, i]
+        # tp_list = []
+        # fp_list = [] 
+        # fn_list = [] 
+        # tn_list = [] 
+        # for i in range(classes):
+        #     # print("RUNNING FOR CLASS {}".format(i))
+        #     gt_list = y_labels[:, i]
+        #     pt_list = y_preds[:, i]
     
-            tp, fn, fp, tn = confusion(device, gt_list, pt_list, thresholds, approx)
-            # if i == 0: 
-                # print("OLD TP")
-                # tp, fn, fp, tn = confusion(device, gt_list, pt_list, thresholds, approx)
-                # print(tp)
-            precision = tp/(tp+fp+EPS)
-            recall = tp/(tp+fn+EPS)
-            temp_f1 = torch.mean(2 * (precision * recall) /
-                                 (precision + recall + EPS))
+        #     tp, fn, fp, tn = confusion(device, gt_list, pt_list, thresholds, approx, class_val=i)
+        #     # if i == 0: 
+        #     #     tp, fn, fp, tn = confusion(device, gt_list, pt_list, thresholds, approx)
+        #         # print("OLD TP: {}".format(tp))
+        #     precision = tp/(tp+fp+EPS)
+        #     recall = tp/(tp+fn+EPS)
+        #     '''
+        #     Each TP that is returned is 1 x 2 -> 2 is number of thresholds. 
+        #     '''
+        #     temp_f1 = torch.mean(2 * (precision * recall) /
+        #                          (precision + recall + EPS))
 
-            # tensor(0.5000, device='cuda:0', grad_fn=<MeanBackward0>)
-            mean_f1s[i] = temp_f1
+        #     # tensor(0.5000, device='cuda:0', grad_fn=<MeanBackward0>)
+        #     mean_f1s[i] = temp_f1
+        #     tp_list.append(tp.detach().cpu().tolist())
+        #     fn_list.append(fn.detach().cpu().tolist())
+        #     tn_list.append(tn.detach().cpu().tolist())
+        #     fp_list.append(fp.detach().cpu().tolist())
 
+        # print("TP LIST:{}".format(torch.Tensor(tp_list)))
+        # print("FN LIST:{}".format(torch.Tensor(fn_list)))
+        # print("TN LIST:{}".format(torch.Tensor(tn_list)))
+        # print("FP LIST:{}".format(torch.Tensor(fp_list)))
         # trying other method 
         tp, fn, fp, tn = confusion_adj(
             device, y_labels, y_preds, thresholds, approx)
-        print("NEW TP:----")
-        print(tp[:, 0])
+        # print("New TP List:{}".format(tp))
+        # print("New FN List:{}".format(fn))
+        # print("New TN List:{}".format(tn))
+        # print("New FP List:{}".format(fp))
+        
         precision = tp/(tp+fp+EPS)
         recall = tp/(tp+fn+EPS)
+        # print("New Prec: {}".format(precision))
+        # print("New Recall: {}".format(recall))
+        
         temp_f1 = torch.mean(2 * (precision * recall) /
-                             (precision + recall + EPS), axis=0)
+                             (precision + recall + EPS), axis=1)
         # print("New Mean f1: {}".format(temp_f1))
         # print("New Loss:{}".format(1-temp_f1.mean()))
-        loss = 1 - mean_f1s.mean()
+        # loss = 1 - mean_f1s.mean()
+        loss = 1 - temp_f1.mean()
         # print("OG Mean F1: {}".format(mean_f1s))
         # print("OG LOSS: {}".format(loss))
         return loss
