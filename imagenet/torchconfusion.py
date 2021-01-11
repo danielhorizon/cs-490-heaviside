@@ -336,10 +336,12 @@ def thresh_mean_f1_approx_loss_on(device, threshold, y_labels=None, y_preds=None
 
 '''
 Current runs (1/9/2020)
+- python main.py --gpu 0 /app/timeseries/imagenet/data
 - python main-af1.py --gpu 0 /app/timeseries/imagenet/data
 - python main-thresh.py --thresh 0.1 --gpu 1 /app/timeseries/imagenet/data
 - python main-thresh.py --thresh 0.125 --gpu 2 /app/timeseries/imagenet/data
 - python main-thresh.py --thresh 0.2 --gpu 3 /app/timeseries/imagenet/data
+- python main-thresh.py --thresh 0.3 --gpu 3 /app/timeseries/imagenet/data
 
 Still have to run: 
 - 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9. 

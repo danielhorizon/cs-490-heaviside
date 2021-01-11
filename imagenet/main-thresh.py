@@ -83,11 +83,14 @@ parser.add_argument('-b', '--batch-size', default=256, type=int,
                     help='mini-batch size (default: 256), this is the total '
                          'batch size of all GPUs on the current node when '
                          'using Data Parallel or Distributed Data Parallel')
-parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
+
+# Issue with this leanring rate 
+# https://medium.com/@smallfishbigsea/a-walk-through-of-alexnet-6cbd137a5637
+parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
                     metavar='LR', help='initial learning rate', dest='lr')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
-parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
+parser.add_argument('--wd', '--weight-decay', default=0.0005, type=float,
                     metavar='W', help='weight decay (default: 1e-4)',
                     dest='weight_decay')
 
@@ -270,19 +273,6 @@ def main_worker(gpu, ngpus_per_node, args):
     else:
         train_sampler = None
 
-    # train_loader = FastTensorDataLoader(
-    #     train_dataset, batch_size=args.batch_size, shuffle=(
-    #         train_sampler is None))
-
-    # val_loader = FastTensorDataLoader(
-    #     datasets.ImageFolder(valdir, transforms.Compose([
-    #         transforms.Resize(256),
-    #         transforms.CenterCrop(224),
-    #         transforms.ToTensor(),
-    #         normalize,
-    #     ])),
-    #     batch_size=args.batch_size, shuffle=False)
-
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(
             train_sampler is None),
@@ -367,6 +357,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         losses.update(loss.item(), images.size(0))
         top1.update(acc1[0], images.size(0))
         top5.update(acc5[0], images.size(0))
+        print("acc1: {} || acc5: {}".format(acc1.item(), acc5.item()))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()

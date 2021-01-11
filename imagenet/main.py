@@ -1,3 +1,4 @@
+# https://github.com/pytorch/examples/tree/master/imagenet
 import argparse
 import os
 import random
@@ -22,14 +23,49 @@ model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
                      and callable(models.__dict__[name]))
 
+
+class AlexNet(nn.Module):
+    def __init__(self, num_classes: int = 1000) -> None:
+        super(AlexNet, self).__init__()
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2),
+            nn.Conv2d(64, 192, kernel_size=5, padding=2),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2),
+            nn.Conv2d(192, 384, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(384, 256, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=3, stride=2),
+        )
+        self.avgpool = nn.AdaptiveAvgPool2d((6, 6))
+        self.classifier = nn.Sequential(
+            nn.Dropout(),
+            nn.Linear(256 * 6 * 6, 4096),
+            nn.ReLU(inplace=True),
+            nn.Dropout(),
+            nn.Linear(4096, 4096),
+            nn.ReLU(inplace=True),
+            nn.Linear(4096, num_classes),
+        )
+        self.softmax = nn.Softmax(dim=1)                # NEW ADDITIION
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.features(x)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.classifier(x)
+        x = self.softmax(x)                             # NEW ADDITION
+        return x
+
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
-parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
-                    choices=model_names,
-                    help='model architecture: ' +
-                    ' | '.join(model_names) +
-                    ' (default: resnet18)')
+
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
 parser.add_argument('--epochs', default=90, type=int, metavar='N',
@@ -43,13 +79,24 @@ parser.add_argument('-b', '--batch-size', default=256, type=int,
                     help='mini-batch size (default: 256), this is the total '
                          'batch size of all GPUs on the current node when '
                          'using Data Parallel or Distributed Data Parallel')
-parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
+# parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
+#                     metavar='LR', help='initial learning rate', dest='lr')
+# parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
+#                     help='momentum')
+# parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
+#                     metavar='W', help='weight decay (default: 1e-4)',
+#                     dest='weight_decay')
+# Issue with this leanring rate 
+# https://medium.com/@smallfishbigsea/a-walk-through-of-alexnet-6cbd137a5637
+parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
                     metavar='LR', help='initial learning rate', dest='lr')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
-parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
+parser.add_argument('--wd', '--weight-decay', default=0.0005, type=float,
                     metavar='W', help='weight decay (default: 1e-4)',
                     dest='weight_decay')
+
+# Other arguments 
 parser.add_argument('-p', '--print-freq', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
@@ -136,8 +183,8 @@ def main_worker(gpu, ngpus_per_node, args):
         print("=> using pre-trained model '{}'".format(args.arch))
         model = models.__dict__[args.arch](pretrained=True)
     else:
-        print("=> creating model '{}'".format(args.arch))
-        model = models.__dict__[args.arch]()
+        print("-> using alexnet")
+        model = AlexNet() 
 
     if not torch.cuda.is_available():
         print('using CPU, this will be slow')
@@ -166,11 +213,7 @@ def main_worker(gpu, ngpus_per_node, args):
         model = model.cuda(args.gpu)
     else:
         # DataParallel will divide and allocate batch_size to all available GPUs
-        if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
-            model.features = torch.nn.DataParallel(model.features)
-            model.cuda()
-        else:
-            model = torch.nn.DataParallel(model).cuda()
+        model = torch.nn.DataParallel(model).cuda()
 
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda(args.gpu)
@@ -262,7 +305,7 @@ def main_worker(gpu, ngpus_per_node, args):
                                                     and args.rank % ngpus_per_node == 0):
             save_checkpoint({
                 'epoch': epoch + 1,
-                'arch': args.arch,
+                # 'arch': args.arch,
                 'state_dict': model.state_dict(),
                 'best_acc1': best_acc1,
                 'optimizer': optimizer.state_dict(),
@@ -437,11 +480,3 @@ def accuracy(output, target, topk=(1,)):
 
 if __name__ == '__main__':
     main()
-
-    # Use 0.01 as the initial learning rate for AlexNet or VGG:
-    # python main.py -a alexnet --lr 0.01 [imagenet-folder with train and val folders]
-    # data folders = /data/imagenet/2012
-
-    # python main.py -a alexnet --lr 0.01  /data/imagenet/2012 
-
-    # python main.py -a alexnet --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data

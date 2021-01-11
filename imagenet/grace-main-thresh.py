@@ -8,6 +8,7 @@ import warnings
 import torch
 import torch.nn as nn
 import torch.nn.parallel
+import numpy as np 
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
 import torch.optim
@@ -18,13 +19,11 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
-from fast_tensor_data_loader import FastTensorDataLoader
-
-
 from torchconfusion import mean_f1_approx_loss_on, thresh_mean_f1_approx_loss_on
 
+
 class AlexNet(nn.Module):
-    def __init__(self, num_classes: int = 1000) -> None:
+    def __init__(self):
         super(AlexNet, self).__init__()
         self.features = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
@@ -49,18 +48,17 @@ class AlexNet(nn.Module):
             nn.Dropout(),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=True),
-            nn.Linear(4096, num_classes),
+            nn.Linear(4096, 1000),          # because there are 1000 classes
         )
         self.softmax = nn.Softmax(dim=1)                # NEW ADDITIION
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x):
         x = self.features(x)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.classifier(x)
         x = self.softmax(x)                             # NEW ADDITION
         return x
-
 
 
 model_names = sorted(name for name in models.__dict__
@@ -71,31 +69,30 @@ parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('data', metavar='DIR',
                     help='path to dataset')
 
-parser.add_argument('-j', '--workers', default=2, type=int, metavar='N',
+parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
                     help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=90, type=int, metavar='N',
+# setting this as high as it needs to be 
+parser.add_argument('--epochs', default=2000, type=int, metavar='N',
                     help='number of total epochs to run')
 parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 
-## ADDING THRESHOLDING ARGUMENT 
 # alexnet is 128, but for the sake of speed, we'll be sticking to 256.
-parser.add_argument('--thresh', type=float, 
-                    help='threshold for training')
 parser.add_argument('-b', '--batch-size', default=256, type=int,
                     metavar='N',
                     help='mini-batch size (default: 256), this is the total '
                          'batch size of all GPUs on the current node when '
                          'using Data Parallel or Distributed Data Parallel')
-parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
+# Issue with this leanring rate
+# https://medium.com/@smallfishbigsea/a-walk-through-of-alexnet-6cbd137a5637
+parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
                     metavar='LR', help='initial learning rate', dest='lr')
-parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
-                    help='momentum')
-parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
-                    metavar='W', help='weight decay (default: 1e-4)',
-                    dest='weight_decay')
+parser.add_argument('--run_name', '--run_name', default="", type=str,
+                    help='name of run')
+parser.add_argument('--thresh', type=float,
+                    help='threshold for training')
 
-########
+# other parameters
 parser.add_argument('-p', '--print-freq', default=10, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
@@ -182,8 +179,8 @@ def main_worker(gpu, ngpus_per_node, args):
         print("=> using pre-trained model '{}'".format(args.arch))
         model = models.__dict__[args.arch](pretrained=True)
     else:
-        print("=> loading in custom alexnet")
-        model = AlexNet()
+        print("=> using alexnet")
+        model = AlexNet().cuda()
 
     if not torch.cuda.is_available():
         print('using CPU, this will be slow')
@@ -206,7 +203,6 @@ def main_worker(gpu, ngpus_per_node, args):
             model.cuda()
             # DistributedDataParallel will divide and allocate batch_size to all
             # available GPUs if device_ids are not set
-            print("=> distributing models")
             model = torch.nn.parallel.DistributedDataParallel(model)
     elif args.gpu is not None:
         torch.cuda.set_device(args.gpu)
@@ -222,11 +218,10 @@ def main_worker(gpu, ngpus_per_node, args):
     # define loss function (criterion) and optimizer
     train_threshold = float(args.thresh)
     threshold_tensor = torch.Tensor([train_threshold]).cuda(args.gpu)
-    criterion = thresh_mean_f1_approx_loss_on(device=args.gpu, threshold=threshold_tensor)
+    criterion = thresh_mean_f1_approx_loss_on(
+        device=args.gpu, threshold=threshold_tensor)
 
-    optimizer = torch.optim.SGD(model.parameters(), args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
     print(optimizer.state_dict())
 
     # optionally resume from a checkpoint
@@ -274,19 +269,6 @@ def main_worker(gpu, ngpus_per_node, args):
     else:
         train_sampler = None
 
-    # train_loader = FastTensorDataLoader(
-    #     train_dataset, batch_size=args.batch_size, shuffle=(
-    #         train_sampler is None))
-
-    # val_loader = FastTensorDataLoader(
-    #     datasets.ImageFolder(valdir, transforms.Compose([
-    #         transforms.Resize(256),
-    #         transforms.CenterCrop(224),
-    #         transforms.ToTensor(),
-    #         normalize,
-    #     ])),
-    #     batch_size=args.batch_size, shuffle=False)
-
     train_loader = torch.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=(
             train_sampler is None),
@@ -306,16 +288,55 @@ def main_worker(gpu, ngpus_per_node, args):
         validate(val_loader, model, criterion, args)
         return
 
+    # solely for early stopping
+    early_stopping = False
+    lowest_valid_loss = None
+    reset_patience = 50
+    patience = 50
+
+    # cycling through epochs
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        adjust_learning_rate(optimizer, epoch, args)
+        
+        if early_stopping: 
+            print("Early stopping at Epoch {}/{}".format(epoch, arg.epochs))
+            break 
 
         # train for one epoch
         train(train_loader, model, criterion, optimizer, epoch, args)
 
         # evaluate on validation set
-        acc1 = validate(val_loader, model, criterion, args)
+        acc1, valid_loss = validate(val_loader, model, criterion, args)
+
+        # early stopping saving
+        patience -= 1 
+        adjust = False 
+        if lowest_valid_loss is None or valid_loss < lowest_valid_loss: 
+            adjust = True 
+            if lowest_valid_loss != None: 
+                print("Valid loss decreased {:.5f} -> {:.5f}! Resetting patience to: {}".format(
+                    lowest_valid_loss, valid_loss, reset_patience))
+
+            # saving model 
+            lowest_valid_loss = valid_loss 
+            patience=reset_patience 
+            state=({
+                'epoch':epoch+1, 
+                'state_dict': model.state_dict(), 
+                'best_acc1': best_acc1, 
+                'loss': valid_loss, 
+                'optimizer': optimizer.state_dict()
+            })
+            fname = "/".join(["early-stopping-models", str(args.run_name) + "-" + "model_best.pth.tar"])
+            torch.save(state, fname)
+            
+        if not adjust: 
+            print("Early stopping {}/{}...".format(reset_patience -
+                                                       patience, reset_patience))
+        if patience <= 0: 
+            early_stopping = True 
+
 
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
@@ -323,7 +344,6 @@ def main_worker(gpu, ngpus_per_node, args):
 
         if not args.multiprocessing_distributed or (args.multiprocessing_distributed
                                                     and args.rank % ngpus_per_node == 0):
-            
             save_checkpoint({
                 'epoch': epoch + 1,
                 # 'arch': args.arch,
@@ -348,10 +368,8 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     model.train()
 
     end = time.time()
-    
     for i, (images, target) in enumerate(train_loader):
-        # if i == 3: 
-        #     break
+        # measure data loading time
         data_time.update(time.time() - end)
 
         if args.gpu is not None:
@@ -378,12 +396,15 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         optimizer.step()
 
         # measure elapsed time
+        # print("time for this batch:{}".format(time.time() - end))
         batch_time.update(time.time() - end)
         end = time.time()
 
         if i % args.print_freq == 0:
             progress.display(i)
         
+        if i > 3: 
+            break 
 
 
 def validate(val_loader, model, criterion, args):
@@ -397,14 +418,12 @@ def validate(val_loader, model, criterion, args):
         prefix='Test: ')
 
     # switch to evaluate mode
+    valid_losses = []
     model.eval()
 
     with torch.no_grad():
         end = time.time()
-        
         for i, (images, target) in enumerate(val_loader):
-            # if i == 3: 
-            #     break
             if args.gpu is not None:
                 images = images.cuda(args.gpu, non_blocking=True)
             if torch.cuda.is_available():
@@ -428,13 +447,16 @@ def validate(val_loader, model, criterion, args):
 
             if i % args.print_freq == 0:
                 progress.display(i)
-            # fg_start += 1 
+
+            # adding in early stopping
+            valid_losses.append(loss.item())
 
         # TODO: this should also be done with the ProgressMeter
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
 
-    return top1.avg
+    epoch_valid_loss = np.mean(valid_losses)
+    return top1.avg, epoch_valid_loss
 
 
 def save_checkpoint(state, is_best, threshold, filename='checkpoint.pth.tar'):
@@ -487,13 +509,6 @@ class ProgressMeter(object):
         return '[' + fmt + '/' + fmt.format(num_batches) + ']'
 
 
-def adjust_learning_rate(optimizer, epoch, args):
-    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = args.lr * (0.1 ** (epoch // 30))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-
-
 def accuracy(output, target, topk=(1,)):
     """Computes the accuracy over the k top predictions for the specified values of k"""
     with torch.no_grad():
@@ -512,33 +527,9 @@ def accuracy(output, target, topk=(1,)):
 
 
 if __name__ == '__main__':
-    # flamegraph.start_profile_thread(fd=open("./perf.log", "w"))
     main()
 
-    # Use 0.01 as the initial learning rate for AlexNet or VGG:
-    # python main.py -a alexnet --lr 0.01 [imagenet-folder with train and val folders]
-    # data folders = /data/imagenet/2012
 
-    # python main.py -a alexnet --lr 0.01  /data/imagenet/2012 
-
-    # python main-af1.py -a alexnet --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
-
-    # python main-thresh.py -a alexnet --thresh 0.1 --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
-
-
-# running now: 
 '''
-Ports: 7013, 9998, 3334, 4443, 7776
-python main-thresh.py --thresh 0.1 --dist-url "tcp://0.0.0.0:9998/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
-python main-thresh.py --thresh 0.125 --dist-url "tcp://0.0.0.0:7776/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
-python main-thresh.py --thresh 0.2 --dist-url "tcp://0.0.0.0:4443/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
-
-
-
-AF1 -> on 7013 
-
-Need to run: 
-python main-thresh.py --thresh 0.3 --dist-url "tcp://0.0.0.0:7013/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
-python main-thresh.py --thresh 0.9 --dist-url "tcp://0.0.0.0:4443/" --dist-backend 'nccl' --multiprocessing-distributed --world-size=1 --rank 0 /app/timeseries/imagenet/data
 
 '''
