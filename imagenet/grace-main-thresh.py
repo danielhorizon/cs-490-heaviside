@@ -85,7 +85,7 @@ parser.add_argument('-b', '--batch-size', default=256, type=int,
                          'using Data Parallel or Distributed Data Parallel')
 # Issue with this leanring rate
 # https://medium.com/@smallfishbigsea/a-walk-through-of-alexnet-6cbd137a5637
-parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.001, type=float,
                     metavar='LR', help='initial learning rate', dest='lr')
 parser.add_argument('--run_name', '--run_name', default="", type=str,
                     help='name of run')
@@ -209,11 +209,7 @@ def main_worker(gpu, ngpus_per_node, args):
         model = model.cuda(args.gpu)
     else:
         # DataParallel will divide and allocate batch_size to all available GPUs
-        if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
-            model.features = torch.nn.DataParallel(model.features)
-            model.cuda()
-        else:
-            model = torch.nn.DataParallel(model).cuda()
+        model = torch.nn.DataParallel(model).cuda()
 
     # define loss function (criterion) and optimizer
     train_threshold = float(args.thresh)
@@ -413,8 +409,6 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         if i % args.print_freq == 0:
             progress.display(i)
         
-        if i > 3: 
-            break 
 
 
 def validate(val_loader, model, criterion, args):
