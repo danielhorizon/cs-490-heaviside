@@ -395,8 +395,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
         if i % args.print_freq == 0:
             progress.display(i)
-        if i > 3: 
-            break
+
 
 
 def validate(val_loader, model, criterion, args):
@@ -440,8 +439,6 @@ def validate(val_loader, model, criterion, args):
             
             valid_losses.append(loss.item())
 
-            if i > 3: 
-                break
 
         # TODO: this should also be done with the ProgressMeter
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
