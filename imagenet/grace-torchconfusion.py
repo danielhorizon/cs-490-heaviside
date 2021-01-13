@@ -222,7 +222,7 @@ def l_tn_adj(device, gt, pt, thresh, approx=None):
 
 def l_tp_adj(device, gt, pt, thresh, approx=None):
     # replacing the thresholds
-    print("device :{}".format(device))
+    # print("device :{}".format(device))
     thresh = torch.where(thresh == 0.0, torch.tensor([0.01], device=thresh.device),
                          torch.where(thresh == 1.0, torch.tensor([0.99], device=thresh.device), thresh)).to(device)
 

@@ -14,5 +14,5 @@
 
 
 # Running CE early-stopping 
-python3 grace-main.py  --gpu 0 --run_name  /home/tdl29/project/
+python3 grace-main.py  --gpu 0 --run_name baseline-ce /home/tdl29/project/
 
