@@ -406,10 +406,10 @@ def validate(val_loader, model, criterion, args):
     return top1.avg
 
 
-def save_checkpoint(state, is_best, filename='testcheckpoint.pth.tar'):
+def save_checkpoint(state, is_best, filename='ce-checkpoint.pth.tar'):
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, 'testmodel_best.pth.tar')
+        shutil.copyfile(filename, 'ce-model_best.pth.tar')
 
 
 class AverageMeter(object):
