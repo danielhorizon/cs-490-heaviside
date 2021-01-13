@@ -300,7 +300,7 @@ def main_worker(gpu, ngpus_per_node, args):
             train_sampler.set_epoch(epoch)
         
         if early_stopping: 
-            print("Early stopping at Epoch {}/{}".format(epoch, arg.epochs))
+            print("Early stopping at Epoch {}/{}".format(epoch, args.epochs))
             break 
 
         # train for one epoch
@@ -351,7 +351,17 @@ def main_worker(gpu, ngpus_per_node, args):
                 'best_acc1': best_acc1,
                 'optimizer': optimizer.state_dict(),
             }, is_best, threshold=args.thresh)
-
+            
+        # saving checkpoint
+        checkpoint_state = ({
+            'epoch': epoch+1,
+            'state_dict': model.state_dict(),
+            'loss': valid_loss,
+            'optimizer': optimizer.state_dict()
+        })
+        checkpoint_fname = "/".join(["early-stopping-models",
+                                     str(args.run_name) + "-" + "checkpoint.pth.tar"])
+        torch.save(checkpoint_state, checkpoint_fname)
 
 def train(train_loader, model, criterion, optimizer, epoch, args):
     batch_time = AverageMeter('Time', ':6.3f')
