@@ -4,7 +4,7 @@ import random
 import shutil
 import time
 import warnings
-
+import numpy as np 
 import torch
 import torch.nn as nn
 # import torch.nn.parallel
@@ -19,7 +19,7 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 
 from torchconfusion import mean_f1_approx_loss_on
-
+from torch.utils.tensorboard import SummaryWriter
 
 class AlexNet(nn.Module):
     def __init__(self):
@@ -76,20 +76,22 @@ parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
                     help='manual epoch number (useful on restarts)')
 
 # alexnet is 128, but for the sake of speed, we'll be sticking to 256. 
-parser.add_argument('-b', '--batch-size', default=256, type=int,
+parser.add_argument('-b', '--batch-size', default=512, type=int,
                     metavar='N',
                     help='mini-batch size (default: 256), this is the total '
                          'batch size of all GPUs on the current node when '
                          'using Data Parallel or Distributed Data Parallel')
 # Issue with this leanring rate 
 # https://medium.com/@smallfishbigsea/a-walk-through-of-alexnet-6cbd137a5637
-parser.add_argument('--lr', '--learning-rate', default=0.01, type=float,
+parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
                     metavar='LR', help='initial learning rate', dest='lr')
 parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--wd', '--weight-decay', default=0.0005, type=float,
                     metavar='W', help='weight decay (default: 1e-4)',
                     dest='weight_decay')
+parser.add_argument('--run_name', '--run_name', default="test", type=str,
+                    help='name of run')
 
 # Extra details
 parser.add_argument('-p', '--print-freq', default=10, type=int,
@@ -215,7 +217,7 @@ def main_worker(gpu, ngpus_per_node, args):
             model = torch.nn.DataParallel(model).cuda()
 
     # define loss function (criterion) and optimizer
-    criterion = mean_f1_approx_loss_on(device=args.gpu, thresholds=torch.arange(0.1, 1, 0.1))
+    criterion = mean_f1_approx_loss_on(device=args.gpu, thresholds=torch.arange(0.5))
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
@@ -286,16 +288,31 @@ def main_worker(gpu, ngpus_per_node, args):
         validate(val_loader, model, criterion, args)
         return
 
+    ## adding in tensorboard support
+    if args.run_name:
+        experiment_name = args.run_name
+        tensorboard_path = "/".join(["tensorboard", experiment_name])
+        writer = SummaryWriter(tensorboard_path)
+
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
         adjust_learning_rate(optimizer, epoch, args)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, args)
+        train_acc1, train_acc5, train_loss = train(train_loader, model, criterion, optimizer, epoch, args)
 
         # evaluate on validation set
-        acc1 = validate(val_loader, model, criterion, args)
+        acc1, acc5, valid_loss = validate(val_loader, model, criterion, args)
+
+        # logging to tensorboard
+        writer.add_scalar("train/loss", train_loss, epoch)
+        writer.add_scalar("train/acc-1", train_acc1, epoch)
+        writer.add_scalar("train/acc-5", train_acc5, epoch)
+
+        writer.add_scalar("val/loss", valid_loss, epoch)
+        writer.add_scalar("val/acc-1", acc1, epoch)
+        writer.add_scalar("val/acc-5", acc5, epoch)
 
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
@@ -325,6 +342,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
     # switch to train mode
     model.train()
+    train_losses = []
 
     end = time.time()
     for i, (images, target) in enumerate(train_loader):
@@ -340,7 +358,6 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         output = model(images).cuda(args.gpu, non_blocking=True)
         target_labels = torch.zeros(len(target), len(output[0])).cuda(args.gpu, non_blocking=True).scatter_(
             1, target.unsqueeze(1), 1.).cuda(args.gpu, non_blocking=True)
-
         loss = criterion(y_preds=output, y_labels=target_labels)
 
         # measure accuracy and record loss
@@ -354,13 +371,23 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         loss.backward()
         optimizer.step()
 
+        # adding in train losses
+        train_losses.append(loss.item())
+
         # measure elapsed time
-        # print("time for this batch:{}".format(time.time() - end))
         batch_time.update(time.time() - end)
         end = time.time()
 
         if i % args.print_freq == 0:
             progress.display(i)
+        
+        if i > 500: 
+            break 
+        print("Training Loss: {}".format(loss))
+
+    epoch_train_loss = np.mean(train_losses)
+    
+    return top1.avg, top5.avg, epoch_train_loss
 
 
 def validate(val_loader, model, criterion, args):
@@ -374,6 +401,7 @@ def validate(val_loader, model, criterion, args):
         prefix='Test: ')
 
     # switch to evaluate mode
+    valid_losses = []
     model.eval()
 
     with torch.no_grad():
@@ -403,17 +431,21 @@ def validate(val_loader, model, criterion, args):
             if i % args.print_freq == 0:
                 progress.display(i)
 
+            # adding in early stopping
+            valid_losses.append(loss.item())
+
         # TODO: this should also be done with the ProgressMeter
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
 
-    return top1.avg
+    epoch_valid_loss = np.mean(valid_losses)
+    return top1.avg, top5.avg, epoch_valid_loss
 
 
-def save_checkpoint(state, is_best, filename='af1_checkpoint.pth.tar'):
+def save_checkpoint(state, is_best, filename='af1-checkpoint.pth.tar'):
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, 'af1_model_best.pth.tar')
+        shutil.copyfile(filename, 'af1-model_best.pth.tar')
 
 
 class AverageMeter(object):

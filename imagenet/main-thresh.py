@@ -4,6 +4,7 @@ import random
 import shutil
 import time
 import warnings
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -18,12 +19,52 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
-
+from torch.utils.tensorboard import SummaryWriter
 from torchconfusion import mean_f1_approx_loss_on, thresh_mean_f1_approx_loss_on
 
+# class AlexNet(nn.Module):
+#     def __init__(self, num_classes: int = 1000) -> None:
+#         super(AlexNet, self).__init__()
+#         self.features = nn.Sequential(
+#             nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
+#             nn.ReLU(inplace=True),
+#             nn.MaxPool2d(kernel_size=3, stride=2),
+#             nn.Conv2d(64, 192, kernel_size=5, padding=2),
+#             nn.ReLU(inplace=True),
+#             nn.MaxPool2d(kernel_size=3, stride=2),
+#             nn.Conv2d(192, 384, kernel_size=3, padding=1),
+#             nn.ReLU(inplace=True),
+#             nn.Conv2d(384, 256, kernel_size=3, padding=1),
+#             nn.ReLU(inplace=True),
+#             nn.Conv2d(256, 256, kernel_size=3, padding=1),
+#             nn.ReLU(inplace=True),
+#             nn.MaxPool2d(kernel_size=3, stride=2),
+#         )
+#         self.avgpool = nn.AdaptiveAvgPool2d((6, 6))
+#         self.classifier = nn.Sequential(
+#             nn.Dropout(),
+#             nn.Linear(256 * 6 * 6, 4096),
+#             nn.ReLU(inplace=True),
+#             nn.Dropout(),
+#             nn.Linear(4096, 4096),
+#             nn.ReLU(inplace=True),
+#             nn.Linear(4096, num_classes),
+#         )
+#         self.softmax = nn.Softmax(dim=1)                # NEW ADDITIION
+
+#     def forward(self, x: torch.Tensor) -> torch.Tensor:
+#         x = self.features(x)
+#         x = self.avgpool(x)
+#         x = torch.flatten(x, 1)
+#         x = self.classifier(x)
+#         x = self.softmax(x)                             # NEW ADDITION
+#         return x
+
+
 class AlexNet(nn.Module):
-    def __init__(self, num_classes: int = 1000) -> None:
+    def __init__(self):
         super(AlexNet, self).__init__()
+
         self.features = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
             nn.ReLU(inplace=True),
@@ -37,27 +78,47 @@ class AlexNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=3, stride=2),
+            nn.MaxPool2d(kernel_size=3, stride=2)
         )
         self.avgpool = nn.AdaptiveAvgPool2d((6, 6))
         self.classifier = nn.Sequential(
-            nn.Dropout(),
+            nn.Dropout(p=0.2),
             nn.Linear(256 * 6 * 6, 4096),
             nn.ReLU(inplace=True),
-            nn.Dropout(),
+            nn.Dropout(p=0.2),
             nn.Linear(4096, 4096),
             nn.ReLU(inplace=True),
-            nn.Linear(4096, num_classes),
+            nn.Linear(4096, 1000),
         )
-        self.softmax = nn.Softmax(dim=1)                # NEW ADDITIION
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.features(x)
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(
+                    m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                nn.init.constant_(m.bias, 0)
+        self.softmax = nn.Softmax(dim=1)
+
+    def extract_features(self, inputs):
+        """ Returns output of the final convolution layer """
+        x = self.features(inputs)
+        return x
+
+    def forward(self, inputs):
+        # See note [TorchScript super()]
+        x = self.features(inputs)
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.classifier(x)
-        x = self.softmax(x)                             # NEW ADDITION
+        x = self.softmax(x)
         return x
+
 
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
@@ -93,6 +154,8 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
 parser.add_argument('--wd', '--weight-decay', default=0.0005, type=float,
                     metavar='W', help='weight decay (default: 1e-4)',
                     dest='weight_decay')
+parser.add_argument('--run_name', '--run_name', default="test", type=str,
+                    help='name of run')
 
 ########
 parser.add_argument('-p', '--print-freq', default=10, type=int,
@@ -292,16 +355,33 @@ def main_worker(gpu, ngpus_per_node, args):
         validate(val_loader, model, criterion, args)
         return
 
+    ## adding in tensorboard support
+    if args.run_name:
+        experiment_name = args.run_name
+        tensorboard_path = "/".join(["tensorboard", experiment_name])
+        writer = SummaryWriter(tensorboard_path)
+
     for epoch in range(args.start_epoch, args.epochs):
         if args.distributed:
             train_sampler.set_epoch(epoch)
         adjust_learning_rate(optimizer, epoch, args)
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, args)
+        train_acc1, train_acc5, train_loss = train(
+            train_loader, model, criterion, optimizer, epoch, args)
 
         # evaluate on validation set
-        acc1 = validate(val_loader, model, criterion, args)
+        acc1, acc5, valid_loss = validate(val_loader, model, criterion, args)
+
+        # adding in
+        # logging to tensorboard
+        writer.add_scalar("train/loss", train_loss, epoch)
+        writer.add_scalar("train/acc-1", train_acc1, epoch)
+        writer.add_scalar("train/acc-5", train_acc5, epoch)
+
+        writer.add_scalar("val/loss", valid_loss, epoch)
+        writer.add_scalar("val/acc-1", acc1, epoch)
+        writer.add_scalar("val/acc-5", acc5, epoch)
 
         # remember best acc@1 and save checkpoint
         is_best = acc1 > best_acc1
@@ -312,7 +392,6 @@ def main_worker(gpu, ngpus_per_node, args):
             
             save_checkpoint({
                 'epoch': epoch + 1,
-                # 'arch': args.arch,
                 'state_dict': model.state_dict(),
                 'best_acc1': best_acc1,
                 'optimizer': optimizer.state_dict(),
@@ -332,6 +411,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
     # switch to train mode
     model.train()
+    train_losses = []
 
     end = time.time()
     
@@ -357,12 +437,15 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
         losses.update(loss.item(), images.size(0))
         top1.update(acc1[0], images.size(0))
         top5.update(acc5[0], images.size(0))
-        print("acc1: {} || acc5: {}".format(acc1.item(), acc5.item()))
+        # print("acc1: {} || acc5: {}".format(acc1.item(), acc5.item()))
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
+        # adding in train losses
+        train_losses.append(loss.item())
 
         # measure elapsed time
         batch_time.update(time.time() - end)
@@ -370,6 +453,9 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
         if i % args.print_freq == 0:
             progress.display(i)
+
+    epoch_train_loss = np.mean(train_losses)
+    return top1.avg, top5.avg, epoch_train_loss
         
 
 
@@ -384,6 +470,7 @@ def validate(val_loader, model, criterion, args):
         prefix='Test: ')
 
     # switch to evaluate mode
+    valid_losses = []
     model.eval()
 
     with torch.no_grad():
@@ -415,13 +502,16 @@ def validate(val_loader, model, criterion, args):
 
             if i % args.print_freq == 0:
                 progress.display(i)
-            # fg_start += 1 
+            
+            # adding in early stopping
+            valid_losses.append(loss.item())
 
         # TODO: this should also be done with the ProgressMeter
         print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
               .format(top1=top1, top5=top5))
 
-    return top1.avg
+    epoch_valid_loss = np.mean(valid_losses)
+    return top1.avg, top5.avg, epoch_valid_loss
 
 
 def save_checkpoint(state, is_best, threshold, filename='checkpoint.pth.tar'):
@@ -523,6 +613,8 @@ python main-thresh.py --thresh 0.2 --dist-url "tcp://0.0.0.0:4443/" --dist-backe
 
 
 python main-thresh.py --thresh 0.1 --gpu 3 /app/timeseries/imagenet/data
+
+
 
 AF1 -> on 7013 
 

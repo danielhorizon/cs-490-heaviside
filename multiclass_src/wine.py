@@ -8,6 +8,7 @@ import math
 import random 
 import json 
 
+
 import pandas as pd
 import numpy as np
 import torch.nn as nn
@@ -27,9 +28,11 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
 from mc_torchconfusion import *
-from mc_torchconfusion_weighted import wt_mean_f1_approx_loss_on
 from gradient_flow import *
 
+
+import warnings
+warnings.filterwarnings('ignore')
 
 EPS = 1e-7
 _WHITE_WINE = "../data/winequality-white.csv"
@@ -136,40 +139,6 @@ def load_white_wine(shuffle=True, seed=None):
             'y': test_labels
         },
     }
-
-
-def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
-    classes = len(y_labels[0])
-    mean_f1s = torch.zeros(classes, dtype=torch.float32)
-    precisions = torch.zeros(classes, dtype=torch.float32)
-    recalls = torch.zeros(classes, dtype=torch.float32)
-
-    '''
-    y_labels = tensor([[0., 0., 0., 0., 0., 1., 0., 0., 0., 0.]])
-    y_preds = tensor([[0.0981, 0.0968, 0.0977, 0.0869, 0.1180, 0.1081, 0.0972, 0.0919, 0.1003, 0.1050]])
-    '''
-    for i in range(classes):
-        gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
-        pt_list = y_preds[:, i]
-
-        pt_list = torch.Tensor([1 if x >= threshold else 0 for x in pt_list])
-
-        tn, fp, fn, tp = confusion_matrix(y_true=gt_list.cpu().numpy(),
-                                          y_pred=pt_list.cpu().numpy(), labels=[0, 1]).ravel()
-
-        # converting to tensors
-        tp, fn, fp, tn = torch.tensor([tp]).to(device), torch.tensor([fn]).to(
-            device), torch.tensor([fp]).to(device), torch.tensor([tn]).to(device)
-        precision = tp/(tp+fp+EPS)
-        recall = tp/(tp+fn+EPS)
-        temp_f1 = torch.mean(2 * (precision * recall) /
-                             (precision + recall + EPS))
-        mean_f1s[i] = temp_f1
-        precisions[i] = precision
-        recalls[i] = recall
-
-    # return class wise f1, and the mean of the f1s.
-    return mean_f1s, mean_f1s.mean(), precisions, recalls
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -324,9 +293,15 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
         approx = True
         criterion = mean_accuracy_approx_loss_on(
             device=device, thresholds=torch.arange(0.1, 1, 0.1))
-    # elif loss_metric == "approx-auroc":
-    #     approx = True
-    #     criterion = mean_auroc_approx_loss_on(device=device)
+    # Average precision 
+    elif loss_metric == "approx-ap":
+        approx=True
+        criterion = mean_ap_approx_loss_on(
+            device=device, thresholds=torch.arange(0.1, 1, 0.1))
+    elif loss_metric == "approx-ap2":
+        approx = True
+        criterion = old_mean_ap_approx_loss_on(
+            device=device, thresholds=torch.arange(0.1, 1, 0.1))
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
@@ -463,6 +438,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
             m_weightedf1s = np.array(microf1s).mean()
             m_microf1s = np.array(microf1s).mean()
             m_macrof1s = np.array(macrof1s).mean()
+            print("Train loss: {}".format(m_loss))
             print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
                 epoch, m_accs, m_weightedf1s, m_microf1s, m_macrof1s)
             )
@@ -617,6 +593,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
 
                 valid_losses.append(batch_val_loss.detach().cpu().numpy())
 
+            valid_loss = np.mean(valid_losses)
             val_acc = accuracy_score(y_true=val_labels, y_pred=val_preds)
             val_f1_micro = f1_score(
                 y_true=val_labels, y_pred=val_preds, average='micro')
@@ -631,8 +608,9 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
                 y_true=val_labels, y_pred=val_preds, average=None)
             class_val_re = recall_score(
                 y_true=val_labels, y_pred=val_preds, average=None)
-            valid_loss = np.mean(valid_losses)
 
+            macro_pr = precision_score(y_true=val_labels, y_pred=val_preds, average='micro')
+        
             if run_name:
                 writer.add_scalar("valid/train-loss", valid_loss, epoch)
                 writer.add_scalar("valid/accuracy", val_acc, epoch)
@@ -655,6 +633,9 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
                 if best_test['val_accuracy'] < val_acc:
                     best_test['val_accuracy'] = val_acc
 
+            print("Val - Epoch ({}): | Val Loss: {:.3f} | Macro PR: {:.3f}\n".format(
+                epoch, valid_loss, macro_pr)
+            )
             print("Val - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
                 epoch, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
             )
@@ -671,7 +652,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
                 today_date = time.strftime('%Y%m%d')
 
                 # TODO(dlee): add in support for balanced dataset.
-                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/wine",
+                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/wine-ap",
                                             '{}-best_model-{}.pth'.format(
                                                 today_date, run_name
                                             )])
@@ -691,7 +672,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, batch_siz
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/wine",
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/wine-ap",
                                 '{}-overfit-model-{}.pth'.format(
                                     time.strftime('%Y%m%d'), run_name
                                 )])
@@ -734,7 +715,7 @@ def run(loss, epochs, batch_size, run_name, cuda, patience, output_file):
     batch_size = int(batch_size)
     epochs = int(epochs)
 
-    seeds = [1,2,3,4,5]
+    seeds = [1,2,3]
     for i in range(len(seeds)): 
         data_splits = load_white_wine(seed=seeds[i])
         temp_name = str(run_name) + "-" + str(i)

@@ -14,7 +14,7 @@ def lin(m=1, b=0):
     return f
 
 
-def linear_approx(delta=0.2):
+def linear_approx(delta=0.1):
     ''' piecewise linear approximation of the Heaviside function
         x, t: pre-inverted (x, threshold) values in a tuple
         shape is 1 x num_thresholds
@@ -374,4 +374,13 @@ python main-thresh.py --thresh 0.5 --gpu 2 /app/timeseries/imagenet/data
 Still have to run: 
 - 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9. 
 - Taking pre-trained Alexnet and fine-tuning it using this.
+
+
+
+0.6, 0.7, 0.8, 0.9. 
+python main-thresh.py --thresh 0.6 --gpu 0 /app/timeseries/data/imagenet-data
+python main-thresh.py --thresh 0.7 --gpu 1 /app/timeseries/data/imagenet-data
+python main-thresh.py --thresh 0.8 --gpu 2 /app/timeseries/data/imagenet-data
+python main-thresh.py --thresh 0.9 --gpu 3 /app/timeseries/data/imagenet-data
+
 '''

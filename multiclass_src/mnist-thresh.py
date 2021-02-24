@@ -28,9 +28,12 @@ from sklearn.metrics import confusion_matrix
 from sklearn import metrics
 
 # torchconfuson files
-from torchconfusion import *
+from mc_torchconfusion import *
 from mc_metrics import *
 from mnist_helper import load_mnist_imbalanced, load_balanced_data
+
+import warnings
+warnings.filterwarnings('ignore')
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -281,8 +284,14 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
         approx = True
         train_threshold = float(train_tau)
         threshold_tensor = torch.Tensor([train_threshold]).to(device)
-        criterion = mean_f1_approx_loss_on(
-            device=device, threshold=threshold_tensor)
+        criterion = clean_mean_f1_approx_loss_on(
+            device=device, thresholds=threshold_tensor)
+    elif loss_metric == "approx-ap":
+        approx = True
+        train_threshold = float(train_tau)
+        threshold_tensor = torch.Tensor([train_threshold]).to(device)
+        criterion = mean_ap_approx_loss_on(
+            device=device, thresholds=threshold_tensor)
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
@@ -371,24 +380,26 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
 
-                    loss, hclass_tp, hclass_fn, hclass_fp, hclass_tn, hclass_pr, hclass_re, hclass_f1, hclass_acc = criterion(
-                        y_labels=train_labels, y_preds=output)
+                    # loss, hclass_tp, hclass_fn, hclass_fp, hclass_tn, hclass_pr, hclass_re, hclass_f1, hclass_acc = criterion(
+                    #     y_labels=train_labels, y_preds=output)
+                    loss = criterion(y_labels=train_labels, y_preds=output)
+
 
                 losses.append(loss)
                 loss.backward()
                 optimizer.step()
 
                 # storing soft-set-metrics
-                if approx:
-                    for i in range(10):
-                        ss_class_tp[i].append(hclass_tp[i])
-                        ss_class_fn[i].append(hclass_fn[i])
-                        ss_class_fp[i].append(hclass_fp[i])
-                        ss_class_tn[i].append(hclass_tn[i])
-                        ss_class_pr[i].append(hclass_pr[i])
-                        ss_class_re[i].append(hclass_re[i])
-                        ss_class_f1[i].append(hclass_f1[i])
-                        ss_class_acc[i].append(hclass_acc[i])
+                # if approx:
+                #     for i in range(10):
+                #         ss_class_tp[i].append(hclass_tp[i])
+                #         ss_class_fn[i].append(hclass_fn[i])
+                #         ss_class_fp[i].append(hclass_fp[i])
+                #         ss_class_tn[i].append(hclass_tn[i])
+                #         ss_class_pr[i].append(hclass_pr[i])
+                #         ss_class_re[i].append(hclass_re[i])
+                #         ss_class_f1[i].append(hclass_f1[i])
+                #         ss_class_acc[i].append(hclass_acc[i])
 
                 ## check prediction, switch to evaluation
                 model.eval()
@@ -440,6 +451,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
             m_weightedf1s = np.array(microf1s).mean()
             m_microf1s = np.array(microf1s).mean()
             m_macrof1s = np.array(macrof1s).mean()
+            print("Train loss: {}".format(m_loss))
             print("Train - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
                 epoch, m_loss, m_accs, m_weightedf1s, m_microf1s, m_macrof1s)
             )
@@ -531,7 +543,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                     trans_labels = torch.zeros(len(labels), 10).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
-                    batch_test_loss, _, _, _, _, _, _, _, _ = criterion(
+                    batch_test_loss = criterion(
                         y_labels=trans_labels, y_preds=output)
                 else:
                     batch_test_loss = criterion(output, labels)
@@ -631,43 +643,47 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
 
-                    eval_class_f1s, eval_class_prs, eval_class_recs, eval_class_losses = evaluation_f1_across_thresholds(
-                        device=device, y_labels=valid_labels, y_preds=output, thresholds=torch.arange(
-                            0.1, 1, 0.1))
+                    # eval_class_f1s, eval_class_prs, eval_class_recs, eval_class_losses = evaluation_f1_across_thresholds(
+                    #     device=device, y_labels=valid_labels, y_preds=output, thresholds=torch.arange(
+                    #         0.1, 1, 0.1))
+                    curr_val_loss = criterion(y_labels=valid_labels, y_preds=output)
 
-                    curr_val_loss = np.array(eval_class_losses).mean()
-                    valid_losses.append(curr_val_loss)
+                    # curr_val_loss = np.array(eval_class_losses).mean()
+                    # valid_losses.append(curr_val_loss)
                 else:
                     curr_val_loss = criterion(output, labels)
-                    valid_losses.append(curr_val_loss.detach().cpu().numpy())
+                
+                valid_losses.append(curr_val_loss.detach().cpu().numpy())
 
             valid_loss = np.mean(valid_losses)
-            valid_mean_f1 = np.array(eval_class_f1s).mean()
+            macro_pr = precision_score(
+                y_true=val_labels, y_pred=val_preds, average='micro')
+            # valid_mean_f1 = np.array(eval_class_f1s).mean()
 
             # add in per-class metrics
-            if run_name:
-                writer.add_scalar("val/valid-loss", valid_loss, epoch)
-                writer.add_scalar("val/f1", valid_mean_f1, epoch)
+            # if run_name:
+            #     writer.add_scalar("val/valid-loss", valid_loss, epoch)
+            #     writer.add_scalar("val/f1", valid_mean_f1, epoch)
 
-                # adding per-class f1, precision, and recall
-                for i in range(10):
-                    # logging f1
-                    title = "val/class-" + str(i) + "-f1"
-                    writer.add_scalar(title, eval_class_f1s[i], epoch)
+            #     # adding per-class f1, precision, and recall
+            #     for i in range(10):
+            #         # logging f1
+            #         title = "val/class-" + str(i) + "-f1"
+            #         writer.add_scalar(title, eval_class_f1s[i], epoch)
 
-                    # logging precision
-                    title = "val/class-" + \
-                        str(i) + "-precision"
-                    writer.add_scalar(title, eval_class_prs[i], epoch)
-                    # logging recall
-                    title = "val/class-" + str(i) + "-recall"
-                    writer.add_scalar(title, eval_class_recs[i], epoch)
-                    # logging losses
-                    title = "val/class-" + str(i) + "-loss"
-                    writer.add_scalar(title, eval_class_losses[i], epoch)
+            #         # logging precision
+            #         title = "val/class-" + \
+            #             str(i) + "-precision"
+            #         writer.add_scalar(title, eval_class_prs[i], epoch)
+            #         # logging recall
+            #         title = "val/class-" + str(i) + "-recall"
+            #         writer.add_scalar(title, eval_class_recs[i], epoch)
+            #         # logging losses
+            #         title = "val/class-" + str(i) + "-loss"
+            #         writer.add_scalar(title, eval_class_losses[i], epoch)
 
-            print("Val - Epoch ({}): | Loss: {:.4f} | Mean F1: {:.4f} \n".format(
-                epoch, valid_loss, valid_mean_f1)
+            print("Val - Epoch ({}): | Val Loss: {:.3f} | Macro PR: {:.3f}\n".format(
+                epoch, valid_loss, macro_pr)
             )
 
             ## checking early stopping per epoch
@@ -681,7 +697,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
 
                 today_date = time.strftime('%Y%m%d')
                 # TODO(dlee): add in support for balanced dataset.
-                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-thresh/balanced-runs",
+                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-ap/",
                                             '{}-best_model-{}.pth'.format(
                                                 today_date, run_name
                                             )])
@@ -701,7 +717,7 @@ def train_mnist(loss_metric=None, epochs=None, imbalanced=None, run_name=None, s
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-thresh/balanced-runs",
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/mnist-ap/",
                                 '{}-overfit-model-{}.pth'.format(
                                     time.strftime('%Y%m%d'), run_name
                                 )])
@@ -751,9 +767,9 @@ def run(loss, epochs, batch_size, imb, run_name, cuda, train_tau, patience, outp
 
     # seeds = [44, 57, 23]
     # seeds = [57, 23]
-    seeds = [23]
+    seeds = [14, 57]
     for i in range(len(seeds)):
-        temp_name = str(run_name) + "-" + str(i+2)
+        temp_name = str(run_name) + "-" + str(i)
         train_mnist(loss_metric=loss, epochs=int(epochs), imbalanced=imbalanced, run_name=temp_name,
                     seed=seeds[i], cuda=cuda, batch_size=int(batch_size), train_tau=train_tau, patience=patience, output_file=output_file)
 
@@ -788,14 +804,9 @@ python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af
 
 Need to run: 
 
+python3 mnist-thresh.py --epochs=2000 --loss="approx-f1" --run_name="traintau-af1-reg-0.1" --cuda=3 --train_tau=0.1 --batch_size=1024 --patience=100 --output_file="mnist-ap.json"
 
 
 
 
-
-python3 mnist.py --loss="approx-f1" --epochs=2000 --batch_size=1024 --run_name="1024-approx-f1-reg" --cuda=3 --patience=100 --output_file="20201215_results.json" 
-python3 mnist.py --loss="ce" --epochs=2000 --batch_size=1024 --run_name="1024-baseline-ce-reg" --cuda=3 --patience=100 --output_file="20201215_results.json" 
-
-python3 mnist.py --loss="approx-f1" --imb --epochs=2000 --batch_size=1024 --run_name="1024-approx-f1-imb" --cuda=2 --patience=100 --output_file="20201215_results.json" 
-python3 mnist.py --loss="ce" --imb --epochs=2000 --batch_size=1024 --run_name="1024-baseline-ce-imb" --cuda=2 --patience=100 --output_file="20201215_results.json" 
 '''

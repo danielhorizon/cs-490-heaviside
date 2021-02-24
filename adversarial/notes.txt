@@ -1,0 +1,84 @@
+Robustness - measure of how easy it is to find adversarial exampels that are close to 
+their original input. 
+
+Defensive distillation - hardens NNs against adversarial examples; can be 
+applied to any feed-forward NN and only requires a single-retraining step. 
+- Our intuition is that knowledge extracted by distillation, in the form of 
+probability vectors, and transferred in smamlller networks to maintain accuracies 
+commparable with those of larger networks can also be beneficial to improving 
+generalization capabilities of DNNs outside of their training set and therefore 
+enhances their resilience to perturbations. 
+
+The distilled network works in 4 steps, namely 
+(1) Teach the teacher network with standard set, 
+(2) Create a Soft label on the training set using the teacher network, 
+(3) Train the distilled network on soft labels and 
+(4) Test the distilled network
+
+
+High confidence adversarial exampels - ones where an adversarial example gets 
+strongly misclasified by the original model, instead of barely changing the 
+classification. 
+
+- Defenders should make sure to establish robustness against the L2 distance metric. 
+- Demmonstrate that transferability fails by constructing high-confidence adv examples. 
+
+CONSTRUCT PROOFS ON LOWER BOUND FOR ROBUSTNESS 
+DEMONSTRATE ATTACHS FOR UPPER BOUND OF DISTILLED NETWORKS
+
+
+- Create a set of attacks that can be used to construct an upper bound on the robustness 
+of neural networks. Use these attacks to demonstrate that defensive distillation does not 
+actually eliminate adversarial examples. 
+- Construct 3 new attacks (under 3 previously used distance metrics L0, L2, L(Inf)) that succeed 
+in finding adversarial examples for 100% of images on defensively distilled networks. 
+- While distillation was shown to be secure against hte current SOTA atacks, it fails against 
+stronger attacks. 
+- When comparing attacks against the current SOTA on standard unsecured models, our methods 
+generate adversarial examples with less total distortion in every case. 
+- These attacks are a better baseline for evaluating candidates defense; designers should 
+at least check whether it can resist the attacks in this paper. 
+
+Three widely used distance metrics for generating adversarial examples 
+- L0 -> the number of coordinates i such that x_i != x_i. Thus L0 distance 
+corresponds to the number of pixels that have been altered in an image. L0 is 
+the primary distance metric under which defensive distillation's security is argued. 
+- L2 -> measures the standard Euclidean (RMS) distance between x and x'. Can remain 
+small when there are many small changes to many pixels. 
+    L2 attempts to identify unimportant pixels in the image in each iteration 
+    resulting in inherently bringing focus to important pixels, perturbation of which 
+    will impact the classification. 
+    This also eliminates some pixesl that don't have much effect on the classifier output. 
+
+- L_inf -> measures the maximum change to nay of hte coordinates; for images, we can 
+imagine there is a maximum budget, and each pixel is allowed to be changed by up to this limit,
+with no limit on hte number of pixels modified. 
+
+
+"Attack a network optimizing for L0 distance"
+
+
+DISTILLATION AS A defense
+- input of the defensive distillation training algorithm is a set of X examples with their class labels. Y(X) is a hard label, i.e. (0, 0, 1, 0, ...)
+- train a deep neural network F with a softmax output layer at temprature T; F(x) is a probability vector over the class of all possible labels. 
+    - more precisely, if the model F has parameters theta_f, then its output on X is a prob distribution F(X) p(*|X,theta_f) where for any label Y in the label class, 
+    it gives a probability that the label is Y. 
+- form a new training set, by considering samples of (X, F(X)). instead of using the hard class label Y(X) for X, we use the soft-target F(X) encoding 
+F's probabilities over the label class. 
+- use the training set X, F(X) we train another DNN model, F*, with the same neural architecture as F, and he temperature of the softmax layer remains T 
+- this new model is denoted as Fd and is referred to as the distilled model. 
+
+Training a network with this explicit relative information about classes prevents models from fitting too tightly to the data, and 
+contributes to a better generalization around training points. Note that the knowledge extraction performed by distllation is controlled by a parameter, 
+the softmax temperature T. 
+- high temperatures force DNNs to produce probabiltiies vectors with large values for each class. 
+
+
+
+Begin by first training a network with identical architecture on the training data in a standard manner 
+When we compute the softmax while training this network, replace it with a more smooth version of this softmax (dividing logits by constant T)
+At the end of training, generate the soft training labels by evaluating this network on each of the training instances -> take output labels of the network 
+
+Then, throw out the first network and use only the soft training labels 
+Train a 2nd network where instead of training it on the original training labels, use the soft labels. This trains the 2nd model to behave like the first model, 
+and the soft labels convey additional hidden knowledge learned by the first model 

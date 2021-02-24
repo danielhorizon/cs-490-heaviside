@@ -1,2 +1,4 @@
-imagenet/data/
-*.tar
+imagenet/data
+imagenet/trained-models/
+imagenet/old_models/
+*.pth.tar

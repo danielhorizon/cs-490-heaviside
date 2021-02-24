@@ -1,4 +1,5 @@
 
+import warnings
 import os
 import time
 import torch
@@ -26,12 +27,14 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 
-from torchconfusion import *
+from mc_torchconfusion import *
 from gradient_flow import *
 
 EPS = 1e-7
 _WHITE_WINE = "../data/winequality-white.csv"
 _RED_WINE = "../data/winequality-red.csv"
+
+warnings.filterwarnings('ignore')
 
 
 '''
@@ -134,88 +137,6 @@ def load_white_wine(shuffle=True, seed=None):
             'y': test_labels
         },
     }
-
-
-def evaluation_f1(device, y_labels=None, y_preds=None, threshold=None):
-    classes = len(y_labels[0])
-    mean_f1s = torch.zeros(classes, dtype=torch.float32)
-    precisions = torch.zeros(classes, dtype=torch.float32)
-    recalls = torch.zeros(classes, dtype=torch.float32)
-
-    '''
-    y_labels = tensor([[0., 0., 0., 0., 0., 1., 0., 0., 0., 0.]])
-    y_preds = tensor([[0.0981, 0.0968, 0.0977, 0.0869, 0.1180, 0.1081, 0.0972, 0.0919, 0.1003, 0.1050]])
-    '''
-    for i in range(classes):
-        gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
-        pt_list = y_preds[:, i]
-
-        pt_list = torch.Tensor([1 if x >= threshold else 0 for x in pt_list])
-
-        tn, fp, fn, tp = confusion_matrix(y_true=gt_list.cpu().numpy(),
-                                          y_pred=pt_list.cpu().numpy(), labels=[0, 1]).ravel()
-
-        # converting to tensors
-        tp, fn, fp, tn = torch.tensor([tp]).to(device), torch.tensor([fn]).to(
-            device), torch.tensor([fp]).to(device), torch.tensor([tn]).to(device)
-        precision = tp/(tp+fp+EPS)
-        recall = tp/(tp+fn+EPS)
-        temp_f1 = torch.mean(2 * (precision * recall) /
-                             (precision + recall + EPS))
-        mean_f1s[i] = temp_f1
-        precisions[i] = precision
-        recalls[i] = recall
-
-    # return class wise f1, and the mean of the f1s.
-    return mean_f1s, mean_f1s.mean(), precisions, recalls
-
-
-def evaluation_f1_across_thresholds(device, y_labels=None, y_preds=None, thresholds=None):
-    classes = len(y_labels[0])
-    mean_f1s = torch.zeros(classes, dtype=torch.float32)
-    precisions = torch.zeros(classes, dtype=torch.float32)
-    recalls = torch.zeros(classes, dtype=torch.float32)
-    class_losses = torch.zeros(classes, dtype=torch.float32)
-
-    # y_labels = tensor([[0., 0., 0., 0., 0., 1., 0., 0., 0., 0.]])
-    # y_preds = tensor([[0.0981, 0.0968, 0.0977, 0.0869, 0.1180, 0.1081, 0.0972, 0.0919, 0.1003, 0.1050]]
-
-    ## for each class
-    for i in range(classes):
-        gt_list = torch.Tensor([x[i] for x in y_labels]).to(device)
-        pt_list = y_preds[:, i]
-
-        num_thresh = len(thresholds)
-        thresh_pr, thresh_re, thresh_f1, thresh_loss = [
-            None] * num_thresh, [None] * num_thresh, [None] * num_thresh, [None] * num_thresh
-        ## loop across all of the thresholds.
-        for j in range(num_thresh):
-            # activation, using sklearn to compute metrics.
-            pt_list = torch.Tensor(
-                [1 if x >= thresholds[j] else 0 for x in pt_list])
-            tn, fp, fn, tp = confusion_matrix(y_true=gt_list.cpu().numpy(),
-                                              y_pred=pt_list.cpu().numpy(), labels=[0, 1]).ravel()
-            # converting to tensors
-            tp, fn, fp, tn = torch.tensor([tp]).to(device), torch.tensor([fn]).to(
-                device), torch.tensor([fp]).to(device), torch.tensor([tn]).to(device)
-
-            precision = tp/(tp+fp+EPS)
-            recall = tp/(tp+fn+EPS)
-            temp_f1 = torch.mean(2 * (precision * recall) /
-                                 (precision + recall + EPS))
-
-            thresh_pr[j] = precision.detach().item()
-            thresh_re[j] = recall.detach().item()
-            thresh_f1[j] = temp_f1.detach().item()
-            thresh_loss[j] = 1 - thresh_f1[j]
-
-        mean_f1s[i] = np.array(thresh_f1).mean()
-        precisions[i] = np.array(thresh_pr).mean()
-        recalls[i] = np.array(thresh_re).mean()
-        class_losses[i] = np.array(thresh_loss).mean()
-
-    # return class-wise metrics.
-    return mean_f1s, precisions, recalls, class_losses
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -347,7 +268,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
     }
 
     # initialization
-    learning_rate = 0.001
+    learning_rate = 0.0001
     model = Model().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     best_test['learning_rate'] = learning_rate
@@ -367,8 +288,18 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
         approx = True
         train_threshold = float(train_tau)
         threshold_tensor = torch.Tensor([train_threshold]).to(device)
-        criterion = mean_f1_approx_loss_on(
-            device=device, threshold=threshold_tensor)
+    elif loss_metric == "approx-ap": 
+        approx = True
+        train_threshold = float(train_tau)
+        threshold_tensor = torch.Tensor([train_threshold]).to(device)
+        criterion = mean_ap_approx_loss_on(
+            device=device, thresholds=threshold_tensor)
+    elif loss_metric == "approx-ap2":
+        approx = True
+        train_threshold = float(train_tau)
+        threshold_tensor = torch.Tensor([train_threshold]).to(device)
+        criterion = old_mean_ap_approx_loss_on(
+            device=device, thresholds=threshold_tensor)
     else:
         raise RuntimeError("Unknown loss {}".format(loss_metric))
 
@@ -444,7 +375,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
                     train_labels = torch.zeros(len(labels), len(output[0])).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output=output.to(device)
-                    loss, _, _, _, _, _, _, _, _ = criterion(y_labels=train_labels, y_preds=output)
+                    loss = criterion(y_labels=train_labels, y_preds=output)
 
                 losses.append(loss)
                 loss.backward()
@@ -501,6 +432,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
             m_weightedf1s = np.array(microf1s).mean()
             m_microf1s = np.array(microf1s).mean()
             m_macrof1s = np.array(macrof1s).mean()
+            print("Train Loss: {}".format(m_loss))
             print("Train - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f}| Macro F1: {:.3f}".format(
                 epoch, m_accs, m_weightedf1s, m_microf1s, m_macrof1s)
             )
@@ -563,7 +495,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
                     trans_labels = torch.zeros(len(labels), len(output[0])).to(device).scatter_(
                         1, labels.unsqueeze(1), 1.).to(device)
                     output = output.to(device)
-                    batch_test_loss, _, _, _, _, _, _, _, _ = criterion(y_labels=trans_labels, y_preds=output)
+                    batch_test_loss  = criterion(y_labels=trans_labels, y_preds=output)
                 else:
                     batch_test_loss = criterion(output, labels)
 
@@ -580,6 +512,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
                 y_true=test_labels, y_pred=test_preds, average=None)
             test_class_prs = precision_score(
                 y_true=test_labels, y_pred=test_preds, average=None)
+            macro_prs = precision_score(y_true=test_labels, y_pred=test_preds, average='macro')
             test_class_rec = recall_score(
                 y_true=test_labels, y_pred=test_preds, average=None)
 
@@ -610,7 +543,10 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
                     best_test['test_wt_f1_score'] = test_f1_weighted
                 if best_test['test_accuracy'] < test_acc:
                     best_test['test_accuracy'] = test_acc
-
+            
+            print("Test - Epoch ({}): | Macro PR: {:.4f}".format(
+                epoch, macro_prs
+            ))
             print("Test - Epoch ({}): | Loss: {:.4f} | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}".format(
                 epoch, test_loss, test_acc, test_f1_weighted, test_f1_micro, test_f1_macro)
             )
@@ -647,7 +583,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
                         device).scatter_(1, labels.unsqueeze(1), 1.).to(device)
 
                     output = output.to(device)
-                    batch_val_loss, _, _, _, _, _, _, _, _ = criterion(
+                    batch_val_loss = criterion(
                         y_labels=valid_labels, y_preds=output)
                 # using regular CE
                 else:
@@ -671,6 +607,9 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
                 y_true=val_labels, y_pred=val_preds, average=None)
             valid_loss = np.mean(valid_losses)
 
+            val_macro_pr = precision_score(
+                y_true=val_labels, y_pred=val_preds, average='macro')
+
             if run_name:
                 writer.add_scalar("valid/train-loss", valid_loss, epoch)
                 writer.add_scalar("valid/accuracy", val_acc, epoch)
@@ -693,6 +632,9 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
                 if best_test['val_accuracy'] < val_acc:
                     best_test['val_accuracy'] = val_acc
 
+            print("Val - Epoch ({}): | Loss: {:.3f} | Macro PR: {:.3f}\n".format(
+                epoch, valid_loss, val_macro_pr)
+            )
             print("Val - Epoch ({}): | Acc: {:.3f} | W F1: {:.3f} | Micro F1: {:.3f} | Macro F1: {:.3f}\n".format(
                 epoch, val_acc, val_f1_weighted, val_f1_micro, val_f1_macro)
             )
@@ -709,7 +651,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
                 today_date = time.strftime('%Y%m%d')
 
                 # TODO(dlee): add in support for balanced dataset.
-                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/wine",
+                model_file_path = "/".join(["/app/timeseries/multiclass_src/models/wine-ap",
                                             '{}-best_model-{}.pth'.format(
                                                 today_date, run_name
                                             )])
@@ -729,7 +671,7 @@ def train_wine(data_splits, loss_metric, epochs, seed, run_name, cuda, train_tau
     # ----- FINAL EVALUATION STEP, USING FULLY TRAINED MODEL -----
     print("--- Finished Training - Entering Final Evaluation Step\n")
     # saving the model.
-    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/wine",
+    model_file_path = "/".join(["/app/timeseries/multiclass_src/models/wine-ap",
                                 '{}-overfit-model-{}.pth'.format(
                                     time.strftime('%Y%m%d'), run_name
                                 )])
@@ -773,7 +715,8 @@ def run(loss, epochs, batch_size, run_name, cuda, train_tau, patience, output_fi
     batch_size = int(batch_size)
     epochs = int(epochs)
 
-    seeds = [1,2,3,4,5]
+    # seeds = [1, 3, 5]
+    seeds = [1]
     for i in range(len(seeds)): 
         data_splits = load_white_wine(seed=seeds[i])
         temp_name = str(run_name) + "-" + str(i)
