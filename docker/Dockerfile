@@ -6,6 +6,8 @@ ARG uid
 
 # x2go
 RUN (apt-get update && \
+     apt-key del 7fa2af80 && \
+     apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/$distro/$arch/3bf863cc.pub && \
      apt-get install -y software-properties-common && \
      add-apt-repository -y ppa:x2go/stable && \
      apt-get update && \
@@ -21,7 +23,6 @@ RUN (mkdir -p /var/run/sshd && \
      sed -ri 's/UseDNS yes/#UseDNS yes/g' /etc/ssh/sshd_config && \
      echo "UseDNS no" >> /etc/ssh/sshd_config && \
      sed -ri 's/UsePAM yes/UsePAM no/g' /etc/ssh/sshd_config)
-#     sed -ri 's/#UsePAM no/UsePAM no/g' /etc/ssh/sshd_config)
 
 # python3 / jupyter / tensorflow
 RUN apt-get update && apt-get install -y \

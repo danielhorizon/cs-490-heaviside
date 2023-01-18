@@ -1,15 +1,22 @@
-FROM nvidia/cuda:10.2-cudnn7-devel
+#FROM nvidia/cuda:10.2-cudnn7-devel
+
+FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04
 
 ARG gid
 ARG uid
 
 ENV DEBIAN_FRONTEND noninteractive
-RUN apt-get update && apt-get install -y \
-	python3-opencv ca-certificates python3-dev git wget sudo  \
-	cmake ninja-build protobuf-compiler libprotobuf-dev && \
-  rm -rf /var/lib/apt/lists/*
-RUN ln -sv /usr/bin/python3 /usr/bin/python
 
+RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/* 
+
+RUN wget -qO - https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub | apt-key add -
+
+RUN apt-get update && apt-get install -y \
+    python3-opencv ca-certificates python3-dev git wget sudo  \
+    cmake ninja-build protobuf-compiler libprotobuf-dev && \
+  rm -rf /var/lib/apt/lists/*
+
+RUN ln -sv /usr/bin/python3 /usr/bin/python
 
 RUN apt-get update && apt-get install -y \
     wget \
@@ -31,7 +38,7 @@ ENV HOME /app
 WORKDIR /app
 
 ENV PATH="/app/.local/bin:${PATH}"
-RUN wget https://bootstrap.pypa.io/get-pip.py && \
+RUN wget https://bootstrap.pypa.io/pip/3.6/get-pip.py && \
 	python3 get-pip.py --user && rm get-pip.py
 RUN pip install ap_perf \
                 pytorch-ignite \
