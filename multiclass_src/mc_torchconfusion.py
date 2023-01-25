@@ -23,7 +23,6 @@ the network is predicting all of them in parallel, so it's predicting relative p
 the structure of the network s.t. the output is not independent. 
 '''
 
-
 # def heaviside_approx(x, t, delta=0.1, debug=False):
 #     ''' piecewise linear approximation of the Heaviside function
 #         x, t: pre-inverted (x, threshold) values in a tuple
@@ -383,12 +382,10 @@ def l_tp_adj(device, gt, pt, thresh, approx=None):
     # batch size x num_class x num_thresholds
     gt_t = torch.reshape(
         torch.repeat_interleave(gt, thresh.shape[0]),
-        (-1, n_classes, thresh.shape[0])
-    ).to(device)
+        (-1, n_classes, thresh.shape[0])).to(device)
     pt_t = torch.reshape(
         torch.repeat_interleave(pt, thresh.shape[0]),
-        (-1, n_classes, thresh.shape[0])
-    ).to(device)
+        (-1, n_classes, thresh.shape[0])).to(device)
 
     condition = (gt_t == 0) & (pt_t >= thresh)
     xs = torch.where(condition, 1-pt_t, pt_t).to(device)
